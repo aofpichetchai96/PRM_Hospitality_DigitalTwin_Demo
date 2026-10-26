@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* Design tokens — docs/PLAN.md section 8 */
+:root {
+  --bg: #070d16;
+  --panel: #0d1725;
+  --panel-2: #111e2d;
+  --line: #203247;
+  --text: #eaf1f8;
+  --muted: #8295ac;
+  --accent: #6ce4df;
+  --blue: #7eb7ff;
+  --gold: #dfbd7e;
+  --red: #ff7c81;
+  --green: #69d7a8;
+
+  /* Room status (2D) — always paired with an icon (StatusChip) */
+  --status-occupied: var(--green);
+  --status-ready: var(--blue);
+  --status-cleaning: var(--gold);
+  --status-maintenance: var(--red);
+
+  --radius-button: 6px;
+  --radius-card: 10px;
+  --radius-modal: 14px;
+
+  /* Type scale: Thai text never below 13px */
+  --text-xs: 12px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-h1: 22px;
+  --text-kpi: 30px;
+  --type-scale: 1;
+}
+
+/* Projector tokens — presentation mode lifts low-contrast lines and text */
+:root[data-display="projector"] {
+  --panel: #13223a;
+  --line: #34506e;
+  --muted: #a4b6cb;
+  --type-scale: 1.15;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-blue: var(--blue);
+  --color-gold: var(--gold);
+  --color-red: var(--red);
+  --color-green: var(--green);
+  --font-sans: var(--font-inter), var(--font-plex-thai), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+html {
+  font-size: calc(var(--text-base) * var(--type-scale));
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.6; /* Thai needs room for stacked vowel and tone marks */
+}
