@@ -12,7 +12,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:e2e": "playwright test",
+    "benchmark": "node scripts/benchmark.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",

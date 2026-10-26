@@ -10,14 +10,18 @@ import { useAppStore } from "@/store/useAppStore";
 /** `?view=` reflects the store; the store stays the source of truth (PLAN R2) */
 export function useUrlSync() {
   useEffect(() => {
+    const write = (view: string) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", view);
+      window.history.replaceState(null, "", url);
+    };
     const initial = new URLSearchParams(window.location.search).get("view");
     if (isViewId(initial) && initial !== useAppStore.getState().view) useAppStore.getState().setView(initial);
+    // The address always names the open view, so a copied link reopens it
+    write(useAppStore.getState().view);
 
     return useAppStore.subscribe((s, prev) => {
-      if (s.view === prev.view) return;
-      const url = new URL(window.location.href);
-      url.searchParams.set("view", s.view);
-      window.history.replaceState(null, "", url);
+      if (s.view !== prev.view) write(s.view);
     });
   }, []);
 }
