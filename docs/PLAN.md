@@ -1,0 +1,447 @@
+# PRM Hospitality Digital Twin — แผนพัฒนา (React + Three.js)
+
+> สถานะ: **Draft v3 — ปรับตาม Review รอบ 2** (ต้องผ่าน Gate 0 ในข้อ 9 ก่อนเริ่มงาน) · อัปเดต 2026-10-26
+> ต้นแบบ: `PRM_Hospitality_DigitalTwin_example.html` (single file 1.1 MB, 453 บรรทัด)
+
+---
+
+## 1. เป้าหมาย
+
+| # | เป้าหมาย | ผลลัพธ์ที่ต้องได้ |
+|---|---|---|
+| 1 | แยกไฟล์ตัวอย่างเป็นโปรเจ็คที่มีโครงสร้างชัดเจน | React + TypeScript + Three.js (ผ่าน React Three Fiber) บน Next.js หรือ Vite (ตัดสินใจในข้อ 12.1) |
+| 2 | ข้อมูล Hard-code ทั้งหมด | ไม่มี Backend / API — ข้อมูลอยู่ใน `src/data/*.ts` แก้ได้ที่เดียว |
+| 3 | 3D และสัดส่วนข้อมูลชัดเจน **สวยกว่าต้นแบบ** | ฉาก 3D แยกเป็น component ตามส่วนอาคาร, "Core look" (ข้อ 6.5) เป็นงานหลักไม่ใช่ stretch, layout/UI ใช้ design token เดียวกัน |
+
+**ใช้สำหรับ:** Demo ขายงาน → ให้ความสำคัญกับ *ความลื่น, ความสวย, Guided tour, เปิดได้ทันทีโดยไม่ต้องตั้งค่า*
+
+### สิ่งที่ไม่อยู่ในขอบเขต (Out of scope)
+- เชื่อมต่อ BMS / PMS / CCTV / LLM จริง
+- Authentication, Database, Multi-user
+- โมเดล 3D จาก CAD/BIM จริง (ยังใช้ massing แบบ procedural เหมือนต้นแบบ)
+- มือถือ (< 768 px) — ใช้งานได้พื้นฐานเท่านั้น (รอยืนยันข้อ 13.12)
+
+---
+
+## 2. สิ่งที่พบจากไฟล์ต้นแบบ (สรุป)
+
+| หัวข้อ | สิ่งที่พบ | ผลต่อการ Port |
+|---|---|---|
+| 3D Engine | **ไม่ได้ใช้ three.js** — เขียน WebGL1 + shader + matrix math เอง (class `PRMHospitalityScene`, ~240 บรรทัด) | ต้อง **เขียนใหม่** ด้วย three.js แต่ geometry เป็น procedural ทั้งหมด (box/quad/rounded shape) จึง map ได้ตรง |
+| Rebuild | ทุกครั้งที่สลับ layer / mode / floor / สถานะห้อง → สร้าง geometry ใหม่ทั้งฉาก | three.js: สร้างครั้งเดียว แล้ว toggle `visible` / เปลี่ยน material แทน |
+| Picking | Ray vs กล่อง 2 ใบ (tower, podium) → ได้แค่ระดับชั้น | ใช้ raycast ของ R3F → เลือกได้ถึง **ห้อง / อุปกรณ์** |
+| UI | `innerHTML` template + `onAction` switch ~50 actions | แปลงเป็น React components + Zustand actions |
+| State | `window.appState` global, scene อ่าน state ตรง | Zustand store กลาง, scene รับผ่าน selector |
+| รูปภาพ | base64 JPEG 4 ไฟล์ (~968 KB) ใน `const ASSETS` | แตกออกเป็นไฟล์ใน `public/images/` และแปลงเป็น WebP |
+| Chart | SVG sparkline เขียนเอง + CSS bar | ทำเป็น component `<Sparkline>`, `<SegmentBar>` (ไม่ต้องใช้ chart lib) |
+| Font | ไม่ได้โหลด Inter, ภาษาไทยตกไปใช้ Tahoma | self-host Inter + IBM Plex Sans Thai (`next/font` หรือ `@fontsource`) |
+| CSS | 2 ชั้นของ CSS ขัดกันเอง (L2–7 vs L11–36), sidebar ถูกบังคับเป็น icon-only ทุกขนาดจอ | รวม token เดียว, ออกแบบ breakpoint ใหม่ |
+| หน้า Overview | เนื้อหาเหมือนหน้า Twin ทุกอย่าง ต่างแค่หัวข้อ | ออกแบบหน้า Overview ใหม่ให้เป็น executive dashboard จริง |
+| Data bug | slider occupancy สุ่มห้องใหม่ทับการแก้ไขสถานะห้อง, `footfallFactor` ไม่เคยเปลี่ยน | แก้ใน data model ใหม่ |
+
+---
+
+## 3. Tech Stack
+
+| ส่วน | เลือกใช้ | เหตุผล |
+|---|---|---|
+| Framework | **Next.js (รุ่นปัจจุบัน) หรือ Vite + React** + TypeScript | รอตัดสินใจข้อ 12.1 — pin version ทั้งชุด (React 19 / R3F v9 / drei / postprocessing) + commit lockfile |
+| 3D | **three.js** + **@react-three/fiber** + **@react-three/drei** | เขียน 3D เป็น component, มี CameraControls / Html label / Instances / Environment พร้อมใช้ |
+| 3D effects | **@react-three/postprocessing**: Bloom, SMAA, **N8AO** (ambient occlusion, ครึ่งความละเอียด), Vignette เล็กน้อย | AO + bloom ตอน dusk คือสิ่งที่ทำให้ massing ดูพรีเมียม — ปิดได้ในโหมด Low quality |
+| Environment / แสง | ไฟล์ HDR เก็บใน `public/env/` หรือ `<Environment>` + `<Lightformer>` (ไม่ใช้ไฟล์) | **ห้ามใช้ `preset="city"` ฯลฯ ของ drei** เพราะโหลดจาก CDN → ออฟไลน์แล้วกระจกดำ (R10) |
+| Camera tween | `camera-controls` (ผ่าน drei `<CameraControls>`) | บินกล้องไป preset แบบนุ่มนวล (แทน easing เขียนเอง) |
+| State | **Zustand** | เบา, scene และ UI ใช้ store เดียวกันได้ |
+| Styling | **Tailwind CSS v4** + CSS variables (design tokens) | เร็ว, คุม spacing/สีได้เป็นระบบ |
+| Animation UI | **motion** (`motion/react`, ชื่อใหม่ของ Framer Motion) | เปลี่ยน view / panel / modal / tour — ใช้ motion tokens ร่วมกับกล้อง (ข้อ 6.5) |
+| Chart | SVG component เขียนเอง (sparkline, segment bar, gauge) | ไม่ต้องเพิ่ม lib, คุมหน้าตาได้เต็มที่ |
+| Icons | **lucide-react** + custom SVG เฉพาะ icon เฉพาะทาง (chiller, AHU) จากต้นแบบ | ดูข้อ 13.4 |
+| Font | self-host: Inter + IBM Plex Sans Thai + JetBrains Mono; ไฟล์ `.woff`/`.ttf` ภาษาไทยใน `public/fonts/` สำหรับข้อความใน 3D | รองรับไทยสวย, ไม่มี external request |
+| Deploy | static build + **offline package** | ⚠️ static export ของ Next เปิดผ่าน `file://` ไม่ได้ (R1) → ดูข้อ 12.1–12.2 |
+
+---
+
+## 4. โครงสร้างโปรเจ็ค
+
+```
+prm-hospitality-twin/
+├─ public/
+│  ├─ images/                 # reference.webp, hero.webp, residence-plan.webp, social-plan.webp
+│  ├─ env/                    # HDR ของ day / dusk (ถ้าไม่ใช้ Lightformer)
+│  └─ fonts/                  # ฟอนต์ไทยสำหรับ drei <Text> / canvas texture ใน 3D
+├─ src/
+│  ├─ app/                    # entry — ขึ้นกับข้อ 12.1 (A: Next `app/page.tsx` หน้าเดียว · B: Vite `main.tsx` · C: Next 6 routes)
+│  │  ├─ AppShell.tsx         # Header + Sidebar + KPI + <Viewport> — Canvas mount ครั้งเดียว ไม่ remount ตอนสลับ view
+│  │  ├─ views/               # OverviewView, TwinView, IocView, EnergyView, HotelView, AiView (UI 2D ของแต่ละ view)
+│  │  └─ globals.css          # design tokens (dark + projector)
+│  │
+│  ├─ components/
+│  │  ├─ layout/              # Header (รวม PageHead), Sidebar, KpiStrip, KpiCard, RightPanel, BottomPanel, FooterBar(Timeline)
+│  │  ├─ panels/              # AgentPanel, LayersPanel, AssetCard, EventList, WorkOrderList,
+│  │  │                       # RoomGrid, DemandBreakdown, ScenarioLab, IncidentWorkflow, DataLineage
+│  │  ├─ modals/              # Modal (base), Help, About, Reference, Methodology, Event, Room, AllRooms, AssetDetail, CctvFeed
+│  │  ├─ charts/              # Sparkline, AreaChart, SegmentBar, ProgressBar, Gauge, StatTile
+│  │  ├─ floorplan/           # FloorPlanExplorer, PlanStage (pan/zoom/pinch), PlanMarker, PlanDetails
+│  │  ├─ tour/                # GuidedTour, TourStep, AttractMode
+│  │  ├─ cctv/                # SyntheticFeed (canvas 2D)
+│  │  └─ ui/                  # Button, Badge, Tabs, Segmented, Slider, Toast, Tooltip, Icon, StatusChip (สี + icon)
+│  │
+│  ├─ three/
+│  │  ├─ Viewport.tsx         # <Canvas>, overlay UI (toolbar, floor selector, compass, hotspots), error boundary + fallback
+│  │  ├─ SceneRoot.tsx        # รวมทุกส่วน, lights, environment, postprocessing
+│  │  ├─ CameraRig.tsx        # CameraControls + presets (all/hotel/mall/plant/arrival/roof/floor)
+│  │  ├─ look.ts              # tone mapping, exposure, day/dusk settings, สี 3D ที่ปรับหลัง tone mapping
+│  │  ├─ materials.ts         # material palette กลาง (ivory, terracotta, facadeGlass, ...)
+│  │  ├─ textures.ts          # canvas textures (sign, LED screen, road) — วาดหลัง document.fonts.ready
+│  │  ├─ geometry/            # roundedSlab, envelope, skyGarden, tree (helper คืน BufferGeometry)
+│  │  ├─ site/                # Ground, Roads, Trees, ContextTowers, Cars, Pedestrians, Skywalk
+│  │  ├─ building/
+│  │  │  ├─ RetailPodium.tsx  # G, L1–L4 (exterior / x-ray / slice / explode)
+│  │  │  ├─ HotelTower.tsx    # 30 ชั้น, facade + sky courts + crown
+│  │  │  ├─ HotelFloor.tsx    # slab + 20 ห้อง (InstancedMesh) + furniture เมื่อเลือกชั้น
+│  │  │  ├─ RoomUnit.tsx
+│  │  │  ├─ CentralPlant.tsx  # chillers + fans หมุน
+│  │  │  └─ ArrivalCanopy.tsx
+│  │  ├─ layers/              # EnergyLayer (pipes + heat), SecurityLayer (cameras + cone), PeopleLayer (heatmap CanvasTexture), AssetLayer
+│  │  ├─ hotspots/            # Hotspot (drei <Html>), HotspotSet
+│  │  └─ hooks/               # useSceneMode, usePicking, useCapture
+│  │
+│  ├─ data/                   # *** Hard-code ทั้งหมดอยู่ที่นี่ ***
+│  │  ├─ property.ts          # zones, floors, ขนาดอาคาร, ตำแหน่ง (หน่วยเมตร)
+│  │  ├─ rooms.ts             # generator 600 ห้อง (seeded)
+│  │  ├─ events.ts            # INC-001..003 + templates สำหรับ simulate
+│  │  ├─ workOrders.ts
+│  │  ├─ assets.ts            # site, hotel, plant, AHU-H12, chiller ... + metrics
+│  │  ├─ energy.ts            # สูตร energy model + profile 24 ชม.
+│  │  ├─ kpis.ts              # ค่าเริ่มต้น + sparkline series
+│  │  ├─ views.ts             # ViewConfig ต่อ view: hero shot (camera, time of day, mode, layers, floor)
+│  │  ├─ floorPlans.ts        # PLANS: residence / social + zones
+│  │  ├─ tour.ts              # ขั้นของ tour (data-driven) + ชุด MVP / ชุดเต็ม / attract loop
+│  │  ├─ aiScript.ts          # quick chips + rule-based answers + fallback (ไทย/อังกฤษ)
+│  │  ├─ nav.ts               # NAV + TITLES
+│  │  └─ copy.ts              # ข้อความ UI / disclaimer (รูปแบบ L10n)
+│  │
+│  ├─ store/
+│  │  ├─ useAppStore.ts       # store เดียว รวม slices ด้านล่าง (selector derived ข้าม slice ได้ง่าย)
+│  │  ├─ twinSlice.ts         # view, zone, mode, floor, layers, selection, night, explode, tour
+│  │  ├─ simSlice.ts          # time, paused, occupancy, setpoint, outdoor, tariff, footfall, rooms, events, workOrders
+│  │  ├─ useSimTicker.ts      # เจ้าของ tick (6 วิ), pause เมื่อ modal เปิด / แท็บซ่อน / paused
+│  │  └─ selectors.ts         # counts(), energy(), openEvents() — derived values
+│  │
+│  ├─ lib/                    # format (fmt, timeStr), seededRandom, exportSnapshot, capturePng, motion.ts (motion tokens)
+│  └─ types/                  # Room, FloorId, Zone, Asset, Incident, WorkOrder, EnergyResult, PlanZone, ViewId, ViewConfig, TourStep, L10n
+└─ docs/PLAN.md
+```
+
+**หลักการแยก:**
+- `data/` = ข้อมูลล้วน (ไม่มี React) → วันหนึ่งเปลี่ยนเป็น API ได้โดยแก้แค่ชั้นนี้
+- `store/` = state + action ที่เปลี่ยนข้อมูล
+- `three/` = แสดงผล 3D เท่านั้น อ่านจาก store ไม่เขียน DOM เอง — ค่าที่เปลี่ยนบ่อยอ่านแบบ transient (`getState()` ใน `useFrame` / `subscribe`) ไม่ใช่ผ่าน re-render
+- `components/` = UI 2D — subscribe ด้วย selector แคบ + `useShallow`
+- **Store คือ source of truth เดียว** ของ view / กล้อง / mode / floor: เปลี่ยนผ่าน action `setView(viewId, overrides?)` เท่านั้น ซึ่งอ่านค่าเริ่มต้นจาก `data/views.ts`; URL (ถ้ามี) แค่สะท้อน state → Tour, ปุ่ม Back และการ mount ไม่แย่งกันคุมกล้อง (R2)
+- โครงนี้ใช้ได้ทั้งทางเลือก A / B / C ในข้อ 12.1 — ต่างกันแค่ `app/` entry
+
+---
+
+## 5. หน้าและเนื้อหา (Information Architecture)
+
+Layout ร่วม: **Header (รวม PageHead) → Sidebar → KPI strip → [Viewport 3D | Right Panel] → Bottom Panel → Footer timeline**
+
+| View (`ViewId`) | ชื่อ | Viewport (hero shot ใน `views.ts`) | Right panel | Bottom panel |
+|---|---|---|---|---|
+| `overview` | Executive Intelligence | 3D exterior, **dusk**, auto-rotate | **ใหม่:** สรุปธุรกิจ 2 ฝั่ง (Hotel / Mall), Priority events top 3, Intelligence brief | **ใหม่:** Energy profile 24h + Occupancy trend + Footfall by zone |
+| `twin` | Digital Twin Command Center | 3D เต็มรูปแบบ, day | Tabs: AI Agent / Layers & Asset inspector | (ซ่อน, เปิดด้วย "แสดงกราฟ") |
+| `ioc` | Integrated Operations Center | 3D + CCTV overlay 2 จอ | Incident workspace, Work orders | Incident workflow (**แสดง step ตามเหตุการณ์ที่เลือก**) |
+| `energy` | Energy Optimization Lab | 3D exterior + Energy layer, focus plant | Demand breakdown, nudge setpoint 25°C | What-if Scenario Lab (sliders + ผลต่าง % / ฿) |
+| `hotel` | Hotel Operations · 600 Keys | 3D slice ไปที่ชั้นที่เลือก (ค่าเริ่มต้น H12) | Room stats + Room grid 20 ห้อง | Inventory 600 ห้อง (stacked bar) |
+| `ai` | Ask the Building | 3D | AI Agent (chat + quick chips) | Data lineage |
+
+**หน้าแรก (landing):** `overview` ตอน dusk + auto-rotate — ให้ภาพแรกที่ผู้บริหารเห็นสวยที่สุด (รอยืนยันข้อ 13.16)
+
+**Spatial switch:** "อาคาร 3D" ↔ "Floor Plan" (Interior Atlas: Residences / Social floor) — ใช้ได้ทุก view
+
+**Modals:** Help, Model notes, Reference, Methodology, Event detail, Room detail, All 600 rooms, Asset detail, CCTV feed
+
+**Guided Tour ("เริ่มสาธิต"):** data-driven (`data/tour.ts`) — แต่ละขั้นมี `view`, camera, `actions[]`, `highlight`
+- **ชุด MVP (4 ขั้น):** twin → twin (x-ray) → energy → hotel (H12)
+- **ชุดเต็ม (6 ขั้น):** twin → twin (x-ray) → ioc → energy → hotel (H12) → ai
+- ไม่มีขั้นที่เป็น placeholder ระหว่าง Demo — เพิ่มขั้นเมื่อ view นั้นเสร็จจริงเท่านั้น
+
+**Attract mode:** ไม่มีการใช้งานเกิน N นาที (ค่าเริ่มต้น 2) → เล่น tour วนเองแบบ auto-rotate, แตะ/กดปุ่มใดก็ได้เพื่อออก (สำหรับบูธ / งาน event)
+
+**AI Assistant:** ตอบจาก rule-based script; ถ้าไม่ตรงกฎข้อใด → คำตอบ fallback ที่ชวนกลับไปใช้ quick chips; ใน presentation mode แสดงเฉพาะ chips (ไม่ให้พิมพ์เอง)
+
+---
+
+## 6. แผนฉาก 3D
+
+### 6.1 ระบบพิกัดและสัดส่วน
+- ใช้ **1 unit = 1 เมตร** (ต้นแบบใช้หน่วยลอยๆ) และเก็บขนาดทั้งหมดใน `data/property.ts`
+
+| ส่วน | ขนาดโดยประมาณ (ปรับจากต้นแบบ) |
+|---|---|
+| Site plinth | 220 × 150 m |
+| Retail podium | 85 × 49 m, 5 ชั้น (G, L1–L4) × 5.2 m |
+| Hotel tower | 44 × 28 m, 30 ชั้น × 4.15 m, 20 ห้อง/ชั้น, sky courts ที่ชั้น 8 / 16 / 24 |
+| Crown / roof terrace | สูงประมาณ 153–161 m |
+| Central plant | ที่ (56, -20), chiller 3 ตัว |
+| Skywalk | x ≈ -83 |
+
+### 6.2 Scene graph
+```
+<SceneRoot>
+ ├ Lights (hemisphere + directional w/ shadow) + Environment (day / dusk — ไฟล์ใน public/env หรือ Lightformer)
+ ├ <Site>        ground, roads, trees(Instanced), context towers(Instanced), cars, pedestrians
+ ├ <Building>
+ │   ├ <RetailPodium mode>   exterior facade | x-ray shells | slice | explode
+ │   ├ <HotelTower mode>     facade fins(Instanced) | x-ray slabs
+ │   │   └ <HotelFloor ×30>  rooms(InstancedMesh, สีตามสถานะ)
+ │   ├ <CentralPlant>
+ │   └ <ArrivalCanopy>, <Skywalk>
+ ├ <Layers>      Energy | Security | People | Assets  (toggle visible)
+ ├ <Hotspots>    drei <Html> 6 จุด
+ ├ <CameraRig>   presets + auto-rotate
+ └ <Effects>     N8AO, Bloom (เฉพาะ emissive), SMAA
+```
+
+### 6.3 โหมดการแสดงผล
+| โหมด | พฤติกรรม |
+|---|---|
+| Exterior | facade ทึบ, กระจกสะท้อน environment, sky garden |
+| X-ray | facade โปร่ง (opacity ~0.12) แสดง slab + ห้อง + ท่อ |
+| Slice | ซ่อนชั้นเหนือชั้นที่เลือก, กล้องบินไปมุมเฉียงด้านบน |
+| Explode | แยกชั้นออก (animate ด้วย spring, ไม่ rebuild) |
+| Day / Dusk | เปลี่ยน environment + ไฟหน้าต่าง emissive + bloom |
+
+### 6.4 การโต้ตอบ (ปรับปรุงจากต้นแบบ)
+- Hover → highlight ชั้น หรือห้อง (emissive หรือ drei `<Outlines>` — ไม่ใช้ postprocessing `<Outline>` เพราะแพงและไม่เข้ากับ `frameloop="demand"`) + tooltip
+- Click ชั้น → เลือกชั้น (sync กับ floor selector + right panel)
+- **ใหม่:** Click ห้อง (ในโหมด slice) → เปิด Room modal
+- **ใหม่:** Click อุปกรณ์ (chiller, AHU, กล้อง) → Asset card
+- Event "Locate in 3D" → บินกล้องไปจุดเกิดเหตุ + pulse marker สีแดง
+- Toolbar: home, auto-rotate, explode, day/dusk, zoom ±, presentation mode, capture PNG
+- Capture PNG: สั่ง render ใหม่ก่อน `toDataURL` (หรือ `preserveDrawingBuffer`) ไม่งั้นได้ภาพดำ
+
+### 6.5 ความสวยงาม
+
+**Core look — งานหลัก ห้ามตัด (Phase 1 + 5)**
+- **Tone mapping + color grade** (AgX หรือ ACES) + exposure ต่อ day/dusk กำหนดใน `three/look.ts`
+- **Environment ที่เก็บในเครื่อง** (ข้อ 3) — กระจกสะท้อนท้องฟ้าจริง
+- **Material palette:** `MeshStandardMaterial` / `MeshPhysicalMaterial` (กระจก) โทนสี ivory + terracotta + glass เดิม
+- **Ambient Occlusion:** N8AO ครึ่งความละเอียด (ปิดได้ใน Low quality) — หรือ bake AO ลง vertex color ตอนโหลดครั้งเดียว เพราะ geometry ไม่เปลี่ยน
+- **Soft shadow:** `<ContactShadows frames={1}>` หรือ bake ครั้งเดียว (ไม่ใช้ `AccumulativeShadows` เพราะต้อง re-accumulate ทุกครั้งที่ explode/animate)
+- **Dusk:** ไฟหน้าต่าง emissive (seeded ตาม occupancy) + bloom — ใช้เป็นภาพหลักของ Overview
+- **Hero shot ต่อ view:** camera, เวลา, layer ใน `data/views.ts` — screenshot ของ hero shot คือเกณฑ์อนุมัติดีไซน์ (ต้อง *สวยกว่า* baseline ของต้นแบบ ไม่ใช่แค่เหมือน)
+- **Motion tokens** (`lib/motion.ts`): duration / easing ชุดเดียว ใช้ทั้ง CameraControls และ `motion` — panel เลื่อนเข้าพร้อมกับกล้องที่บินถึงจุด
+- **สี 3D:** สีสถานะห้องใน 3D ปรับหลัง tone mapping ให้ *ดู* ตรงกับ token 2D (กำหนดแยกใน `look.ts`) และใช้ความสว่างต่างกันด้วย ไม่ใช่แค่ hue
+
+**Effects — stretch ตัดได้ทีละรายการ (Phase 9)**
+- Energy layer: ท่อเรืองแสงไหล (dashed line animate offset) + heat gradient ต่อชั้น
+- People layer: heatmap จาก canvas 2D (gaussian blob) → `CanvasTexture` บน plane ต่อชั้น
+- Security layer: กล้อง + กรวยมุมมองโปร่งแสง
+- Intro animation: อาคาร "ก่อตัว" ทีละชั้น (CONSTRUCTING SPATIAL TWIN) — **กดข้ามได้**, ปิดอัตโนมัติเมื่อ `prefers-reduced-motion`
+
+### 6.6 Performance
+- `InstancedMesh` / `<Instances>` สำหรับ fins, panels, ต้นไม้, รถ, คน, ห้อง (600)
+- Merge geometry ที่ไม่เปลี่ยน (site, context towers) ด้วย `BufferGeometryUtils.mergeGeometries`
+- `frameloop="demand"` + `invalidate()` เมื่อ state เปลี่ยน (ยกเว้นตอน auto-rotate / animation)
+- DPR `[1, 1.75]`, `PerformanceMonitor` ลดคุณภาพอัตโนมัติ (ลำดับการตัด: N8AO → shadow → bloom → DPR)
+- Canvas mount ครั้งเดียวใน `AppShell` → ไม่ remount เมื่อสลับ view
+- โหลด 3D แบบ lazy (`dynamic(..., { ssr: false })` ใน Next หรือ `React.lazy` ใน Vite)
+- Error boundary รอบ Canvas + จับ `webglcontextlost` → แสดงภาพนิ่ง `hero.webp` + ปุ่ม "โหลดฉากใหม่" (Demo ห้ามจอดำ)
+- **Budget:** draw calls ≤ 300, triangles ≤ 1M, texture memory ≤ 150 MB — ตรวจด้วย `renderer.info` / r3f-perf ระหว่างพัฒนา
+- เป้า: **≥ 50 fps บนเครื่อง Demo จริง (ข้อ 13 คำถามที่ 14) โดยเปิด Core look ครบ, โหลดแรก < 3 วินาที** — วัดตั้งแต่ Phase 1
+
+---
+
+## 7. Data Model (Hard-code)
+
+```ts
+type L10n = { th: string; en?: string };                          // ใช้รูปแบบเดียวทุกข้อความ (copy, incident, tour, ai)
+
+type FloorId = 'G' | 'L1' | 'L2' | 'L3' | 'L4' | `H${string}`;   // H01–H30 — id ชั้นแบบเดียวทั้งระบบ
+type RoomStatus = 'occupied' | 'ready' | 'cleaning' | 'maintenance';
+interface Room { id: string; floor: FloorId; index: number; status: RoomStatus; type: 'Deluxe' | 'Premier' | 'Suite'; }
+
+type IncidentType = 'security' | 'ahu' | 'plant' | 'leak' | 'people';
+interface Incident {
+  id: string; title: L10n; location: string; floor?: FloorId;
+  position: [number, number, number];          // ใหม่: พิกัด 3D สำหรับ Locate
+  priority: 'high' | 'medium' | 'low'; type: IncidentType;
+  status: 0 | 1 | 2 | 3;                         // Detected → Verified → Dispatched → Resolved
+  time: string; owner: string; assetCode: string;
+}
+interface WorkOrder { id: string; assetCode: string; owner: string; status: 'Assigned' | 'Completed'; incidentId?: string; time: string; }
+
+interface Asset { id: 'site' | 'hotel' | 'plant' | 'ahu' | string; name: string; code: string;
+  metrics: { label: string; value: string | number; unit?: string; status?: 'ok' | 'warn' | 'alert' }[]; health: number; position: [number, number, number]; }
+
+interface EnergyInput  { occupancy: number; setpoint: number; outdoor: number; tariff: number; footfallFactor: number; operatingHours: number; }
+interface EnergyResult { base: number; current: number; saved: number; hotel: number; mall: number; savingPct: number; dayKwh: number; dayCost: number; }
+
+type ViewId = 'overview' | 'twin' | 'ioc' | 'energy' | 'hotel' | 'ai';
+interface ViewConfig { id: ViewId; title: L10n; camera: CameraPreset; timeOfDay: 'day' | 'dusk'; mode: SceneMode; layers: LayerId[]; floor?: FloorId; autoRotate?: boolean; }
+
+interface PlanZone { id: string; name: string; sub: string; x: number; y: number; desc: string; ideas: string[]; }
+interface TourStep { view: ViewId; title: L10n; body: L10n; camera?: CameraPreset; mode?: SceneMode; floor?: FloorId; actions?: TourAction[]; highlight?: string; }
+```
+
+**ค่าเริ่มต้น (คงตามต้นแบบ):** Occupancy 84% (504/600), Demand 2,616 kW, Footfall 27,840, Open incidents 3 (high 1), เวลา 14:30, setpoint 24°C, outdoor 32°C, tariff 4.5 ฿/kWh
+
+**แก้ไขจากต้นแบบ:**
+- slider occupancy → ปรับเฉพาะส่วนต่าง ไม่สุ่ม 600 ห้องใหม่ (การแก้สถานะห้องไม่หาย)
+- footfall จาก timeline → มีผลกับ mall cooling load จริง โดย `footfallFactor = footfall / 27,840` (ค่าเริ่มต้น = 1.0 → Demand ที่ t0 = 1,140 + 900×0.84 + 720 = **2,616 kW** พอดี; มี unit test ยืนยัน) — หมายเหตุ: Demand จะขยับตาม tick (+23 คน / 6 วิ) ซึ่งเป็นพฤติกรรมที่ตั้งใจ
+- KPI ทุกตัว derive จาก store เดียว (ไม่คำนวณซ้ำ 2 ที่)
+- Seeded random ทั้งหมด → เปิดกี่ครั้งก็ได้ภาพ/ตัวเลขเหมือนเดิม (สำคัญสำหรับ Demo)
+- Data validation: ใช้ type เข้ม + `satisfies` ใน `data/*.ts` และ test ว่า id ไม่ซ้ำ, `position` อยู่ในขอบเขต site
+
+---
+
+## 8. Design System
+
+| Token | ค่า |
+|---|---|
+| `--bg` | `#070d16` |
+| `--panel` / `--panel-2` | `#0d1725` / `#111e2d` |
+| `--line` | `#203247` |
+| `--text` / `--muted` | `#eaf1f8` / `#8295ac` |
+| `--accent` (cyan) | `#6ce4df` |
+| `--blue` / `--gold` / `--red` / `--green` | `#7eb7ff` / `#dfbd7e` / `#ff7c81` / `#69d7a8` |
+| Room status | occupied=green, ready=blue, cleaning=gold, maintenance=red — **ทุกที่ใน 2D แสดงคู่กับ icon** (`StatusChip`) เพื่อคนตาบอดสีแดง-เขียว; สีใน 3D ดูข้อ 6.5 |
+| Radius | 6 (ปุ่ม) / 10 (card) / 14 (modal) |
+| Type scale | 12 (เฉพาะตัวเลข / label อังกฤษ) / **14 (base)** / 16 / 22 (H1) / 30 (KPI) — ข้อความไทยไม่ต่ำกว่า 13 px, line-height ไทย 1.6 |
+| Spacing | ระบบ 4px |
+| Font | Inter (ละติน), IBM Plex Sans Thai (ไทย), JetBrains Mono (รหัส asset) |
+| Theme | Dark navy (หลัก) + Floor plan ใช้ธีม "paper" สีอ่อน |
+| **Projector tokens** | ใช้ใน presentation mode: `--line` / `--muted` / `--panel` สว่างขึ้น (contrast สูงขึ้น) เพราะส่วนมืดบนโปรเจคเตอร์กลายเป็นเทาหม่น และ type scale × 1.15 |
+
+**สัดส่วน Layout (Desktop ≥ 1440px):**
+```
+┌──────────── Header + PageHead 64px ─────────────────────────┐
+│Side│ KPI strip ×4 (สูง ~72px)                                │
+│bar │ ┌──────────── Viewport 3D (flex 1) ──────────┐┌Right───┐│
+│ 72 │ │                                            ││ 340px  ││
+│ /  │ │                                            ││        ││
+│220 │ └────────────────────────────────────────────┘└────────┘│
+│    │ Bottom panel (collapsible, ~180px)                      │
+│    │ Footer timeline 40px                                    │
+└────┴─────────────────────────────────────────────────────────┘
+```
+- **Viewport 3D ต้องได้ ≥ 60% ของความสูงจอเสมอ** — จุดขายของ Demo
+- จอสูง < 900 px (เช่น 1280×720): Bottom panel พับเป็นค่าเริ่มต้น และ KPI strip กลายเป็นแถบลอยโปร่งบนขอบบนของ viewport
+- Sidebar: ≥1440 แบบเต็ม 220px (แสดง Property Explorer ที่ต้นแบบซ่อนไว้), ≥1024 แบบ icon 72px
+- < 1024: Right panel เป็น drawer, < 768: sidebar เป็น bottom tab bar, KPI 2 คอลัมน์ — *ไม่อยู่ใน MVP*
+- ต้องทดสอบที่ **1280×720 และ 1920×1080** (ความละเอียดโปรเจคเตอร์ทั่วไป)
+- Presentation mode: ซ่อน chrome ทั้งหมด เหลือ 3D + hotspot + projector tokens
+- Badge "SIMULATED DEMO": เล็ก มุมบน ไม่ซ่อน แต่ไม่แย่งสายตาจากภาพ
+
+### 8.1 Demo controls
+- **Reset Demo** (ปุ่ม + คีย์ `R`): คืน state ทั้งหมดกลับค่าเริ่มต้น (seeded) ใน 1 คลิก — ใช้หลังลูกค้าลองเล่นเอง
+- **Keyboard / wireless clicker:** `←` / `→` (และ PageUp/PageDown ของ clicker) เลื่อน tour, `P` presentation mode, `Esc` ปิด modal/tour
+- **Attract mode** (ข้อ 5) เปิด/ปิดได้ในเมนู Help
+- `prefers-reduced-motion` + a11y ขั้นต่ำ (focus ring, focus trap ใน modal) ทำตั้งแต่ UI kit
+
+---
+
+## 9. ขั้นตอนการทำงาน (Phases)
+
+ทำ **ส่วนที่เสี่ยงที่สุดก่อน** (offline delivery, 3D + look) แล้วทำทีละ view ให้จบทั้ง 3D และ UI (vertical slice) — แต่ละ view ที่เสร็จ demo ได้ทันที
+
+**Gate 0 — ห้ามเริ่ม Phase 0 จนกว่าจะได้คำตอบข้อ 13 คำถามที่ 8, 9, 10, 14, 17**
+
+| Phase | งาน | Definition of Done | ประมาณ |
+|---|---|---|---|
+| **0. Setup** | สร้างโปรเจ็คตามทางเลือกข้อ 12.1 + pin version, ESLint/Prettier, fonts self-host, แตกรูป base64 → WebP, เตรียม environment ที่ไม่ต้องใช้เน็ต, **build เปล่าแล้วเปิดแบบ offline** (ปิด Wi-Fi), เก็บ **screenshot baseline** ของต้นแบบไว้ที่ `reference/screens/`, CI | offline build เปิดได้บนเครื่อง Demo โดยไม่มีเน็ต, font ไทยถูกต้อง, CI เขียว | 1 วัน |
+| **1. 3D Spike + Look-dev** | Canvas, CameraControls + presets, RetailPodium + HotelTower (exterior), **Core look ครบ** (tone mapping, environment, material, AO, shadow, dusk + bloom) | วัด fps **จากภาพจริง** บนเครื่อง Demo ≥ 50; hero shot overview (dusk) + twin (day) **ผ่านการอนุมัติดีไซน์รอบ 1** | 2 วัน |
+| **2. UI Mock** | mock 2 หน้าจอ (Twin, Overview) × 2 ขนาด (1920, 1280×720) — Figma หรือ HTML static ใช้ token จริง | **ผ่านการอนุมัติดีไซน์** ก่อนเริ่ม Phase 4 | 1 วัน |
+| **3. Data & Store** | ย้ายข้อมูลเข้า `data/` (รวม `views.ts`, `tour.ts`), types, store (slices), selectors, sim ticker + unit test | ค่า KPI ตรงกับต้นแบบ (84% / 2,616 kW / 27,840 / 3) | 1 วัน |
+| **4. App Shell** | Header, Sidebar, KPI strip + Sparkline, RightPanel tabs, BottomPanel, Footer timeline, Modal, Toast, `setView` 6 view, motion tokens, Reset Demo + keyboard | สลับ view ได้ครบที่ 1280×720 / 1920 ตาม mock, viewport ≥ 60% | 1.5 วัน |
+| **5. Twin (vertical slice)** | Site ครบ, โหมด X-ray / Slice / Explode / Day-Dusk, เลือกชั้น / ห้อง / asset, hotspots, layers (แบบพื้นฐาน), toolbar + **presentation mode**, capture PNG, right panel + Room modal | view Twin demo ได้จริง; **อนุมัติดีไซน์รอบ 2** | 4 วัน |
+| **6. Hotel → Energy → Tour MVP** | view Hotel (slice H12, room grid, inventory), Energy Lab (layer + scenario), **Tour ชุด MVP 4 ขั้น**, **ซ้อม Demo บนเครื่องจริง** (0.5 วัน) | **MVP:** Demo จบได้ในคลิกเดียว ไม่มี placeholder | 4 วัน |
+| **7. IOC → AI → Overview** | IOC + CCTV SyntheticFeed + incident workflow + Locate in 3D, AI chat rule-based + fallback + data lineage, Overview ใหม่, modals ที่เหลือ, **Tour ชุดเต็ม 6 ขั้น** | ทุก flow ในต้นแบบทำงาน | 3.5 วัน |
+| **8. Floor Plan** | Interior Atlas: pan/zoom/**pinch**, markers, zone details | ใช้ได้บน iPad | 1 วัน |
+| **9. Effects & Polish (stretch)** | Effects ในข้อ 6.5, attract mode (0.5 วัน), transitions เพิ่มเติม, responsive < 1024 | ตัดได้ทีละรายการ | 2.5–3.5 วัน |
+| **10. QA & Package** | ทดสอบ Chrome/Edge/Safari/iPad + **เครื่อง Demo จริง**, Playwright smoke test, performance budget, offline package + deploy | URL พร้อมใช้ + offline package ทดสอบบนเครื่องจริงแล้ว | 1.5 วัน |
+| | | **รวมประมาณ** | **~23–24 วัน** (+ buffer 15% ≈ **26–28 วันทำงาน**) |
+
+**MVP สำหรับ Demo แรก:** Phase 0 → 6 (≈ 14.5 วัน) — Twin + Hotel + Energy + Tour 4 ขั้น ที่ 1280×720 / 1920 พร้อม Core look ครบ, ไม่มี Effects / responsive
+
+---
+
+## 10. ความเสี่ยง
+
+| # | ความเสี่ยง | การรับมือ |
+|---|---|---|
+| R1 | **Next static export เปิดผ่าน `file://` (ดับเบิลคลิกจาก USB) ไม่ได้** — path `/_next/...` เป็น absolute; ต้นแบบปัจจุบันเปิดได้เพราะเป็นไฟล์เดียว | ตัดสินใจใน Gate 0 (ข้อ 12.1–12.2) และทดสอบ build offline ใน Phase 0 |
+| R2 | การเปลี่ยน view แย่งกับ Tour + กล้อง (mount ตั้งกล้องเอง, ปุ่ม Back ทำให้ state เพี้ยน) | store เป็น source of truth เดียว ผ่าน `setView()` (ข้อ 4) |
+| R3 | Port 3D จาก WebGL เขียนเองไป three.js ใช้เวลามากกว่าที่คิด | Spike + look-dev ใน Phase 1, ทำ exterior ก่อน, ใช้ขนาดจากต้นแบบตรงๆ, Effects เป็น stretch |
+| R4 | ไม่มีเกณฑ์วัด "สวย / เหมือนต้นแบบ" | screenshot baseline (Phase 0) + hero shot + อนุมัติดีไซน์ 2 รอบ (Phase 1, 5) |
+| R5 | Sim tick / ลาก slider ทำให้ทั้ง UI และฉาก re-render → fps ตก | selector แคบ + `useShallow`, ฝั่ง 3D อ่าน store แบบ transient |
+| R6 | WebGL context lost / GPU ไม่รองรับ → จอดำต่อหน้าลูกค้า | Error boundary + fallback ภาพนิ่ง + ปุ่มโหลดฉากใหม่ (ข้อ 6.6) |
+| R7 | แก้ footfall ให้มีผลแล้ว KPI เริ่มต้นไม่ตรงต้นแบบ | `footfallFactor = footfall / 27,840` + unit test ค่าที่ t0 (ข้อ 7) |
+| R8 | เครื่อง Demo เป็น laptop ไม่มี GPU แยก | PerformanceMonitor + ลำดับการตัดคุณภาพ (ข้อ 6.6), วัดจากภาพจริงใน Phase 1 |
+| R9 | Version ของ React 19 / R3F v9 / drei / postprocessing ไม่เข้าชุดกัน | pin version + lockfile ใน Phase 0 |
+| R10 | Wi-Fi หน้างานไม่ดี — **drei `Environment preset` และ `<Text>` โหลด HDR / font จาก CDN โดยค่าเริ่มต้น** | environment + font ทุกไฟล์อยู่ใน `public/`, ทดสอบ build โดยปิดเน็ตใน Phase 0 และ 10 |
+| R11 | ลิขสิทธิ์รูป 4 รูปใน `ASSETS` ถ้า deploy URL สาธารณะ | ยืนยันที่มา (ข้อ 13.15); ถ้าไม่ชัวร์ใช้ deploy แบบมี password |
+| R12 | ลูกค้าเข้าใจผิดว่าเป็นระบบจริง | badge "SIMULATED DEMO" ทุกหน้า (เล็กแต่ไม่ซ่อน) + disclaimer |
+| R13 | ที่ 1280×720 chrome กินพื้นที่จน 3D เหลือ ~300 px | กฎ viewport ≥ 60%, Bottom panel พับ, KPI ลอย (ข้อ 8) |
+| R14 | ลูกค้าพิมพ์คำถามเองใน AI แล้ว rule-based ตอบผิด → ดูไม่จริง | fallback ชวนกลับไปที่ quick chips, presentation mode ใช้ได้แค่ chips (ข้อ 5) |
+| R15 | สีสถานะเพี้ยนใน 3D (tone mapping / bloom) และคนตาบอดสีแยกแดง-เขียวไม่ออก | สี 3D ปรับแยกใน `look.ts` + ใช้ความสว่างต่างกัน, 2D แสดงคู่กับ icon |
+
+---
+
+## 11. การทดสอบและ Demo Readiness
+
+- **Unit test (Vitest):** สูตร energy (ค่าที่ t0 = 2,616 kW), selectors, room generator (seed คงที่ → 504/600 occupied), data validation (id ไม่ซ้ำ, position ในขอบเขต), tour/views config อ้าง `ViewId` ที่มีจริง
+- **Playwright smoke test:** เปิดครบ 6 view, เล่น tour จบ (ชุด MVP และชุดเต็ม), Reset Demo, เปิด/ปิด modal หลัก, เทียบ screenshot hero shot (tolerance สูงสำหรับ 3D)
+- **CI (GitHub Actions):** lint + typecheck + test + build ทุก push
+- **Demo checklist (ก่อนออกงานทุกครั้ง):** เปิด offline package บนเครื่องจริงโดยปิดเน็ต, เช็ค fps, ทดสอบ clicker, ทดสอบ attract mode, Reset Demo
+- **Demo script / talk track:** เอกสารว่าแต่ละขั้นของ tour พูดอะไร — ข้อความใน `data/tour.ts` ต้องสอดคล้อง
+
+---
+
+## 12. ทางเลือกสถาปัตยกรรม (ตัดสินใจใน Gate 0)
+
+### 12.1 Routing / Framework
+Demo นี้ไม่มี SEO / SSR / API จึงได้ประโยชน์จาก App Router น้อย แต่ App Router ทำให้เกิดปัญหา R1, R2
+
+| ทางเลือก | ข้อดี | ข้อเสีย |
+|---|---|---|
+| **A. Next.js หน้าเดียว** `/` + `view` ใน store (sync ไป `?view=` ด้วย `history.replaceState`) | ยังเป็น Next ตามที่ต้องการ, Canvas ไม่ remount, Tour คุมง่าย | ยังเปิดผ่าน `file://` ไม่ได้ → ต้องใช้ portable server |
+| **B. Vite + React + `vite-plugin-singlefile`** | build ออกมาเป็น HTML ไฟล์เดียวเหมือนต้นแบบ ดับเบิลคลิกเปิดได้จริง | ไม่ใช่ Next.js; ไฟล์ HDR / font ต้อง inline หรือใช้ Lightformer แทน HDR |
+| C. Next.js 6 routes | URL แยกต่อหน้า | ต้องจัดการ R1 + R2 เพิ่ม |
+
+**คำแนะนำ:** ถ้าไม่จำเป็นต้องใช้ Next.js → **B**; ถ้าต้องใช้ → **A** — โครง `src/` ในข้อ 4 ใช้ได้ทั้ง 3 ทาง (ต่างกันแค่ `app/` entry)
+
+### 12.2 Offline delivery (ถ้าเลือก A หรือ C)
+- zip ที่มี portable static server (เช่น `miniserve.exe` / `caddy`) + `start-demo.bat` → เปิด browser ไปที่ localhost ให้อัตโนมัติ
+- หรือห่อด้วย Tauri / Electron ถ้าต้องการให้เป็นแอปจริง
+- ไม่แนะนำ PWA / Service worker เพราะต้องเปิดออนไลน์ก่อนครั้งแรก
+
+### 12.3 ทางเลือกด้านภาพ (อนาคต)
+- **ตัวอาคารเป็น GLB จาก Blender** (low-poly massing + bake AO / lightmap — ยังไม่ใช่ BIM): ภาพดีขึ้นมาก แต่ต้องมี 3D artist → พิจารณาสำหรับ Demo รอบถัดไป; รอบนี้ใช้ procedural + AO
+- Theatre.js สำหรับ camera path แบบ authored: ไม่จำเป็นในรอบนี้
+
+---
+
+## 13. คำถามที่ต้องให้ตัดสินใจ (รบกวน Review)
+
+> ⚠️ คำถามที่ **8, 9, 10, 14, 17** = **Gate 0** ต้องได้คำตอบก่อนเริ่ม Phase 0
+
+1. **ภาษา UI:** คงแบบผสมไทย/อังกฤษเหมือนต้นแบบ หรือทำปุ่มสลับ TH / EN? (แนะนำ: ผสมเหมือนเดิมก่อน — type `L10n` รองรับการสลับภายหลังแล้ว)
+2. **Overview:** ออกแบบใหม่เป็น executive dashboard (ตามข้อ 5) หรือคงเหมือนต้นแบบ?
+3. **Sidebar:** แสดงแบบเต็ม (มี Property Explorer) บนจอใหญ่ หรือคง icon-only ตามต้นแบบ?
+4. **Icons:** แนะนำใช้ lucide-react เป็นหลัก + ย้ายเฉพาะ icon เฉพาะทาง (chiller, AHU) จากต้นแบบมาเป็น custom SVG — ตกลงไหม?
+5. **ระดับรายละเอียด 3D:** Core look (ข้อ 6.5) ทำแน่นอน — Effects (heatmap, ท่อเรืองแสง, intro) ต้องการใน Demo แรกไหม?
+6. **AI Assistant:** rule-based + fallback พอ หรืออยากให้มี typing effect / ตอบพร้อมสั่งกล้องบินไปจุดที่ถาม?
+7. **Branding:** ต้องใช้โลโก้ / สีของ Piramid Solutions หรือของลูกค้า (PRM) หรือไม่ มีไฟล์ให้ไหม?
+8. **Deploy:** Vercel (URL สาธารณะ), offline package อย่างเดียว หรือทั้งสองแบบ? ถ้า offline ต้องดับเบิลคลิกเปิดได้เลย หรือรัน `start-demo.bat` ได้?
+9. **ตำแหน่งโปรเจ็ค:** สร้างโปรเจ็คที่ root ของ repo นี้ (ย้ายไฟล์ตัวอย่างไป `reference/`) ใช่ไหม?
+10. **Framework:** Next.js จำเป็นต้องใช้ (ลูกค้า / ทีมกำหนด) หรือเปิดให้เลือก Vite ได้ (ข้อ 12.1)?
+11. **วัน Demo แรก:** เมื่อไร? → ใช้กำหนดว่าจะตัด scope ที่ MVP (Phase 0–6) หรือทำเต็ม
+12. **มือถือ:** ยืนยันว่ามือถือ (< 768 px) ไม่อยู่ในขอบเขต Demo ใช่ไหม?
+13. **Demo script:** ใครเป็นคนเขียน talk track ของแต่ละขั้นใน tour?
+14. **เครื่อง Demo จริง:** รุ่น laptop / GPU / จอหรือโปรเจคเตอร์ / ความละเอียด? (ใช้วัด fps ใน Phase 1)
+15. **รูปภาพ:** รูป 4 รูปใน `ASSETS` มาจากไหน ใช้บน URL สาธารณะได้ไหม?
+16. **หน้าแรก:** เปิดมาที่ Overview (dusk, auto-rotate) ตามที่เสนอ หรือ Twin เหมือนต้นแบบ?
+17. **ผู้อนุมัติดีไซน์:** ใครเป็นคนตัดสิน "สวยพอ" ในจุดอนุมัติ Phase 1, 2, 5?
+18. **Attract mode:** ต้องการไหม (ใช้ในบูธ / งาน event)? ถ้าต้องการ เริ่มหลังไม่มีการใช้งานกี่นาที?
