@@ -92,22 +92,23 @@ prm-hospitality-twin/
 │  │  ├─ look.ts              # tone mapping, exposure, day/dusk settings, สี 3D ที่ปรับหลัง tone mapping
 │  │  ├─ materials.ts         # material palette กลาง (ivory, terracotta, facadeGlass, ...)
 │  │  ├─ textures.ts          # canvas textures (sign, LED screen, road) — วาดหลัง document.fonts.ready
-│  │  ├─ geometry/            # roundedSlab, envelope, skyGarden, tree (helper คืน BufferGeometry)
-│  │  ├─ site/                # Ground, Roads, Trees, ContextTowers, Cars, Pedestrians, Skywalk
+│  │  ├─ geometry/            # GeometryBuilder (port helper จากต้นแบบ) + exterior.ts, schematic.ts, site.ts — ดู docs/3D_PLAN.md ข้อ 2
+│  │  ├─ site/                # Site (merged), Traffic (รถ + คน)
 │  │  ├─ building/
-│  │  │  ├─ RetailPodium.tsx  # G, L1–L4 (exterior / x-ray / slice / explode)
-│  │  │  ├─ HotelTower.tsx    # 30 ชั้น, facade + sky courts + crown
-│  │  │  ├─ HotelFloor.tsx    # slab + 20 ห้อง (InstancedMesh) + furniture เมื่อเลือกชั้น
-│  │  │  ├─ RoomUnit.tsx
-│  │  │  ├─ CentralPlant.tsx  # chillers + fans หมุน
-│  │  │  └─ ArrivalCanopy.tsx
+│  │  │  ├─ ExteriorShell.tsx      # อาคารโหมด exterior (podium, หอคอยแบบ band, sky courts, crown)
+│  │  │  ├─ SchematicBuilding.tsx  # podium 5 + tower ตาม floor schedule (x-ray / slice / explode)
+│  │  │  ├─ FloorGroup.tsx         # slab, เสา, ห้อง (instanced, semantic zoom), เส้นกรอบเลือก
+│  │  │  ├─ CentralPlant.tsx       # chillers (+ พัดลมหมุนเมื่อเปิด ambient)
+│  │  │  └─ Fixed.tsx              # ArrivalCanopy, Skywalk, มุมขอบเขต site
+│  │  ├─ picking/             # PickProxies (กล่องล่องหน ชั้น / ห้อง / อุปกรณ์), useSceneSelection
+│  │  ├─ anim/                # useDamped (damp + invalidate จนนิ่ง)
 │  │  ├─ layers/              # EnergyLayer (pipes + heat), SecurityLayer (cameras + cone), PeopleLayer (heatmap CanvasTexture), AssetLayer
 │  │  ├─ hotspots/            # Hotspot (drei <Html>), HotspotSet
 │  │  └─ hooks/               # useSceneMode, usePicking, useCapture
 │  │
 │  ├─ data/                   # *** Hard-code ทั้งหมดอยู่ที่นี่ ***
 │  │  ├─ property.ts          # zones, floors, ขนาดอาคาร, ตำแหน่ง (หน่วยเมตร)
-│  │  ├─ rooms.ts             # generator 600 ห้อง (seeded)
+│  │  ├─ rooms.ts             # generator 600 ห้อง (seeded) ตาม floor schedule ใน property.ts
 │  │  ├─ events.ts            # INC-001..003 + templates สำหรับ simulate
 │  │  ├─ workOrders.ts
 │  │  ├─ assets.ts            # site, hotel, plant, AHU-H12, chiller ... + metrics
@@ -152,7 +153,7 @@ Layout ร่วม: **Header (รวม PageHead) → Sidebar → KPI strip →
 | `twin` | Digital Twin Command Center | 3D เต็มรูปแบบ, day | Tabs: AI Agent / Layers & Asset inspector | (ซ่อน, เปิดด้วย "แสดงกราฟ") |
 | `ioc` | Integrated Operations Center | 3D + CCTV overlay 2 จอ | Incident workspace, Work orders | Incident workflow (**แสดง step ตามเหตุการณ์ที่เลือก**) |
 | `energy` | Energy Optimization Lab | 3D exterior + Energy layer, focus plant | Demand breakdown, nudge setpoint 25°C | What-if Scenario Lab (sliders + ผลต่าง % / ฿) |
-| `hotel` | Hotel Operations · 600 Keys | 3D slice ไปที่ชั้นที่เลือก (ค่าเริ่มต้น H12) | Room stats + Room grid 20 ห้อง | Inventory 600 ห้อง (stacked bar) |
+| `hotel` | Hotel Operations · 600 Keys | 3D slice ไปที่ชั้นที่เลือก (ค่าเริ่มต้น H12) | Room stats + Room grid ตามชั้น (28 หรือ 17 ห้อง; ชั้น sky court / roof แสดง amenity) | Inventory 600 ห้อง (stacked bar) |
 | `ai` | Ask the Building | 3D | AI Agent (chat + quick chips) | Data lineage |
 
 **หน้าแรก (landing):** `overview` ตอน dusk + auto-rotate — ให้ภาพแรกที่ผู้บริหารเห็นสวยที่สุด (รอยืนยันข้อ 13.16)
@@ -174,6 +175,8 @@ Layout ร่วม: **Header (รวม PageHead) → Sidebar → KPI strip →
 
 ## 6. แผนฉาก 3D
 
+> รายละเอียดการสร้าง (อ้างอิงโค้ดต้นแบบรายบรรทัด), การคลิก / การแสดงผล และการเคลื่อนไหวของกล้อง / โหมด อยู่ใน **`docs/3D_PLAN.md`** — ข้อนี้เป็นภาพรวม
+
 ### 6.1 ระบบพิกัดและสัดส่วน
 - ใช้ **1 unit = 1 เมตร** (ต้นแบบใช้หน่วยลอยๆ) และเก็บขนาดทั้งหมดใน `data/property.ts`
 
@@ -181,40 +184,43 @@ Layout ร่วม: **Header (รวม PageHead) → Sidebar → KPI strip →
 |---|---|
 | Site plinth | 220 × 150 m |
 | Retail podium | 85 × 49 m, 5 ชั้น (G, L1–L4) × 5.2 m |
-| Hotel tower | 44 × 28 m, 30 ชั้น × 4.15 m, 20 ห้อง/ชั้น, sky courts ที่ชั้น 8 / 16 / 24 |
+| Hotel tower | 44 × 28 m, ชั้นละ 4.15 m เริ่มที่ y 29; exterior: ชั้นห้องพัก 19 ชั้น + ชั้นแคบ 23 × 25 m อีก 4 ชั้น, **sky court สูง 2 ชั้น** ที่ชั้น 8–9 / 16–17 / 24–25, ชั้น 30 เป็น roof terrace — ข้อมูลห้องใช้ **floor schedule ตามรูปนี้**: 19 ชั้น × 28 ห้อง + 4 ชั้นแคบ × 17 ห้อง = 600 (3D_PLAN ข้อ 8) |
 | Crown / roof terrace | สูงประมาณ 153–161 m |
 | Central plant | ที่ (56, -20), chiller 3 ตัว |
 | Skywalk | x ≈ -83 |
 
 ### 6.2 Scene graph
+ต้นแบบมี **อาคาร 2 ชุด**: ชุด exterior (envelope โค้งมน + sky court + crown) และชุด schematic (กล่องตรงต่อชั้น) ที่ใช้ใน x-ray / slice / explode → แยกเป็น 2 component แต่สร้างจาก floor schedule เดียวกัน
+
 ```
-<SceneRoot>
- ├ Lights (hemisphere + directional w/ shadow) + Environment (day / dusk — ไฟล์ใน public/env หรือ Lightformer)
- ├ <Site>        ground, roads, trees(Instanced), context towers(Instanced), cars, pedestrians
- ├ <Building>
- │   ├ <RetailPodium mode>   exterior facade | x-ray shells | slice | explode
- │   ├ <HotelTower mode>     facade fins(Instanced) | x-ray slabs
- │   │   └ <HotelFloor ×30>  rooms(InstancedMesh, สีตามสถานะ)
- │   ├ <CentralPlant>
- │   └ <ArrivalCanopy>, <Skywalk>
- ├ <Layers>      Energy | Security | People | Assets  (toggle visible)
- ├ <Hotspots>    drei <Html> 6 จุด
- ├ <CameraRig>   presets + auto-rotate
- └ <Effects>     N8AO, Bloom (เฉพาะ emissive), SMAA
+<SceneRoot>  (canvas ทึบ — background + fog อยู่ในฉาก)
+ ├ <Look>               ไฟ + static shadow map + Environment (day / dusk — ไฟล์ใน public/env หรือ Lightformer) + fog
+ ├ <Site>               merged: plinth, ถนน, ต้นไม้ (instanced), ตึกบริบท | <Traffic> รถ + คน
+ ├ <ExteriorShell>      merged ก้อนเดียวต่อ material — โหมด exterior, fade ออกเมื่อเปลี่ยนโหมด
+ ├ <SchematicBuilding>  podium 5 ชั้น + tower ตาม floor schedule
+ │   └ <FloorGroup>     slab, เสา, ห้อง (InstancedMesh, สีตามสถานะ, semantic zoom) — ขยับเมื่อ explode
+ ├ <Fixed>              ArrivalCanopy, Skywalk, CentralPlant
+ ├ <Layers>             Energy | Security | People | Assets  (toggle visible)
+ ├ <PickProxies>        กล่องล่องหน ชั้น / ห้อง / อุปกรณ์ (ใช้ raycast แทน geometry จริง)
+ ├ <Hotspots>           drei <Html> 6 จุด (occlude กับ proxy)
+ ├ <CameraRig>          CameraControls + presets + auto-rotate
+ └ <Effects>            N8AO, Bloom (เฉพาะ emissive), SMAA
 ```
 
 ### 6.3 โหมดการแสดงผล
 | โหมด | พฤติกรรม |
 |---|---|
 | Exterior | facade ทึบ, กระจกสะท้อน environment, sky garden |
-| X-ray | facade โปร่ง (opacity ~0.12) แสดง slab + ห้อง + ท่อ |
-| Slice | ซ่อนชั้นเหนือชั้นที่เลือก, กล้องบินไปมุมเฉียงด้านบน |
-| Explode | แยกชั้นออก (animate ด้วย spring, ไม่ rebuild) |
-| Day / Dusk | เปลี่ยน environment + ไฟหน้าต่าง emissive + bloom |
+| X-ray | crossfade จาก ExteriorShell ไปอาคาร schematic (shell โปร่ง + slab + ห้อง + ท่อ) แบบต้นแบบ |
+| Slice | ชั้นเหนือชั้นที่เลือกลอยขึ้นและจางหาย, กล้องบินไปมุมเฉียงด้านบน |
+| Explode | แยกชั้นออก (tower 1.55 m/ชั้น, podium 2.0 m/ชั้น ตามต้นแบบ; damp + stagger, ไม่ rebuild) |
+| Day / Dusk | lerp 1.2 วินาที: environment, แสง, fog, ไฟหน้าต่าง emissive + bloom |
 
 ### 6.4 การโต้ตอบ (ปรับปรุงจากต้นแบบ)
-- Hover → highlight ชั้น หรือห้อง (emissive หรือ drei `<Outlines>` — ไม่ใช้ postprocessing `<Outline>` เพราะแพงและไม่เข้ากับ `frameloop="demand"`) + tooltip
-- Click ชั้น → เลือกชั้น (sync กับ floor selector + right panel)
+- ตารางการโต้ตอบเต็ม (ตามโหมด, เมาส์ / touch / คีย์บอร์ด) อยู่ใน 3D_PLAN ข้อ 5.1
+- Hover → highlight ชั้น หรือห้อง (เส้นกรอบเรืองแสง / emissive — ไม่ใช้ postprocessing `<Outline>` เพราะแพงและไม่เข้ากับ `frameloop="demand"`) + tooltip
+- Click ชั้น → เลือกชั้น (sync กับ floor selector + right panel); **double-click / แตะซ้ำ** → เข้า slice ชั้นนั้น
+- Drag แล้วปล่อยไม่นับเป็น click (`event.delta > 4 px`)
 - **ใหม่:** Click ห้อง (ในโหมด slice) → เปิด Room modal
 - **ใหม่:** Click อุปกรณ์ (chiller, AHU, กล้อง) → Asset card
 - Event "Locate in 3D" → บินกล้องไปจุดเกิดเหตุ + pulse marker สีแดง
@@ -228,7 +234,7 @@ Layout ร่วม: **Header (รวม PageHead) → Sidebar → KPI strip →
 - **Environment ที่เก็บในเครื่อง** (ข้อ 3) — กระจกสะท้อนท้องฟ้าจริง
 - **Material palette:** `MeshStandardMaterial` / `MeshPhysicalMaterial` (กระจก) โทนสี ivory + terracotta + glass เดิม
 - **Ambient Occlusion:** N8AO ครึ่งความละเอียด (ปิดได้ใน Low quality) — หรือ bake AO ลง vertex color ตอนโหลดครั้งเดียว เพราะ geometry ไม่เปลี่ยน
-- **Soft shadow:** `<ContactShadows frames={1}>` หรือ bake ครั้งเดียว (ไม่ใช้ `AccumulativeShadows` เพราะต้อง re-accumulate ทุกครั้งที่ explode/animate)
+- **เงา:** directional shadow map แบบ static (`shadowMap.autoUpdate = false`, update เมื่อโหมด / explode เปลี่ยน) — หอคอยสูง 161 m ต้องทอดเงาข้ามลาน ซึ่ง `ContactShadows` ทำไม่ได้; ไม่ใช้ `AccumulativeShadows`
 - **Dusk:** ไฟหน้าต่าง emissive (seeded ตาม occupancy) + bloom — ใช้เป็นภาพหลักของ Overview
 - **Hero shot ต่อ view:** camera, เวลา, layer ใน `data/views.ts` — screenshot ของ hero shot คือเกณฑ์อนุมัติดีไซน์ (ต้อง *สวยกว่า* baseline ของต้นแบบ ไม่ใช่แค่เหมือน)
 - **Motion tokens** (`lib/motion.ts`): duration / easing ชุดเดียว ใช้ทั้ง CameraControls และ `motion` — panel เลื่อนเข้าพร้อมกับกล้องที่บินถึงจุด
@@ -260,7 +266,9 @@ type L10n = { th: string; en?: string };                          // ใช้�
 
 type FloorId = 'G' | 'L1' | 'L2' | 'L3' | 'L4' | `H${string}`;   // H01–H30 — id ชั้นแบบเดียวทั้งระบบ
 type RoomStatus = 'occupied' | 'ready' | 'cleaning' | 'maintenance';
-interface Room { id: string; floor: FloorId; index: number; status: RoomStatus; type: 'Deluxe' | 'Premier' | 'Suite'; }
+type FloorType = 'retail' | 'guest' | 'guestNarrow' | 'skyCourt' | 'roof';
+interface FloorSpec { id: FloorId; type: FloorType; y: number; height: number; footprint: { x: number; z: number; w: number; d: number }; rooms: number; }
+interface Room { id: string; floor: FloorId; index: number; status: RoomStatus; type: 'Deluxe' | 'Premier' | 'Suite'; }   // id เช่น 'H12-07'
 
 type IncidentType = 'security' | 'ahu' | 'plant' | 'leak' | 'people';
 interface Incident {
@@ -288,6 +296,7 @@ interface TourStep { view: ViewId; title: L10n; body: L10n; camera?: CameraPrese
 **ค่าเริ่มต้น (คงตามต้นแบบ):** Occupancy 84% (504/600), Demand 2,616 kW, Footfall 27,840, Open incidents 3 (high 1), เวลา 14:30, setpoint 24°C, outdoor 32°C, tariff 4.5 ฿/kWh
 
 **แก้ไขจากต้นแบบ:**
+- **Floor schedule** (`FloorSpec[]` ใน `property.ts`) ตามรูปอาคารจริง: H01–07, H10–15, H18–23 = `guest` 28 ห้อง; H08–09, H16–17, H24–25 = `skyCourt`; H26–29 = `guestNarrow` 17 ห้อง; H30 = `roof` → รวม 600 ห้อง (ต้นแบบใช้ 30 × 20 ซึ่งไม่ตรงกับรูป) — 3D, pick proxy, room grid และ hotspot อ่านจากตารางนี้ทั้งหมด
 - slider occupancy → ปรับเฉพาะส่วนต่าง ไม่สุ่ม 600 ห้องใหม่ (การแก้สถานะห้องไม่หาย)
 - footfall จาก timeline → มีผลกับ mall cooling load จริง โดย `footfallFactor = footfall / 27,840` (ค่าเริ่มต้น = 1.0 → Demand ที่ t0 = 1,140 + 900×0.84 + 720 = **2,616 kW** พอดี; มี unit test ยืนยัน) — หมายเหตุ: Demand จะขยับตาม tick (+23 คน / 6 วิ) ซึ่งเป็นพฤติกรรมที่ตั้งใจ
 - KPI ทุกตัว derive จาก store เดียว (ไม่คำนวณซ้ำ 2 ที่)
@@ -445,3 +454,4 @@ Demo นี้ไม่มี SEO / SSR / API จึงได้ประโย�
 16. **หน้าแรก:** เปิดมาที่ Overview (dusk, auto-rotate) ตามที่เสนอ หรือ Twin เหมือนต้นแบบ?
 17. **ผู้อนุมัติดีไซน์:** ใครเป็นคนตัดสิน "สวยพอ" ในจุดอนุมัติ Phase 1, 2, 5?
 18. **Attract mode:** ต้องการไหม (ใช้ในบูธ / งาน event)? ถ้าต้องการ เริ่มหลังไม่มีการใช้งานกี่นาที?
+19. ~~ตารางชั้นกับข้อมูล 600 ห้อง~~ — **ตัดสินใจแล้ว:** floor schedule ตามรูปอาคารจริง, X-ray แบบ crossfade, Slice แบบลอยขึ้น + จาง, ambient motion ไม่อยู่ใน Demo แรก (3D_PLAN ข้อ 8)
