@@ -1,7 +1,7 @@
 "use client";
 
 import { useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 import { CameraRig } from "./CameraRig";
 import { Effects } from "./Effects";
 import { FpsProbe, type FpsSample } from "./FpsProbe";
@@ -24,12 +24,12 @@ export type SceneSettings = {
 
 export function SceneRoot({
   settings,
-
   onSample,
+  children,
 }: {
   settings: SceneSettings;
-
-  onSample: (s: FpsSample) => void;
+  onSample?: (s: FpsSample) => void;
+  children?: ReactNode;
 }) {
   const invalidate = useThree((s) => s.invalidate);
   const site = useMemo(() => buildSite(), []);
@@ -62,7 +62,8 @@ export function SceneRoot({
       <SceneBatches geometries={exterior} materials={materials} hidden={hidden} />
       <CameraRig request={settings.camera} autoRotate={settings.autoRotate} />
       {settings.quality !== "low" && <Effects time={settings.time} quality={settings.quality} />}
-      <FpsProbe onSample={onSample} />
+      {onSample && <FpsProbe onSample={onSample} />}
+      {children}
     </>
   );
 }

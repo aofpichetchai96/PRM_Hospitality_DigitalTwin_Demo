@@ -41,6 +41,12 @@
   --type-scale: 1.15;
 }
 
+/* Layout breakpoints (PLAN 8): full sidebar from 1440px wide; screens under
+   900px tall fold the bottom panel and float the KPI strip over the viewport */
+@custom-variant wide (@media (min-width: 1440px));
+@custom-variant tall (@media (min-height: 900px));
+@custom-variant short (@media (max-height: 899.98px));
+
 @theme inline {
   --color-bg: var(--bg);
   --color-panel: var(--panel);

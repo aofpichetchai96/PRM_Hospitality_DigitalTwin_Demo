@@ -42,12 +42,13 @@ class SceneErrorBoundary extends Component<{ children: ReactNode; onError: () =>
 
 export default function Viewport({
   settings,
-
   onSample,
+  children,
 }: {
   settings: SceneSettings;
-
-  onSample: (s: FpsSample) => void;
+  onSample?: (s: FpsSample) => void;
+  /** Extra scene content, e.g. hotspot labels */
+  children?: ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -75,7 +76,9 @@ export default function Viewport({
           gl.domElement.addEventListener("webglcontextlost", () => setFailed(true), { once: true });
         }}
       >
-        <SceneRoot settings={settings} onSample={onSample} />
+        <SceneRoot settings={settings} onSample={onSample}>
+          {children}
+        </SceneRoot>
       </Canvas>
     </SceneErrorBoundary>
   );
