@@ -1,6 +1,7 @@
 "use client";
 
 import { useThree } from "@react-three/fiber";
+import type { CameraShot } from "@/types";
 import { type ReactNode, useEffect, useMemo } from "react";
 import { CameraRig } from "./CameraRig";
 import { Effects } from "./Effects";
@@ -11,15 +12,16 @@ import { Atmosphere } from "./Atmosphere";
 import type { Quality, TimeOfDay } from "./look";
 import { LOOK } from "./look";
 import { createMaterials } from "./materials";
-import type { CameraPresetId } from "./presets";
 import { SceneBatches } from "./SceneBatches";
 import { createRoadTexture, createSignTexture } from "./textures";
 
 export type SceneSettings = {
   time: TimeOfDay;
   quality: Quality;
-  camera: { preset: CameraPresetId; n: number };
+  camera: { shot: CameraShot; n: number };
+  zoom?: { dir: 1 | -1; n: number };
   autoRotate: boolean;
+  topInset?: number;
 };
 
 export function SceneRoot({
@@ -60,7 +62,12 @@ export function SceneRoot({
       <Atmosphere time={settings.time} shadows={settings.quality !== "low"} />
       <SceneBatches geometries={site} materials={materials} hidden={hidden} />
       <SceneBatches geometries={exterior} materials={materials} hidden={hidden} />
-      <CameraRig request={settings.camera} autoRotate={settings.autoRotate} />
+      <CameraRig
+        request={settings.camera}
+        zoom={settings.zoom}
+        autoRotate={settings.autoRotate}
+        topInset={settings.topInset}
+      />
       {settings.quality !== "low" && <Effects time={settings.time} quality={settings.quality} />}
       {onSample && <FpsProbe onSample={onSample} />}
       {children}

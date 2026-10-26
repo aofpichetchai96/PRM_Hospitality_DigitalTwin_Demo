@@ -19,7 +19,10 @@ import type {
   ViewId,
   ZoneId,
 } from "@/types";
+import type { Quality } from "@/three/look";
 import type { AppState } from "./useAppStore";
+
+export type HotspotId = "hotel" | "mall" | "plant" | "security" | "ahu" | "people";
 
 export type ModalKind =
   "help" | "about" | "reference" | "methodology" | "event" | "room" | "allRooms" | "asset" | "cctv";
@@ -45,6 +48,9 @@ export interface TwinState {
   tour: { set: TourSetId; step: number } | null;
   modal: ModalState | null;
   toast: { text: string; n: number } | null;
+  quality: Quality;
+  /** Zoom button requests for the camera rig */
+  zoom: { dir: 1 | -1; n: number };
 }
 
 export interface TwinActions {
@@ -67,6 +73,10 @@ export interface TwinActions {
   openModal: (modal: ModalState) => void;
   closeModal: () => void;
   notify: (text: string) => void;
+  setQuality: (quality: Quality) => void;
+  zoomCamera: (dir: 1 | -1) => void;
+  activateHotspot: (id: HotspotId) => void;
+  locateIncident: (id: string) => void;
   startTour: (set?: TourSetId) => void;
   goToTourStep: (step: number) => void;
   endTour: () => void;
@@ -93,6 +103,8 @@ export function initialTwin(): TwinState {
     tour: null,
     modal: null,
     toast: null,
+    quality: "high",
+    zoom: { dir: 1, n: 0 },
   };
 }
 
@@ -165,6 +177,44 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
   openModal: (modal) => set({ modal }),
   closeModal: () => set({ modal: null }),
   notify: (text) => set((s) => ({ toast: { text, n: (s.toast?.n ?? 0) + 1 } })),
+  setQuality: (quality) => set({ quality }),
+  zoomCamera: (dir) => set((s) => ({ zoom: { dir, n: s.zoom.n + 1 }, autoRotate: false })),
+
+  // Hotspot clicks (prototype hotspot(), L413)
+  activateHotspot: (id) => {
+    const g = get();
+    switch (id) {
+      case "security": {
+        const e = g.incidents.find((x) => x.type === "security" && x.status < 3);
+        if (e) g.openModal({ kind: "event", id: e.id });
+        return;
+      }
+      case "ahu":
+        set({ asset: "ahu", panel: "details" });
+        g.flyTo({ preset: "hotel" });
+        g.notify("AHU-H12 · ตำแหน่งและ Sensor เป็นข้อมูลจำลอง");
+        return;
+      case "hotel":
+        return g.setView("hotel");
+      case "plant":
+        return g.setView("energy");
+      case "mall":
+        return g.selectZone("mall");
+      case "people":
+        set((s) => ({ layers: { ...s.layers, people: true } }));
+        return g.selectZone("arrival");
+    }
+  },
+
+  // "Locate in 3D": fly to the incident's floor, or its zone when it has none
+  locateIncident: (id) => {
+    const g = get();
+    const e = g.incidents.find((x) => x.id === id);
+    if (!e) return;
+    g.closeModal();
+    if (e.floor) return g.selectFloor(e.floor);
+    g.selectZone(e.type === "people" ? "arrival" : "plant");
+  },
 
   startTour: (tourSet = ACTIVE_TOUR) => {
     set({ tour: { set: tourSet, step: 0 }, modal: null });

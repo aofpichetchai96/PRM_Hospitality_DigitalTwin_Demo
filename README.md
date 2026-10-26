@@ -16,6 +16,20 @@ npm run build   # ต้องมีเน็ต — next/font ดาวน์�
 npm start       # รันได้โดยไม่ต้องมีเน็ต → http://localhost:3000
 ```
 
+## ระหว่าง Demo
+
+- เปิดหน้าที่ต้องการได้ตรงๆ ด้วย `?view=` เช่น `http://localhost:3000/?view=hotel` (overview, twin, ioc, energy, hotel, ai)
+- คีย์ลัด (ใช้กับ wireless clicker ได้):
+
+  | คีย์                              | ผล                                             |
+  | --------------------------------- | ---------------------------------------------- |
+  | `→` / `PageDown` · `←` / `PageUp` | ขั้นถัดไป / ก่อนหน้าของ Guided Demo            |
+  | `P`                               | Presentation mode (ซ่อนแผงทั้งหมด เหลือภาพ 3D) |
+  | `R`                               | Reset Demo กลับค่าเริ่มต้น                     |
+  | `Esc`                             | ปิดหน้าต่าง / จบ Demo / ออกจาก Presentation    |
+
+- เครื่องช้า: ปุ่ม ? (ช่วยเหลือ) → คุณภาพภาพ 3D → ต่ำ
+
 ## รันบน server (pm2)
 
 ```bash

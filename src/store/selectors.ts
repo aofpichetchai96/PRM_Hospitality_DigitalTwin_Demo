@@ -25,7 +25,10 @@ export function roomCounts(rooms: readonly Room[]): RoomCounts {
 
 export const occupancyPct = (rooms: readonly Room[]) => (roomCounts(rooms).occupied / TOTAL_KEYS) * 100;
 
-export function selectEnergy(s: AppState) {
+export type EnergyInputs = Pick<AppState, "rooms" | "setpoint" | "outdoor" | "tariff" | "footfall" | "operatingHours">;
+export type KpiInputs = EnergyInputs & Pick<AppState, "incidents" | "workOrders">;
+
+export function selectEnergy(s: EnergyInputs) {
   return computeEnergy({
     occupancy: roomCounts(s.rooms).occupied / TOTAL_KEYS,
     setpoint: s.setpoint,
@@ -43,7 +46,7 @@ export const floorRooms = (rooms: readonly Room[], floor: string) => rooms.filte
 export type KpiValues = ReturnType<typeof selectKpis>;
 
 /** The four KPI cards (prototype updateKpis L353 + spark L355) */
-export function selectKpis(s: AppState) {
+export function selectKpis(s: KpiInputs) {
   const c = roomCounts(s.rooms);
   const e = selectEnergy(s);
   const open = openIncidents(s.incidents);
@@ -76,7 +79,9 @@ export function selectionLabel(s: AppState) {
 }
 
 /** Asset card for the current selection (prototype assetHtml L363) */
-export function selectAssetCard(s: AppState): { name: string; code: string; metrics: AssetMetric[] } {
+export type AssetCardInputs = EnergyInputs & Pick<AppState, "asset" | "floor" | "incidents">;
+
+export function selectAssetCard(s: AssetCardInputs): { name: string; code: string; metrics: AssetMetric[] } {
   const e = selectEnergy(s);
   const floor = s.floor !== "all" && isHotelFloor(s.floor) ? s.floor : null;
   if (floor || s.asset === "hotel") {

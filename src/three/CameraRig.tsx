@@ -3,8 +3,9 @@
 import { CameraControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
-import { Box3, Vector3 } from "three";
-import { CAMERA_LIMITS, CAMERA_PRESETS, type CameraPose, type CameraPresetId, nearestAngle } from "./presets";
+import { Box3, PerspectiveCamera, Vector3 } from "three";
+import type { CameraShot } from "@/types";
+import { CAMERA_LIMITS, type CameraPose, nearestAngle, shotPose } from "./presets";
 
 /** Fly to a pose along an orbit, taking the shortest way round (3D_PLAN 6.2) */
 export async function flyTo(controls: CameraControls, pose: CameraPose, animate = true) {
@@ -17,15 +18,25 @@ export async function flyTo(controls: CameraControls, pose: CameraPose, animate 
   ]);
 }
 
+/** Dolly factor per zoom button press */
+const ZOOM_STEP = 0.8;
+
 type Props = {
-  /** Changing `request` (even to the same preset) triggers a new flight */
-  request: { preset: CameraPresetId; n: number };
+  /** Changing `request` (even to the same shot) triggers a new flight */
+  request: { shot: CameraShot; n: number };
+  /** Zoom buttons: `dir` 1 = in, -1 = out */
+  zoom?: { dir: 1 | -1; n: number };
   autoRotate: boolean;
+  /** Pixels covered by UI at the top (floating KPI strip); the picture is centred below it */
+  topInset?: number;
 };
 
-export function CameraRig({ request, autoRotate }: Props) {
+export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
   const ref = useRef<CameraControls>(null);
   const setFrameloop = useThree((s) => s.setFrameloop);
+  const getState = useThree((s) => s.get);
+  const size = useThree((s) => s.size);
+  const invalidate = useThree((s) => s.invalidate);
   const dragging = useRef(false);
   const first = useRef(true);
 
@@ -40,9 +51,30 @@ export function CameraRig({ request, autoRotate }: Props) {
     const c = ref.current;
     if (!c) return;
     // First pose is applied instantly; later requests fly
-    void flyTo(c, CAMERA_PRESETS[request.preset], !first.current);
+    void flyTo(c, shotPose(request.shot), !first.current);
     first.current = false;
   }, [request]);
+
+  useEffect(() => {
+    const c = ref.current;
+    // n = 0 is the initial state, not a button press
+    if (!c || !zoom?.n) return;
+    void c.dollyTo(c.distance * (zoom.dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP), true);
+  }, [zoom]);
+
+  // Render a taller virtual view and show its top part, so the scene centre
+  // sits in the middle of the area left free below the overlay
+  useEffect(() => {
+    // Read the camera from R3F's state: three objects are mutable by design
+    const { camera } = getState();
+    if (!(camera instanceof PerspectiveCamera)) return;
+    // Aspect must describe the full virtual view or the picture stretches
+    camera.aspect = size.width / (size.height + topInset);
+    if (topInset > 0) camera.setViewOffset(size.width, size.height + topInset, 0, 0, size.width, size.height);
+    else camera.clearViewOffset();
+    camera.updateProjectionMatrix();
+    invalidate();
+  }, [getState, size, topInset, invalidate]);
 
   // Auto-rotate needs continuous frames; everything else renders on demand
   useEffect(() => {

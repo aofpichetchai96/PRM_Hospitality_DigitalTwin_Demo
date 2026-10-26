@@ -1,5 +1,5 @@
-import SpikeView from "./SpikeView";
+import AppShell from "./AppShell";
 
 export default function Home() {
-  return <SpikeView />;
+  return <AppShell />;
 }

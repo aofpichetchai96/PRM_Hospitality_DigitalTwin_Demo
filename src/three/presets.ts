@@ -45,3 +45,8 @@ export function nearestAngle(current: number, target: number) {
   const twoPi = Math.PI * 2;
   return target + Math.round((current - target) / twoPi) * twoPi;
 }
+
+/** Pose for a store camera shot: a named preset or a floor */
+export function shotPose(shot: { preset: CameraPresetId } | { floor: string }): CameraPose {
+  return "preset" in shot ? CAMERA_PRESETS[shot.preset] : floorPose(shot.floor);
+}
