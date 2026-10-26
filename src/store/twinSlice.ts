@@ -51,6 +51,8 @@ export interface TwinState {
   plan: { type: FloorPlanId; zone: string };
   tour: { set: TourSetId; step: number } | null;
   modal: ModalState | null;
+  /** Incident the IOC workflow and the 3D marker follow (last opened or located) */
+  incidentFocus: string | null;
   toast: { text: string; n: number } | null;
   quality: Quality;
   /** Sidebar width chosen by the presenter; null = automatic (full from 1440px) */
@@ -114,6 +116,7 @@ export function initialTwin(): TwinState {
     plan: { type: "residence", zone: FLOOR_PLANS.residence.zones[0].id },
     tour: null,
     modal: null,
+    incidentFocus: null,
     toast: null,
     quality: "high",
     sidebarExpanded: null,
@@ -218,7 +221,7 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
   setSpatial: (spatial) => set({ spatial }),
   setPlanType: (type) => set({ plan: { type, zone: FLOOR_PLANS[type].zones[0].id } }),
   selectPlanZone: (zone) => set((s) => ({ plan: { ...s.plan, zone } })),
-  openModal: (modal) => set({ modal }),
+  openModal: (modal) => set(modal.kind === "event" && modal.id ? { modal, incidentFocus: modal.id } : { modal }),
   closeModal: () => set({ modal: null }),
   notify: (text) => set((s) => ({ toast: { text, n: (s.toast?.n ?? 0) + 1 } })),
   setQuality: (quality) => set({ quality }),
@@ -256,9 +259,9 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
     const g = get();
     const e = g.incidents.find((x) => x.id === id);
     if (!e) return;
-    g.closeModal();
-    if (e.floor) return g.selectFloor(e.floor);
-    g.selectZone(e.type === "people" ? "arrival" : "plant");
+    // Close orbit on the incident, keeping the current mode; the marker shows where
+    set({ modal: null, incidentFocus: id });
+    g.flyTo({ focus: e.position, distance: 85 });
   },
 
   startTour: (tourSet = ACTIVE_TOUR) => {

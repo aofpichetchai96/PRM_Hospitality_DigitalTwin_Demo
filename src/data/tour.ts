@@ -47,5 +47,5 @@ export const TOURS: Record<TourSetId, readonly TourStep[]> = {
   full: [STEPS.property, STEPS.interior, STEPS.ioc, STEPS.energy, STEPS.hotel, STEPS.ai],
 };
 
-/** Set used by "เริ่มสาธิต" until Phase 7 completes the remaining views */
-export const ACTIVE_TOUR: TourSetId = "mvp";
+/** Set used by "เริ่มสาธิต" — every view is complete, so the full tour runs */
+export const ACTIVE_TOUR: TourSetId = "full";

@@ -8,6 +8,7 @@ import { AgentPanel } from "./AgentPanel";
 import { DetailsPanel } from "./DetailsPanel";
 import { EnergyPanel } from "./EnergyPanel";
 import { HotelPanel } from "./HotelPanel";
+import { IocPanel } from "./IocPanel";
 import { OverviewPanel } from "./OverviewPanel";
 
 const DETAILS_TAB: Record<ViewId, string> = {
@@ -57,6 +58,8 @@ export function RightPanel() {
             <AgentPanel />
           ) : view === "hotel" ? (
             <HotelPanel />
+          ) : view === "ioc" ? (
+            <IocPanel />
           ) : view === "energy" ? (
             <EnergyPanel />
           ) : view === "overview" && !picked ? (

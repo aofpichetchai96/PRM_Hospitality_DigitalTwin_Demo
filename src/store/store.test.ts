@@ -108,7 +108,7 @@ describe("assistant and tour", () => {
   });
 
   it("walks the MVP tour and ends with a toast", () => {
-    s().startTour();
+    s().startTour("mvp");
     expect(s()).toMatchObject({ view: "twin", tour: { step: 0 } });
     s().goToTourStep(1);
     expect(s().mode).toBe("xray");
@@ -117,6 +117,25 @@ describe("assistant and tour", () => {
     s().goToTourStep(4);
     expect(s().tour).toBeNull();
     expect(s().toast?.text).toContain("จบ Guided Demo");
+  });
+
+  it("runs the full six-step tour by default, through IOC and AI", () => {
+    s().startTour();
+    const views = [0, 1, 2, 3, 4, 5].map((i) => {
+      s().goToTourStep(i);
+      return s().view;
+    });
+    expect(views).toEqual(["twin", "twin", "ioc", "energy", "hotel", "ai"]);
+  });
+
+  it("locates an incident without changing the scene mode", () => {
+    s().setView("ioc");
+    s().locateIncident("INC-002");
+    expect(s()).toMatchObject({
+      incidentFocus: "INC-002",
+      mode: "exterior",
+      camera: { shot: { focus: [-12, 78, 3] } },
+    });
   });
 
   it("resets everything in one step", () => {

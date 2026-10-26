@@ -7,7 +7,7 @@ import { timeStr } from "@/lib/format";
 import { useAppStore } from "@/store/useAppStore";
 
 /** Views whose bottom panel is hidden until "แสดงกราฟ" is pressed */
-export const CHARTS_ON_DEMAND = new Set(["twin", "ai"]);
+export const CHARTS_ON_DEMAND = new Set(["twin"]);
 
 /** Header with the page head merged in (PLAN 8) — 64px instead of the prototype's ~150px */
 export function Header() {

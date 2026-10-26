@@ -1,11 +1,13 @@
 "use client";
 
 import { AnimatePresence } from "motion/react";
+import { CAMERAS } from "@/components/cctv/SyntheticFeed";
 import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/store/useAppStore";
 import type { ModalState } from "@/store/twinSlice";
 import { EventModal } from "./EventModal";
 import { AllRoomsModal, MethodologyModal } from "./HotelEnergyModals";
+import { AssetModal, CctvModal } from "./OpsModals";
 import { RoomModal } from "./RoomModal";
 import { AboutModal, HelpModal, ReferenceModal } from "./InfoModals";
 
@@ -26,6 +28,14 @@ function content(m: ModalState): { title: string; body: React.ReactNode; wide?: 
       return { title: "Hotel inventory · 600 simulated rooms", body: <AllRoomsModal />, wide: true };
     case "methodology":
       return { title: "Energy Lab · Illustrative calculation", body: <MethodologyModal /> };
+    case "cctv":
+      return {
+        title: `Synthetic CCTV · ${CAMERAS[Number(m.id ?? 0)].name}`,
+        body: <CctvModal camera={Number(m.id ?? 0)} />,
+        wide: true,
+      };
+    case "asset":
+      return { title: "Asset information · Digital Twin link", body: <AssetModal /> };
     default:
       return null;
   }

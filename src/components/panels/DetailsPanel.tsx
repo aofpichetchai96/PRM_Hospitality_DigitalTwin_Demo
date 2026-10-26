@@ -1,6 +1,6 @@
 "use client";
 
-import { Gauge, type LucideIcon, Shield, Users, Wrench, Zap } from "lucide-react";
+import { Database, Gauge, type LucideIcon, Shield, Users, Wrench, Zap } from "lucide-react";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ASSETS } from "@/data/assets";
@@ -40,7 +40,7 @@ export function LayersPanel() {
 }
 
 /** Selected asset / floor with live metrics (prototype assetHtml L363) */
-export function AssetCard() {
+export function AssetCard({ showDetails = true }: { showDetails?: boolean }) {
   const input = useAppStore(
     useShallow((s) => ({
       asset: s.asset,
@@ -57,6 +57,7 @@ export function AssetCard() {
   );
   const card = useMemo(() => selectAssetCard(input), [input]);
   const createWorkOrder = useAppStore((s) => s.createWorkOrder);
+  const openModal = useAppStore((s) => s.openModal);
   const info = ASSETS[input.asset];
 
   return (
@@ -79,12 +80,22 @@ export function AssetCard() {
       <div className="mt-3 h-1 rounded-full bg-line/60">
         <div className="h-full rounded-full bg-accent" style={{ width: `${info.health}%` }} />
       </div>
-      <button
-        onClick={() => createWorkOrder(card.code)}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-[var(--radius-button)] border border-line py-1.5 text-[13px] hover:border-accent/60"
-      >
-        <Gauge size={14} /> Create work order
-      </button>
+      <div className="mt-3 flex gap-2">
+        {showDetails && (
+          <button
+            onClick={() => openModal({ kind: "asset" })}
+            className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-button)] border border-line py-1.5 text-[13px] hover:border-accent/60"
+          >
+            <Database size={14} /> Asset details
+          </button>
+        )}
+        <button
+          onClick={() => createWorkOrder(card.code)}
+          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-button)] border border-line py-1.5 text-[13px] hover:border-accent/60"
+        >
+          <Gauge size={14} /> Create work order
+        </button>
+      </div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { useEnergy, useRoomCounts } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
 import { ScenarioLab } from "./EnergyPanel";
 import { HotelInventory } from "./HotelPanel";
+import { DataLineage, IncidentWorkflow } from "./IocPanel";
 
 function ChartCard({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
   return (
@@ -118,6 +119,8 @@ export function BottomPanel() {
   // Hotel and Energy always show their working panel (PLAN 5)
   if (view === "hotel") return <HotelInventory />;
   if (view === "energy") return <ScenarioLab />;
+  if (view === "ioc") return <IncidentWorkflow />;
+  if (view === "ai") return <DataLineage />;
   const available = view === "overview" || CHARTS_ON_DEMAND.has(view);
   if (!available) return null;
 

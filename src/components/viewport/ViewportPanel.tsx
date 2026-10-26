@@ -21,6 +21,7 @@ import dynamic from "next/dynamic";
 import { type RefObject, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { KpiStrip } from "@/components/layout/KpiStrip";
+import { CAMERAS, SyntheticFeed } from "@/components/cctv/SyntheticFeed";
 import { TourCard } from "@/components/tour/TourCard";
 import { Segmented } from "@/components/ui/Segmented";
 import { FLOORS } from "@/data/property";
@@ -29,6 +30,7 @@ import { SHORT_SCREEN, useMediaQuery } from "@/lib/useMediaQuery";
 import { useAppStore } from "@/store/useAppStore";
 import { capturePng } from "@/lib/capturePng";
 import { HotspotSet } from "@/three/HotspotSet";
+import { IncidentMarker } from "@/three/IncidentMarker";
 import { FloorHighlight } from "@/three/picking/FloorHighlight";
 import { PickProxies } from "@/three/picking/PickProxies";
 import { SceneTooltip } from "./SceneTooltip";
@@ -94,6 +96,7 @@ function Scene({ topInset, hotspots }: { topInset: number; hotspots: RefObject<H
       <HotspotSet portal={hotspots} />
       <PickProxies />
       <FloorHighlight />
+      <IncidentMarker />
     </Viewport>
   );
 }
@@ -244,6 +247,24 @@ export function ViewportPanel() {
         <img src="/images/reference.webp" alt="ภาพอ้างอิงอาคาร" className="h-[84px] w-[56px] object-cover" />
         <span className="block py-0.5 text-[9px] tracking-wider text-muted">REFERENCE</span>
       </button>
+
+      {st.view === "ioc" && (
+        // Two synthetic camera feeds over the scene (prototype cctv-overlay)
+        <div className="absolute bottom-16 left-3 z-20 grid w-[min(440px,45%)] grid-cols-2 gap-2">
+          {CAMERAS.map((c, i) => (
+            <button
+              key={c.id}
+              onClick={() => a.openModal({ kind: "cctv", id: String(i) })}
+              className="relative h-[110px] overflow-hidden rounded-[var(--radius-button)] border border-line bg-bg/80 hover:border-accent/60"
+            >
+              <SyntheticFeed camera={i} />
+              <span className="absolute top-1.5 left-2 font-mono text-[10px] tracking-wider text-[#b2e4cf]">
+                {c.id} · SYNTHETIC
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <TourCard />
     </div>
