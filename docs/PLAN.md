@@ -1,6 +1,6 @@
 # PRM Hospitality Digital Twin — แผนพัฒนา (React + Three.js)
 
-> สถานะ: **Draft v3 — ปรับตาม Review รอบ 2** (ต้องผ่าน Gate 0 ในข้อ 9 ก่อนเริ่มงาน) · อัปเดต 2026-10-26
+> สถานะ: **v4 — ผ่าน Gate 0 แล้ว** (Next.js หน้าเดียว · รันบน localhost / pm2) — พร้อมเริ่ม Phase 0 · อัปเดต 2026-10-26
 > ต้นแบบ: `PRM_Hospitality_DigitalTwin_example.html` (single file 1.1 MB, 453 บรรทัด)
 
 ---
@@ -9,7 +9,7 @@
 
 | # | เป้าหมาย | ผลลัพธ์ที่ต้องได้ |
 |---|---|---|
-| 1 | แยกไฟล์ตัวอย่างเป็นโปรเจ็คที่มีโครงสร้างชัดเจน | React + TypeScript + Three.js (ผ่าน React Three Fiber) บน Next.js หรือ Vite (ตัดสินใจในข้อ 12.1) |
+| 1 | แยกไฟล์ตัวอย่างเป็นโปรเจ็คที่มีโครงสร้างชัดเจน | **Next.js** + TypeScript + Three.js (ผ่าน React Three Fiber) — หน้าเดียว สลับ view ด้วย state (ข้อ 12.1) |
 | 2 | ข้อมูล Hard-code ทั้งหมด | ไม่มี Backend / API — ข้อมูลอยู่ใน `src/data/*.ts` แก้ได้ที่เดียว |
 | 3 | 3D และสัดส่วนข้อมูลชัดเจน **สวยกว่าต้นแบบ** | ฉาก 3D แยกเป็น component ตามส่วนอาคาร, "Core look" (ข้อ 6.5) เป็นงานหลักไม่ใช่ stretch, layout/UI ใช้ design token เดียวกัน |
 
@@ -45,7 +45,7 @@
 
 | ส่วน | เลือกใช้ | เหตุผล |
 |---|---|---|
-| Framework | **Next.js (รุ่นปัจจุบัน) หรือ Vite + React** + TypeScript | รอตัดสินใจข้อ 12.1 — pin version ทั้งชุด (React 19 / R3F v9 / drei / postprocessing) + commit lockfile |
+| Framework | **Next.js (รุ่นปัจจุบัน)** + TypeScript, Node 24 (เครื่องนี้ v24.22) | ตัดสินใจแล้ว (ข้อ 12.1) — pin version ทั้งชุด (React 19 / R3F v9 / drei / postprocessing) + commit lockfile |
 | 3D | **three.js** + **@react-three/fiber** + **@react-three/drei** | เขียน 3D เป็น component, มี CameraControls / Html label / Instances / Environment พร้อมใช้ |
 | 3D effects | **@react-three/postprocessing**: Bloom, SMAA, **N8AO** (ambient occlusion, ครึ่งความละเอียด), Vignette เล็กน้อย | AO + bloom ตอน dusk คือสิ่งที่ทำให้ massing ดูพรีเมียม — ปิดได้ในโหมด Low quality |
 | Environment / แสง | ไฟล์ HDR เก็บใน `public/env/` หรือ `<Environment>` + `<Lightformer>` (ไม่ใช้ไฟล์) | **ห้ามใช้ `preset="city"` ฯลฯ ของ drei** เพราะโหลดจาก CDN → ออฟไลน์แล้วกระจกดำ (R10) |
@@ -56,7 +56,7 @@
 | Chart | SVG component เขียนเอง (sparkline, segment bar, gauge) | ไม่ต้องเพิ่ม lib, คุมหน้าตาได้เต็มที่ |
 | Icons | **lucide-react** + custom SVG เฉพาะ icon เฉพาะทาง (chiller, AHU) จากต้นแบบ | ดูข้อ 13.4 |
 | Font | self-host: Inter + IBM Plex Sans Thai + JetBrains Mono; ไฟล์ `.woff`/`.ttf` ภาษาไทยใน `public/fonts/` สำหรับข้อความใน 3D | รองรับไทยสวย, ไม่มี external request |
-| Deploy | static build + **offline package** | ⚠️ static export ของ Next เปิดผ่าน `file://` ไม่ได้ (R1) → ดูข้อ 12.1–12.2 |
+| Deploy | **`next build` + `next start` บน localhost** (port 3000); บน server ใช้ **pm2** (`ecosystem.config.js`) | ไม่ต้องใช้ static export / `file://` — ดูข้อ 12.2 |
 
 ---
 
@@ -69,7 +69,9 @@ prm-hospitality-twin/
 │  ├─ env/                    # HDR ของ day / dusk (ถ้าไม่ใช้ Lightformer)
 │  └─ fonts/                  # ฟอนต์ไทยสำหรับ drei <Text> / canvas texture ใน 3D
 ├─ src/
-│  ├─ app/                    # entry — ขึ้นกับข้อ 12.1 (A: Next `app/page.tsx` หน้าเดียว · B: Vite `main.tsx` · C: Next 6 routes)
+│  ├─ app/                    # Next.js App Router — หน้าเดียว (ข้อ 12.1)
+│  │  ├─ layout.tsx           # fonts, metadata
+│  │  ├─ page.tsx             # <AppShell /> (client component) — view อยู่ใน store, sync กับ ?view=
 │  │  ├─ AppShell.tsx         # Header + Sidebar + KPI + <Viewport> — Canvas mount ครั้งเดียว ไม่ remount ตอนสลับ view
 │  │  ├─ views/               # OverviewView, TwinView, IocView, EnergyView, HotelView, AiView (UI 2D ของแต่ละ view)
 │  │  └─ globals.css          # design tokens (dark + projector)
@@ -139,7 +141,7 @@ prm-hospitality-twin/
 - `three/` = แสดงผล 3D เท่านั้น อ่านจาก store ไม่เขียน DOM เอง — ค่าที่เปลี่ยนบ่อยอ่านแบบ transient (`getState()` ใน `useFrame` / `subscribe`) ไม่ใช่ผ่าน re-render
 - `components/` = UI 2D — subscribe ด้วย selector แคบ + `useShallow`
 - **Store คือ source of truth เดียว** ของ view / กล้อง / mode / floor: เปลี่ยนผ่าน action `setView(viewId, overrides?)` เท่านั้น ซึ่งอ่านค่าเริ่มต้นจาก `data/views.ts`; URL (ถ้ามี) แค่สะท้อน state → Tour, ปุ่ม Back และการ mount ไม่แย่งกันคุมกล้อง (R2)
-- โครงนี้ใช้ได้ทั้งทางเลือก A / B / C ในข้อ 12.1 — ต่างกันแค่ `app/` entry
+- ไฟล์ต้นแบบย้ายไป `reference/PRM_Hospitality_DigitalTwin_example.html` ใน Phase 0; โปรเจ็ค Next.js อยู่ที่ root ของ repo นี้ (ข้อ 13.9)
 
 ---
 
@@ -252,10 +254,11 @@ Layout ร่วม: **Header (รวม PageHead) → Sidebar → KPI strip →
 - `frameloop="demand"` + `invalidate()` เมื่อ state เปลี่ยน (ยกเว้นตอน auto-rotate / animation)
 - DPR `[1, 1.75]`, `PerformanceMonitor` ลดคุณภาพอัตโนมัติ (ลำดับการตัด: N8AO → shadow → bloom → DPR)
 - Canvas mount ครั้งเดียวใน `AppShell` → ไม่ remount เมื่อสลับ view
-- โหลด 3D แบบ lazy (`dynamic(..., { ssr: false })` ใน Next หรือ `React.lazy` ใน Vite)
+- โหลด 3D แบบ lazy (`dynamic(..., { ssr: false })`)
+- `<Canvas gl={{ powerPreference: 'high-performance' }}>` + ตั้ง Windows Graphics settings ให้ browser ใช้ GPU แยก (R16)
 - Error boundary รอบ Canvas + จับ `webglcontextlost` → แสดงภาพนิ่ง `hero.webp` + ปุ่ม "โหลดฉากใหม่" (Demo ห้ามจอดำ)
 - **Budget:** draw calls ≤ 300, triangles ≤ 1M, texture memory ≤ 150 MB — ตรวจด้วย `renderer.info` / r3f-perf ระหว่างพัฒนา
-- เป้า: **≥ 50 fps บนเครื่อง Demo จริง (ข้อ 13 คำถามที่ 14) โดยเปิด Core look ครบ, โหลดแรก < 3 วินาที** — วัดตั้งแต่ Phase 1
+- เป้า: **≥ 50 fps บนเครื่อง Demo (ข้อ 13.14: Ryzen 7 7840HS + RTX 4060 Laptop) โดยเปิด Core look ครบ, โหลดแรก < 3 วินาที** — วัดตั้งแต่ Phase 1 ทั้งบน RTX 4060 และบน Radeon 780M (กรณีเลวร้าย: browser เลือก GPU ในตัว)
 
 ---
 
@@ -339,7 +342,7 @@ interface TourStep { view: ViewId; title: L10n; body: L10n; camera?: CameraPrese
 - จอสูง < 900 px (เช่น 1280×720): Bottom panel พับเป็นค่าเริ่มต้น และ KPI strip กลายเป็นแถบลอยโปร่งบนขอบบนของ viewport
 - Sidebar: ≥1440 แบบเต็ม 220px (แสดง Property Explorer ที่ต้นแบบซ่อนไว้), ≥1024 แบบ icon 72px
 - < 1024: Right panel เป็น drawer, < 768: sidebar เป็น bottom tab bar, KPI 2 คอลัมน์ — *ไม่อยู่ใน MVP*
-- ต้องทดสอบที่ **1280×720 และ 1920×1080** (ความละเอียดโปรเจคเตอร์ทั่วไป)
+- ต้องทดสอบที่ **1920×1200** (จอ laptop Demo), **1920×1080** (จอนอก / โปรเจคเตอร์) และ **1280×720**
 - Presentation mode: ซ่อน chrome ทั้งหมด เหลือ 3D + hotspot + projector tokens
 - Badge "SIMULATED DEMO": เล็ก มุมบน ไม่ซ่อน แต่ไม่แย่งสายตาจากภาพ
 
@@ -353,26 +356,26 @@ interface TourStep { view: ViewId; title: L10n; body: L10n; camera?: CameraPrese
 
 ## 9. ขั้นตอนการทำงาน (Phases)
 
-ทำ **ส่วนที่เสี่ยงที่สุดก่อน** (offline delivery, 3D + look) แล้วทำทีละ view ให้จบทั้ง 3D และ UI (vertical slice) — แต่ละ view ที่เสร็จ demo ได้ทันที
+ทำ **ส่วนที่เสี่ยงที่สุดก่อน** (การรันแบบไม่ใช้เน็ต, 3D + look) แล้วทำทีละ view ให้จบทั้ง 3D และ UI (vertical slice) — แต่ละ view ที่เสร็จ demo ได้ทันที
 
-**Gate 0 — ห้ามเริ่ม Phase 0 จนกว่าจะได้คำตอบข้อ 13 คำถามที่ 8, 9, 10, 14, 17**
+**Gate 0 — ✅ ผ่านแล้ว (2026-10-26):** localhost / pm2 · root ของ repo นี้ · Next.js + three.js · เครื่องที่รันโปรเจ็ค · ผู้อนุมัติดีไซน์คือเจ้าของโปรเจ็ค (ข้อ 13)
 
 | Phase | งาน | Definition of Done | ประมาณ |
 |---|---|---|---|
-| **0. Setup** | สร้างโปรเจ็คตามทางเลือกข้อ 12.1 + pin version, ESLint/Prettier, fonts self-host, แตกรูป base64 → WebP, เตรียม environment ที่ไม่ต้องใช้เน็ต, **build เปล่าแล้วเปิดแบบ offline** (ปิด Wi-Fi), เก็บ **screenshot baseline** ของต้นแบบไว้ที่ `reference/screens/`, CI | offline build เปิดได้บนเครื่อง Demo โดยไม่มีเน็ต, font ไทยถูกต้อง, CI เขียว | 1 วัน |
+| **0. Setup** | ย้ายต้นแบบไป `reference/`, สร้าง Next.js ที่ root + pin version, ESLint/Prettier, fonts self-host, แตกรูป base64 → WebP, เตรียม environment ที่ไม่ต้องใช้เน็ต, `ecosystem.config.js` (pm2), **`next build && next start` แล้วเปิด localhost:3000 โดยปิด Wi-Fi**, ตั้งให้ browser ใช้ RTX 4060, เก็บ **screenshot baseline** ของต้นแบบไว้ที่ `reference/screens/`, CI | localhost เปิดได้โดยไม่มีเน็ต, font ไทยถูกต้อง, CI เขียว | 1 วัน |
 | **1. 3D Spike + Look-dev** | Canvas, CameraControls + presets, RetailPodium + HotelTower (exterior), **Core look ครบ** (tone mapping, environment, material, AO, shadow, dusk + bloom) | วัด fps **จากภาพจริง** บนเครื่อง Demo ≥ 50; hero shot overview (dusk) + twin (day) **ผ่านการอนุมัติดีไซน์รอบ 1** | 2 วัน |
 | **2. UI Mock** | mock 2 หน้าจอ (Twin, Overview) × 2 ขนาด (1920, 1280×720) — Figma หรือ HTML static ใช้ token จริง | **ผ่านการอนุมัติดีไซน์** ก่อนเริ่ม Phase 4 | 1 วัน |
 | **3. Data & Store** | ย้ายข้อมูลเข้า `data/` (รวม `views.ts`, `tour.ts`), types, store (slices), selectors, sim ticker + unit test | ค่า KPI ตรงกับต้นแบบ (84% / 2,616 kW / 27,840 / 3) | 1 วัน |
-| **4. App Shell** | Header, Sidebar, KPI strip + Sparkline, RightPanel tabs, BottomPanel, Footer timeline, Modal, Toast, `setView` 6 view, motion tokens, Reset Demo + keyboard | สลับ view ได้ครบที่ 1280×720 / 1920 ตาม mock, viewport ≥ 60% | 1.5 วัน |
+| **4. App Shell** | Header, Sidebar, KPI strip + Sparkline, RightPanel tabs, BottomPanel, Footer timeline, Modal, Toast, `setView` 6 view, motion tokens, Reset Demo + keyboard | สลับ view ได้ครบที่ 1920×1200 / 1920×1080 / 1280×720 ตาม mock, viewport ≥ 60% | 1.5 วัน |
 | **5. Twin (vertical slice)** | Site ครบ, โหมด X-ray / Slice / Explode / Day-Dusk, เลือกชั้น / ห้อง / asset, hotspots, layers (แบบพื้นฐาน), toolbar + **presentation mode**, capture PNG, right panel + Room modal | view Twin demo ได้จริง; **อนุมัติดีไซน์รอบ 2** | 4 วัน |
 | **6. Hotel → Energy → Tour MVP** | view Hotel (slice H12, room grid, inventory), Energy Lab (layer + scenario), **Tour ชุด MVP 4 ขั้น**, **ซ้อม Demo บนเครื่องจริง** (0.5 วัน) | **MVP:** Demo จบได้ในคลิกเดียว ไม่มี placeholder | 4 วัน |
 | **7. IOC → AI → Overview** | IOC + CCTV SyntheticFeed + incident workflow + Locate in 3D, AI chat rule-based + fallback + data lineage, Overview ใหม่, modals ที่เหลือ, **Tour ชุดเต็ม 6 ขั้น** | ทุก flow ในต้นแบบทำงาน | 3.5 วัน |
 | **8. Floor Plan** | Interior Atlas: pan/zoom/**pinch**, markers, zone details | ใช้ได้บน iPad | 1 วัน |
 | **9. Effects & Polish (stretch)** | Effects ในข้อ 6.5, attract mode (0.5 วัน), transitions เพิ่มเติม, responsive < 1024 | ตัดได้ทีละรายการ | 2.5–3.5 วัน |
-| **10. QA & Package** | ทดสอบ Chrome/Edge/Safari/iPad + **เครื่อง Demo จริง**, Playwright smoke test, performance budget, offline package + deploy | URL พร้อมใช้ + offline package ทดสอบบนเครื่องจริงแล้ว | 1.5 วัน |
+| **10. QA & Run** | ทดสอบ Chrome/Edge (+ Safari/iPad ถ้าเปิดผ่าน server) บน **เครื่อง Demo**, Playwright smoke test, performance budget, ทดสอบรันด้วย pm2 + เอกสารวิธีรัน (`README`) | `npm run build && npm start` และ pm2 รันได้, ผ่าน Demo checklist | 1.5 วัน |
 | | | **รวมประมาณ** | **~23–24 วัน** (+ buffer 15% ≈ **26–28 วันทำงาน**) |
 
-**MVP สำหรับ Demo แรก:** Phase 0 → 6 (≈ 14.5 วัน) — Twin + Hotel + Energy + Tour 4 ขั้น ที่ 1280×720 / 1920 พร้อม Core look ครบ, ไม่มี Effects / responsive
+**MVP สำหรับ Demo แรก:** Phase 0 → 6 (≈ 14.5 วัน) — Twin + Hotel + Energy + Tour 4 ขั้น บนเครื่อง Demo (1920×1200 + จอนอก 1920×1080) พร้อม Core look ครบ, ไม่มี Effects / responsive
 
 ---
 
@@ -380,21 +383,22 @@ interface TourStep { view: ViewId; title: L10n; body: L10n; camera?: CameraPrese
 
 | # | ความเสี่ยง | การรับมือ |
 |---|---|---|
-| R1 | **Next static export เปิดผ่าน `file://` (ดับเบิลคลิกจาก USB) ไม่ได้** — path `/_next/...` เป็น absolute; ต้นแบบปัจจุบันเปิดได้เพราะเป็นไฟล์เดียว | ตัดสินใจใน Gate 0 (ข้อ 12.1–12.2) และทดสอบ build offline ใน Phase 0 |
+| R1 | ~~Next static export เปิดผ่าน `file://` ไม่ได้~~ — **ปิดแล้ว:** รันด้วย `next start` บน localhost / pm2 ไม่ต้องเปิดผ่าน `file://` | ทดสอบรันโดยปิดเน็ตใน Phase 0 |
 | R2 | การเปลี่ยน view แย่งกับ Tour + กล้อง (mount ตั้งกล้องเอง, ปุ่ม Back ทำให้ state เพี้ยน) | store เป็น source of truth เดียว ผ่าน `setView()` (ข้อ 4) |
 | R3 | Port 3D จาก WebGL เขียนเองไป three.js ใช้เวลามากกว่าที่คิด | Spike + look-dev ใน Phase 1, ทำ exterior ก่อน, ใช้ขนาดจากต้นแบบตรงๆ, Effects เป็น stretch |
 | R4 | ไม่มีเกณฑ์วัด "สวย / เหมือนต้นแบบ" | screenshot baseline (Phase 0) + hero shot + อนุมัติดีไซน์ 2 รอบ (Phase 1, 5) |
 | R5 | Sim tick / ลาก slider ทำให้ทั้ง UI และฉาก re-render → fps ตก | selector แคบ + `useShallow`, ฝั่ง 3D อ่าน store แบบ transient |
 | R6 | WebGL context lost / GPU ไม่รองรับ → จอดำต่อหน้าลูกค้า | Error boundary + fallback ภาพนิ่ง + ปุ่มโหลดฉากใหม่ (ข้อ 6.6) |
 | R7 | แก้ footfall ให้มีผลแล้ว KPI เริ่มต้นไม่ตรงต้นแบบ | `footfallFactor = footfall / 27,840` + unit test ค่าที่ t0 (ข้อ 7) |
-| R8 | เครื่อง Demo เป็น laptop ไม่มี GPU แยก | PerformanceMonitor + ลำดับการตัดคุณภาพ (ข้อ 6.6), วัดจากภาพจริงใน Phase 1 |
+| R8 | เครื่องที่เปิดดูผ่าน server (pm2) ไม่มี GPU แยก | PerformanceMonitor + ลำดับการตัดคุณภาพ (ข้อ 6.6), วัดบน Radeon 780M ด้วยใน Phase 1 |
 | R9 | Version ของ React 19 / R3F v9 / drei / postprocessing ไม่เข้าชุดกัน | pin version + lockfile ใน Phase 0 |
-| R10 | Wi-Fi หน้างานไม่ดี — **drei `Environment preset` และ `<Text>` โหลด HDR / font จาก CDN โดยค่าเริ่มต้น** | environment + font ทุกไฟล์อยู่ใน `public/`, ทดสอบ build โดยปิดเน็ตใน Phase 0 และ 10 |
-| R11 | ลิขสิทธิ์รูป 4 รูปใน `ASSETS` ถ้า deploy URL สาธารณะ | ยืนยันที่มา (ข้อ 13.15); ถ้าไม่ชัวร์ใช้ deploy แบบมี password |
+| R10 | Wi-Fi หน้างานไม่ดี — **drei `Environment preset` และ `<Text>` โหลด HDR / font จาก CDN โดยค่าเริ่มต้น**; `next/font/google` ต้องใช้เน็ตตอน build | environment + font ทุกไฟล์อยู่ใน `public/` (หรือ `@fontsource`), build ล่วงหน้าตอนมีเน็ต, ทดสอบรันโดยปิดเน็ตใน Phase 0 และ 10 |
+| R11 | ลิขสิทธิ์รูป 4 รูปใน `ASSETS` ถ้าเปิดผ่าน server ให้คนภายนอกเข้าถึง | ยืนยันที่มา (ข้อ 13.15); server ภายในหรือมี password |
 | R12 | ลูกค้าเข้าใจผิดว่าเป็นระบบจริง | badge "SIMULATED DEMO" ทุกหน้า (เล็กแต่ไม่ซ่อน) + disclaimer |
 | R13 | ที่ 1280×720 chrome กินพื้นที่จน 3D เหลือ ~300 px | กฎ viewport ≥ 60%, Bottom panel พับ, KPI ลอย (ข้อ 8) |
 | R14 | ลูกค้าพิมพ์คำถามเองใน AI แล้ว rule-based ตอบผิด → ดูไม่จริง | fallback ชวนกลับไปที่ quick chips, presentation mode ใช้ได้แค่ chips (ข้อ 5) |
 | R15 | สีสถานะเพี้ยนใน 3D (tone mapping / bloom) และคนตาบอดสีแยกแดง-เขียวไม่ออก | สี 3D ปรับแยกใน `look.ts` + ใช้ความสว่างต่างกัน, 2D แสดงคู่กับ icon |
+| R16 | เครื่อง Demo มี GPU 2 ตัว (Radeon 780M + RTX 4060) — browser อาจเลือก GPU ในตัว ทำให้ fps ตก; เสียบไฟ / ถอดไฟก็มีผล | `powerPreference: 'high-performance'`, ตั้ง Windows Settings → Graphics ให้ Chrome/Edge ใช้ High performance, ตรวจที่ `chrome://gpu` ใน Demo checklist, เสียบไฟตอน Demo |
 
 ---
 
@@ -403,28 +407,22 @@ interface TourStep { view: ViewId; title: L10n; body: L10n; camera?: CameraPrese
 - **Unit test (Vitest):** สูตร energy (ค่าที่ t0 = 2,616 kW), selectors, room generator (seed คงที่ → 504/600 occupied), data validation (id ไม่ซ้ำ, position ในขอบเขต), tour/views config อ้าง `ViewId` ที่มีจริง
 - **Playwright smoke test:** เปิดครบ 6 view, เล่น tour จบ (ชุด MVP และชุดเต็ม), Reset Demo, เปิด/ปิด modal หลัก, เทียบ screenshot hero shot (tolerance สูงสำหรับ 3D)
 - **CI (GitHub Actions):** lint + typecheck + test + build ทุก push
-- **Demo checklist (ก่อนออกงานทุกครั้ง):** เปิด offline package บนเครื่องจริงโดยปิดเน็ต, เช็ค fps, ทดสอบ clicker, ทดสอบ attract mode, Reset Demo
+- **Demo checklist (ก่อนออกงานทุกครั้ง):** เสียบไฟ, `npm start` (หรือ pm2) แล้วเปิด localhost:3000 โดยปิดเน็ต, เช็คว่า browser ใช้ RTX 4060 (`chrome://gpu`), เช็ค fps, ทดสอบ clicker, ทดสอบ attract mode, Reset Demo
 - **Demo script / talk track:** เอกสารว่าแต่ละขั้นของ tour พูดอะไร — ข้อความใน `data/tour.ts` ต้องสอดคล้อง
 
 ---
 
-## 12. ทางเลือกสถาปัตยกรรม (ตัดสินใจใน Gate 0)
+## 12. สถาปัตยกรรม (ตัดสินใจแล้วใน Gate 0)
 
-### 12.1 Routing / Framework
-Demo นี้ไม่มี SEO / SSR / API จึงได้ประโยชน์จาก App Router น้อย แต่ App Router ทำให้เกิดปัญหา R1, R2
+### 12.1 Framework / Routing — ✅ Next.js หน้าเดียว
+- **Next.js (App Router) + three.js / R3F** ตามที่กำหนด (ข้อ 13.10)
+- **หน้าเดียว `/`** + `view` ใน store, sync ไป `?view=` ด้วย `history.replaceState` → Canvas ไม่ remount, Tour คุมง่าย, deep link ได้ (แก้ R2)
+- ทางเลือกที่ไม่เลือก: Vite single-file (ไม่ใช่ Next.js), Next.js 6 routes (ต้องจัดการ R2 เพิ่ม และไม่ได้ประโยชน์เพิ่มเพราะไม่มี SEO / SSR)
 
-| ทางเลือก | ข้อดี | ข้อเสีย |
-|---|---|---|
-| **A. Next.js หน้าเดียว** `/` + `view` ใน store (sync ไป `?view=` ด้วย `history.replaceState`) | ยังเป็น Next ตามที่ต้องการ, Canvas ไม่ remount, Tour คุมง่าย | ยังเปิดผ่าน `file://` ไม่ได้ → ต้องใช้ portable server |
-| **B. Vite + React + `vite-plugin-singlefile`** | build ออกมาเป็น HTML ไฟล์เดียวเหมือนต้นแบบ ดับเบิลคลิกเปิดได้จริง | ไม่ใช่ Next.js; ไฟล์ HDR / font ต้อง inline หรือใช้ Lightformer แทน HDR |
-| C. Next.js 6 routes | URL แยกต่อหน้า | ต้องจัดการ R1 + R2 เพิ่ม |
-
-**คำแนะนำ:** ถ้าไม่จำเป็นต้องใช้ Next.js → **B**; ถ้าต้องใช้ → **A** — โครง `src/` ในข้อ 4 ใช้ได้ทั้ง 3 ทาง (ต่างกันแค่ `app/` entry)
-
-### 12.2 Offline delivery (ถ้าเลือก A หรือ C)
-- zip ที่มี portable static server (เช่น `miniserve.exe` / `caddy`) + `start-demo.bat` → เปิด browser ไปที่ localhost ให้อัตโนมัติ
-- หรือห่อด้วย Tauri / Electron ถ้าต้องการให้เป็นแอปจริง
-- ไม่แนะนำ PWA / Service worker เพราะต้องเปิดออนไลน์ก่อนครั้งแรก
+### 12.2 การรัน — ✅ localhost / pm2
+- **Demo บนเครื่องนี้:** `npm ci && npm run build` (ตอนมีเน็ต) → `npm start` → เปิด `http://localhost:3000` (ไม่ต้องใช้เน็ตตอนรัน)
+- **บน server:** pm2 ผ่าน `ecosystem.config.js` (เช่น `pm2 start ecosystem.config.js` รัน `next start -p 3000`) + `pm2 save` / `pm2 startup` ให้รันใหม่อัตโนมัติ
+- ไม่ใช้ static export / `file://` / portable server / Electron
 
 ### 12.3 ทางเลือกด้านภาพ (อนาคต)
 - **ตัวอาคารเป็น GLB จาก Blender** (low-poly massing + bake AO / lightmap — ยังไม่ใช่ BIM): ภาพดีขึ้นมาก แต่ต้องมี 3D artist → พิจารณาสำหรับ Demo รอบถัดไป; รอบนี้ใช้ procedural + AO
@@ -432,26 +430,31 @@ Demo นี้ไม่มี SEO / SSR / API จึงได้ประโย�
 
 ---
 
-## 13. คำถามที่ต้องให้ตัดสินใจ (รบกวน Review)
+## 13. คำถาม / การตัดสินใจ
 
-> ⚠️ คำถามที่ **8, 9, 10, 14, 17** = **Gate 0** ต้องได้คำตอบก่อนเริ่ม Phase 0
+### ตัดสินใจแล้ว (2026-10-26)
 
-1. **ภาษา UI:** คงแบบผสมไทย/อังกฤษเหมือนต้นแบบ หรือทำปุ่มสลับ TH / EN? (แนะนำ: ผสมเหมือนเดิมก่อน — type `L10n` รองรับการสลับภายหลังแล้ว)
-2. **Overview:** ออกแบบใหม่เป็น executive dashboard (ตามข้อ 5) หรือคงเหมือนต้นแบบ?
-3. **Sidebar:** แสดงแบบเต็ม (มี Property Explorer) บนจอใหญ่ หรือคง icon-only ตามต้นแบบ?
-4. **Icons:** แนะนำใช้ lucide-react เป็นหลัก + ย้ายเฉพาะ icon เฉพาะทาง (chiller, AHU) จากต้นแบบมาเป็น custom SVG — ตกลงไหม?
-5. **ระดับรายละเอียด 3D:** Core look (ข้อ 6.5) ทำแน่นอน — Effects (heatmap, ท่อเรืองแสง, intro) ต้องการใน Demo แรกไหม?
+| # | เรื่อง | คำตอบ |
+|---|---|---|
+| 8 | Deploy | รันบน **localhost**; ถ้ารันบน server ใช้ **pm2** |
+| 9 | ตำแหน่งโปรเจ็ค | **root ของ repo นี้**; ย้ายไฟล์ต้นแบบไป `reference/` |
+| 10 | Framework | **Next.js + three.js** (หน้าเดียว, ข้อ 12.1) |
+| 14 | เครื่อง Demo | **เครื่องที่รันโปรเจ็ค:** AMD Ryzen 7 7840HS, RAM 16 GB, GPU คู่ Radeon 780M (ในตัว) + **NVIDIA RTX 4060 Laptop**, จอ 1920×1200 144 Hz + จอนอก 1920×1080, Windows 11, Node 24 — ดู R16 |
+| 17 | ผู้อนุมัติดีไซน์ | **เจ้าของโปรเจ็ค** (ผู้ตอบคำถามนี้) — อนุมัติที่ Phase 1, 2, 5 |
+| 19 | ตารางชั้น / X-ray / Slice / ambient | floor schedule ตามรูปอาคารจริง, X-ray แบบ crossfade, Slice แบบลอยขึ้น + จาง, ambient motion ไม่อยู่ใน Demo แรก (3D_PLAN ข้อ 8) |
+
+### ยังเปิดอยู่ (ไม่บล็อกการเริ่มงาน — ใช้ค่าแนะนำไปก่อนจนกว่าจะได้คำตอบ)
+
+1. **ภาษา UI:** คงแบบผสมไทย/อังกฤษเหมือนต้นแบบ หรือทำปุ่มสลับ TH / EN? (ค่าแนะนำ: ผสมเหมือนเดิม — type `L10n` รองรับการสลับภายหลังแล้ว)
+2. **Overview:** ออกแบบใหม่เป็น executive dashboard (ตามข้อ 5) หรือคงเหมือนต้นแบบ? (ค่าแนะนำ: ออกแบบใหม่)
+3. **Sidebar:** แสดงแบบเต็ม (มี Property Explorer) บนจอใหญ่ หรือคง icon-only ตามต้นแบบ? (ค่าแนะนำ: แบบเต็มที่ ≥ 1440)
+4. **Icons:** lucide-react เป็นหลัก + custom SVG เฉพาะ icon เฉพาะทาง (chiller, AHU) — ตกลงไหม?
+5. **ระดับรายละเอียด 3D:** Core look (ข้อ 6.5) ทำแน่นอน — Effects (heatmap, ท่อเรืองแสง, intro) ต้องการใน Demo แรกไหม? (ค่าแนะนำ: stretch)
 6. **AI Assistant:** rule-based + fallback พอ หรืออยากให้มี typing effect / ตอบพร้อมสั่งกล้องบินไปจุดที่ถาม?
 7. **Branding:** ต้องใช้โลโก้ / สีของ Piramid Solutions หรือของลูกค้า (PRM) หรือไม่ มีไฟล์ให้ไหม?
-8. **Deploy:** Vercel (URL สาธารณะ), offline package อย่างเดียว หรือทั้งสองแบบ? ถ้า offline ต้องดับเบิลคลิกเปิดได้เลย หรือรัน `start-demo.bat` ได้?
-9. **ตำแหน่งโปรเจ็ค:** สร้างโปรเจ็คที่ root ของ repo นี้ (ย้ายไฟล์ตัวอย่างไป `reference/`) ใช่ไหม?
-10. **Framework:** Next.js จำเป็นต้องใช้ (ลูกค้า / ทีมกำหนด) หรือเปิดให้เลือก Vite ได้ (ข้อ 12.1)?
 11. **วัน Demo แรก:** เมื่อไร? → ใช้กำหนดว่าจะตัด scope ที่ MVP (Phase 0–6) หรือทำเต็ม
-12. **มือถือ:** ยืนยันว่ามือถือ (< 768 px) ไม่อยู่ในขอบเขต Demo ใช่ไหม?
+12. **มือถือ:** ยืนยันว่ามือถือ (< 768 px) ไม่อยู่ในขอบเขต Demo ใช่ไหม? (ค่าแนะนำ: ไม่อยู่)
 13. **Demo script:** ใครเป็นคนเขียน talk track ของแต่ละขั้นใน tour?
-14. **เครื่อง Demo จริง:** รุ่น laptop / GPU / จอหรือโปรเจคเตอร์ / ความละเอียด? (ใช้วัด fps ใน Phase 1)
-15. **รูปภาพ:** รูป 4 รูปใน `ASSETS` มาจากไหน ใช้บน URL สาธารณะได้ไหม?
-16. **หน้าแรก:** เปิดมาที่ Overview (dusk, auto-rotate) ตามที่เสนอ หรือ Twin เหมือนต้นแบบ?
-17. **ผู้อนุมัติดีไซน์:** ใครเป็นคนตัดสิน "สวยพอ" ในจุดอนุมัติ Phase 1, 2, 5?
-18. **Attract mode:** ต้องการไหม (ใช้ในบูธ / งาน event)? ถ้าต้องการ เริ่มหลังไม่มีการใช้งานกี่นาที?
-19. ~~ตารางชั้นกับข้อมูล 600 ห้อง~~ — **ตัดสินใจแล้ว:** floor schedule ตามรูปอาคารจริง, X-ray แบบ crossfade, Slice แบบลอยขึ้น + จาง, ambient motion ไม่อยู่ใน Demo แรก (3D_PLAN ข้อ 8)
+15. **รูปภาพ:** รูป 4 รูปใน `ASSETS` มาจากไหน — ถ้าเปิดผ่าน server ให้คนภายนอกเข้าถึง ใช้ได้ไหม?
+16. **หน้าแรก:** เปิดมาที่ Overview (dusk, auto-rotate) ตามที่เสนอ หรือ Twin เหมือนต้นแบบ? (ค่าแนะนำ: Overview)
+18. **Attract mode:** ต้องการไหม (ใช้ในบูธ / งาน event)? ถ้าต้องการ เริ่มหลังไม่มีการใช้งานกี่นาที? (ค่าแนะนำ: มี, 2 นาที — stretch)
