@@ -1,0 +1,90 @@
+// Hero shot and default state of each view (PLAN 5). setView() reads these;
+// nothing else sets the camera or mode when a view opens (PLAN R2).
+import type { Layers, ViewConfig, ViewId } from "@/types";
+
+export const DEFAULT_LAYERS: Layers = { energy: false, security: true, people: false, assets: true };
+
+export const VIEWS: Record<ViewId, ViewConfig> = {
+  overview: {
+    id: "overview",
+    title: "Executive Intelligence",
+    subtitle: "ภาพรวมธุรกิจและปฏิบัติการ · ทุกตัวเลขเป็นข้อมูลจำลอง",
+    camera: { preset: "all" },
+    timeOfDay: "dusk",
+    mode: "exterior",
+    floor: "all",
+    zone: "all",
+    layers: DEFAULT_LAYERS,
+    asset: "site",
+    panel: "details",
+    autoRotate: true,
+  },
+  twin: {
+    id: "twin",
+    title: "Digital Twin Command Center",
+    subtitle: "อาคารเดียว สองธุรกิจ เชื่อมการมองเห็นและการตัดสินใจ",
+    camera: { preset: "all" },
+    timeOfDay: "day",
+    mode: "exterior",
+    floor: "all",
+    zone: "all",
+    layers: DEFAULT_LAYERS,
+    asset: "site",
+    panel: "agent",
+  },
+  ioc: {
+    id: "ioc",
+    title: "Integrated Operations Center",
+    subtitle: "ตรวจพบ → ตรวจสอบ → มอบหมาย → ปิดเหตุการณ์",
+    camera: { preset: "mall" },
+    timeOfDay: "day",
+    mode: "exterior",
+    floor: "all",
+    zone: "mall",
+    layers: { ...DEFAULT_LAYERS, security: true },
+    asset: "mall",
+    panel: "details",
+  },
+  energy: {
+    id: "energy",
+    title: "Energy Optimization Lab",
+    subtitle: "ทดลองปรับอุณหภูมิและ Occupancy เพื่อเปรียบเทียบสถานการณ์",
+    camera: { preset: "plant" },
+    timeOfDay: "day",
+    mode: "exterior",
+    floor: "all",
+    zone: "plant",
+    layers: { ...DEFAULT_LAYERS, energy: true, assets: true },
+    asset: "plant",
+    panel: "details",
+  },
+  hotel: {
+    id: "hotel",
+    title: "Hotel Operations · 600 Keys",
+    subtitle: "สถานะห้องพัก งานบริการ และพลังงาน · ไม่ใช้ข้อมูลแขกจริง",
+    camera: { floor: "H12" },
+    timeOfDay: "day",
+    mode: "slice",
+    floor: "H12",
+    zone: "hotel",
+    layers: DEFAULT_LAYERS,
+    asset: "hotel",
+    panel: "details",
+  },
+  ai: {
+    id: "ai",
+    title: "Ask the Building",
+    subtitle: "ผู้ช่วยตอบคำถามจากสถานการณ์จำลอง · ยังไม่เชื่อมต่อ LLM จริง",
+    camera: { preset: "all" },
+    timeOfDay: "day",
+    mode: "exterior",
+    floor: "all",
+    zone: "all",
+    layers: DEFAULT_LAYERS,
+    asset: "site",
+    panel: "agent",
+  },
+};
+
+export const VIEW_IDS = Object.keys(VIEWS) as ViewId[];
+export const isViewId = (v: unknown): v is ViewId => typeof v === "string" && v in VIEWS;
