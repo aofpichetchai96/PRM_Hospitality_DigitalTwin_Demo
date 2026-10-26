@@ -50,8 +50,15 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
+    const shot = request.shot;
+    if ("azimuth" in shot) {
+      // Compass: turn in place, the short way round
+      c.normalizeRotations();
+      void c.rotateTo(nearestAngle(c.azimuthAngle, shot.azimuth), c.polarAngle, true);
+      return;
+    }
     // First pose is applied instantly; later requests fly
-    void flyTo(c, shotPose(request.shot), !first.current);
+    void flyTo(c, shotPose(shot), !first.current);
     first.current = false;
   }, [request]);
 

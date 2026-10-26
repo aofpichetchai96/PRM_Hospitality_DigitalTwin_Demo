@@ -115,7 +115,12 @@ export type TimeOfDay = "day" | "dusk";
 export type RightPanelTab = "agent" | "details";
 
 /** What the camera should frame: a named preset or a floor (Slice mode) */
-export type CameraShot = { preset: CameraPresetId } | { floor: FloorId } | { focus: Vec3; distance?: number };
+export type CameraShot =
+  | { preset: CameraPresetId }
+  | { floor: FloorId }
+  | { focus: Vec3; distance?: number }
+  /** Turn to a heading, keeping target, distance and tilt (compass) */
+  | { azimuth: number };
 
 export interface ViewConfig {
   id: ViewId;

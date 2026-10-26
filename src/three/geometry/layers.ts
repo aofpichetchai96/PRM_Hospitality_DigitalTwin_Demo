@@ -15,6 +15,19 @@ export const SECURITY_CAMERAS: [number, number, number][] = [
   [30, 13, 3],
 ];
 
+/** Chilled-water riser from the plant up the core, stopping at the sliced floor */
+export function riserPath(explode: boolean, cutFloor?: string): [number, number, number][] {
+  const cutIndex = cutFloor ? TOWER.findIndex((f) => f.id === cutFloor) : TOWER.length - 1;
+  const last = TOWER[cutIndex];
+  const path: [number, number, number][] = [
+    [56, 3.3, -12],
+    [39, 3.3, -12],
+    [39, 27.2, -12],
+  ];
+  if (last) path.push([9, 27.2, -12], [9, floorLevel(last.id, explode) + 4, -12]);
+  return path;
+}
+
 export function buildLayers({
   layers,
   xray,
@@ -42,7 +55,9 @@ export function buildLayers({
     tower.forEach((spec) => {
       const { x, z, w, d } = spec.footprint;
       const y = floorLevel(spec.id, explode);
-      const heat = spec.rooms ? (occupied.get(spec.id) ?? 0) / spec.rooms : 0.15;
+      // Colour spans 60–100 % occupancy, where the floors actually differ
+      const occ = spec.rooms ? (occupied.get(spec.id) ?? 0) / spec.rooms : 0.5;
+      const heat = Math.min(1, Math.max(0, (occ - 0.6) / 0.4));
       // Just outside the facade fins (prototype: 0.8 m in front of the tower face)
       const zf = z + d / 2 + 0.8;
       g.quad(
@@ -58,13 +73,7 @@ export function buildLayers({
 
   if (layers.energy || xray) {
     // Chilled-water risers from the central plant up the core, with branches every third floor
-    const last = tower.at(-1);
-    const path: [number, number, number][] = [
-      [56, 3.3, -12],
-      [39, 3.3, -12],
-      [39, 27.2, -12],
-    ];
-    if (last) path.push([9, 27.2, -12], [9, floorLevel(last.id, explode) + 4, -12]);
+    const path = riserPath(explode, cutFloor);
     for (let i = 0; i < path.length - 1; i++) g.line(path[i], path[i + 1], 0.7, "blue");
     tower.forEach((spec, i) => {
       if (i % 3 !== 1) return;
@@ -75,12 +84,7 @@ export function buildLayers({
   }
 
   if (layers.people) {
-    // Aggregated crowd density at the arrival plaza and the main walking route
-    for (let i = 0; i < 36; i++) {
-      const x = -32 + g.rand() * 63;
-      const z = 6 + g.rand() * 26;
-      g.sphere(x, 0.4, z, 2.7, 0.09, 2.7, "transparent", [0.15, 0.77, 0.63, 0.33], 10, 3);
-    }
+    // Main walking route; the density itself is the PeopleHeatmap texture
     g.line([-36, 0.6, 31], [0, 0.6, 28], 0.75, "glow");
     g.line([0, 0.6, 28], [0, 0.6, 9], 0.75, "glow");
   }

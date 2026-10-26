@@ -57,6 +57,12 @@ export interface TwinState {
   quality: Quality;
   /** Sidebar width chosen by the presenter; null = automatic (full from 1440px) */
   sidebarExpanded: boolean | null;
+  /** Opening "constructing" sweep; true only until it finishes or is skipped */
+  intro: boolean;
+  /** Booth setting: play the tour on its own after a period without input */
+  attractEnabled: boolean;
+  /** Attract mode is currently playing */
+  attractActive: boolean;
   /** Zoom button requests for the camera rig */
   zoom: { dir: 1 | -1; n: number };
 }
@@ -87,6 +93,9 @@ export interface TwinActions {
   notify: (text: string) => void;
   setQuality: (quality: Quality) => void;
   setSidebarExpanded: (expanded: boolean | null) => void;
+  finishIntro: () => void;
+  setAttractEnabled: (on: boolean) => void;
+  setAttractActive: (on: boolean) => void;
   zoomCamera: (dir: 1 | -1) => void;
   activateHotspot: (id: HotspotId) => void;
   locateIncident: (id: string) => void;
@@ -120,6 +129,9 @@ export function initialTwin(): TwinState {
     toast: null,
     quality: "high",
     sidebarExpanded: null,
+    intro: true,
+    attractEnabled: false,
+    attractActive: false,
     zoom: { dir: 1, n: 0 },
   };
 }
@@ -232,6 +244,9 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
   notify: (text) => set((s) => ({ toast: { text, n: (s.toast?.n ?? 0) + 1 } })),
   setQuality: (quality) => set({ quality }),
   setSidebarExpanded: (sidebarExpanded) => set({ sidebarExpanded }),
+  finishIntro: () => set({ intro: false }),
+  setAttractEnabled: (attractEnabled) => set({ attractEnabled }),
+  setAttractActive: (attractActive) => set({ attractActive }),
   zoomCamera: (dir) => set((s) => ({ zoom: { dir, n: s.zoom.n + 1 }, autoRotate: false })),
 
   // Hotspot clicks (prototype hotspot(), L413)

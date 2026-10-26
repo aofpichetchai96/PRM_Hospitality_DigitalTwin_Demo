@@ -14,13 +14,14 @@ import { Toast } from "@/components/ui/Toast";
 import { ViewportPanel } from "@/components/viewport/ViewportPanel";
 import { useAppStore } from "@/store/useAppStore";
 import { useSimTicker } from "@/store/useSimTicker";
-import { useKeyboard, useProjectorTokens, useUrlSync } from "./useShellEffects";
+import { useAttractMode, useKeyboard, useProjectorTokens, useUrlSync } from "./useShellEffects";
 
 export default function AppShell() {
   const presentation = useAppStore((s) => s.presentation);
   useSimTicker();
   useUrlSync();
   useKeyboard();
+  useAttractMode();
   useProjectorTokens(presentation);
 
   return (

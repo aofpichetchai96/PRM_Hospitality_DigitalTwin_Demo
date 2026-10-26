@@ -33,6 +33,8 @@ import { SHORT_SCREEN, useMediaQuery } from "@/lib/useMediaQuery";
 import { useAppStore } from "@/store/useAppStore";
 import { capturePng } from "@/lib/capturePng";
 import { HotspotSet } from "@/three/HotspotSet";
+import { LayerEffects } from "@/three/effects/LayerEffects";
+import { COMPASS_NEEDLE_ID, CompassSync } from "@/three/Compass";
 import { IncidentMarker } from "@/three/IncidentMarker";
 import { FloorHighlight } from "@/three/picking/FloorHighlight";
 import { PickProxies } from "@/three/picking/PickProxies";
@@ -100,6 +102,8 @@ function Scene({ topInset, hotspots }: { topInset: number; hotspots: RefObject<H
       <PickProxies />
       <FloorHighlight />
       <IncidentMarker />
+      <LayerEffects />
+      <CompassSync />
     </Viewport>
   );
 }
@@ -118,6 +122,7 @@ export function ViewportPanel() {
       autoRotate: s.autoRotate,
       panel: s.panel,
       spatial: s.spatial,
+      intro: s.intro,
     })),
   );
   const a = useAppStore(
@@ -133,6 +138,7 @@ export function ViewportPanel() {
       selectFloor: s.selectFloor,
       openModal: s.openModal,
       setSpatial: s.setSpatial,
+      finishIntro: s.finishIntro,
       notify: s.notify,
     })),
   );
@@ -270,6 +276,20 @@ export function ViewportPanel() {
         </span>
       </div>
 
+      {/* Compass (prototype L321): needle follows the camera, click turns to north */}
+      <button
+        onClick={() => a.flyTo({ azimuth: 0 })}
+        title="หันไปทิศเหนือ"
+        aria-label="เข็มทิศ · หันไปทิศเหนือ"
+        className="absolute right-[76px] bottom-3 z-20 grid size-11 place-items-center rounded-full border border-line bg-bg/80 backdrop-blur hover:border-accent/60"
+      >
+        <span className="absolute -top-4 text-[10px] text-muted">N</span>
+        <span id={COMPASS_NEEDLE_ID} className="block h-7 w-1.5 will-change-transform" aria-hidden>
+          <span className="block h-1/2 w-full rounded-t-full bg-red" />
+          <span className="block h-1/2 w-full rounded-b-full bg-text/60" />
+        </span>
+      </button>
+
       <button
         onClick={() => a.openModal({ kind: "reference" })}
         className="absolute right-3 bottom-3 z-20 overflow-hidden rounded-[var(--radius-button)] border border-line bg-bg/80 text-center hover:border-accent/60"
@@ -298,6 +318,20 @@ export function ViewportPanel() {
       )}
 
       {st.spatial === "plan" && <FloorPlanExplorer />}
+
+      {st.intro && (
+        // Opening sweep caption; any click skips it
+        <button
+          onClick={a.finishIntro}
+          className="absolute inset-0 z-[45] flex cursor-default flex-col items-center justify-start pt-[18%]"
+          aria-label="ข้ามการแสดงเปิด"
+        >
+          <span className="flex flex-col items-center gap-1 rounded-[var(--radius-card)] border border-line bg-bg/75 px-5 py-2.5 backdrop-blur">
+            <span className="font-mono text-[12px] tracking-[0.35em] text-text">CONSTRUCTING SPATIAL TWIN</span>
+            <span className="text-[13px] text-muted">คลิกหรือกดปุ่มใดก็ได้เพื่อข้าม</span>
+          </span>
+        </button>
+      )}
 
       <TourCard />
     </div>

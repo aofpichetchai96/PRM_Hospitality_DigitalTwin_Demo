@@ -24,6 +24,8 @@ export function HelpModal() {
   const startTour = useAppStore((s) => s.startTour);
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
+  const attract = useAppStore((s) => s.attractEnabled);
+  const setAttract = useAppStore((s) => s.setAttractEnabled);
   return (
     <>
       <p>สำรวจโครงการ Mixed-use ผ่านโมเดล 3D อ้างอิงภาพที่ให้มา พร้อมทดลองกระบวนการ IOC และข้อมูลจำลอง</p>
@@ -61,6 +63,16 @@ export function HelpModal() {
           </button>
         ))}
       </div>
+      <h3>Attract mode (บูธ / งาน event)</h3>
+      <label className="flex items-center gap-2 text-[14px]">
+        <input
+          type="checkbox"
+          checked={attract}
+          onChange={(e) => setAttract(e.target.checked)}
+          className="size-4 accent-[var(--accent)]"
+        />
+        เล่น Guided Demo วนเองเมื่อไม่มีการใช้งาน 2 นาที · แตะหรือกดปุ่มใดก็ได้เพื่อหยุด
+      </label>
       <SourceNotice>ทำงานบนเครื่องนี้ทั้งหมด ไม่ต้องใช้อินเทอร์เน็ต / API key และไม่ส่งข้อมูลออกภายนอก</SourceNotice>
       <button
         onClick={() => startTour()}

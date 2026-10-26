@@ -172,6 +172,9 @@ export const createSimSlice: StateCreator<AppState, [], [], SimState & SimAction
         // Presenter preferences survive a reset
         sidebarExpanded: s.sidebarExpanded,
         quality: s.quality,
+        attractEnabled: s.attractEnabled,
+        // The opening sweep plays once per page load, not on every reset
+        intro: false,
         toast: { text: "รีเซ็ต Demo แล้ว", n: (s.toast?.n ?? 0) + 1 },
       };
     }),

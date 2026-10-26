@@ -3,6 +3,7 @@
 // App-wide side effects owned by AppShell: URL ↔ view, keyboard / clicker
 // shortcuts (PLAN 8.1) and the projector tokens in presentation mode.
 import { useEffect } from "react";
+import { TOURS } from "@/data/tour";
 import { isViewId, VIEWS } from "@/data/views";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -31,9 +32,20 @@ export function useKeyboard() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const s = useAppStore.getState();
+      // Esc always closes a modal, even while focus is in one of its fields
+      if (e.key === "Escape" && s.modal) {
+        s.closeModal();
+        e.preventDefault();
+        return;
+      }
       const target = e.target as HTMLElement | null;
       if (target && (TYPING.has(target.tagName) || target.isContentEditable)) return;
-      const s = useAppStore.getState();
+      if (s.intro) {
+        s.finishIntro();
+        e.preventDefault();
+        return;
+      }
 
       switch (e.key) {
         case "ArrowRight":
@@ -91,4 +103,68 @@ export function useProjectorTokens(on: boolean) {
     if (on) root.dataset.display = "projector";
     else delete root.dataset.display;
   }, [on]);
+}
+
+/** No input for this long starts attract mode (PLAN 5: default 2 minutes) */
+export const ATTRACT_IDLE_MS = 120_000;
+/** How long each tour step stays on screen while attract mode plays */
+export const ATTRACT_STEP_MS = 12_000;
+const TICK_MS = 1_000;
+const ATTRACT_KEY = "prm.attractEnabled";
+
+/**
+ * Booth attract mode: after a quiet spell the full tour plays on its own in a
+ * loop with auto-rotate; any pointer, wheel or key input hands control back.
+ */
+export function useAttractMode() {
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(ATTRACT_KEY) === "true") useAppStore.getState().setAttractEnabled(true);
+    } catch {}
+    const unsubscribe = useAppStore.subscribe((s, prev) => {
+      if (s.attractEnabled === prev.attractEnabled) return;
+      try {
+        window.localStorage.setItem(ATTRACT_KEY, String(s.attractEnabled));
+      } catch {}
+    });
+
+    let idle = 0;
+    let onStep = 0;
+    const onInput = () => {
+      idle = 0;
+      const s = useAppStore.getState();
+      if (!s.attractActive) return;
+      s.setAttractActive(false);
+      s.endTour();
+      s.setAutoRotate(false);
+    };
+
+    const timer = window.setInterval(() => {
+      const s = useAppStore.getState();
+      if (s.attractActive) {
+        onStep += TICK_MS;
+        if (onStep < ATTRACT_STEP_MS) return;
+        onStep = 0;
+        // Loop back to the first step instead of ending the tour
+        s.goToTourStep(s.tour ? (s.tour.step + 1) % TOURS.full.length : 0);
+        if (!useAppStore.getState().tour) s.startTour("full");
+        s.setAutoRotate(true);
+        return;
+      }
+      idle += TICK_MS;
+      if (!s.attractEnabled || s.modal || s.tour || idle < ATTRACT_IDLE_MS) return;
+      onStep = 0;
+      s.setAttractActive(true);
+      s.startTour("full");
+      s.setAutoRotate(true);
+    }, TICK_MS);
+
+    const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+    for (const e of events) window.addEventListener(e, onInput, { capture: true, passive: true });
+    return () => {
+      unsubscribe();
+      window.clearInterval(timer);
+      for (const e of events) window.removeEventListener(e, onInput, { capture: true });
+    };
+  }, []);
 }
