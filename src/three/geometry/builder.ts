@@ -115,6 +115,18 @@ export class GeometryBuilder {
     this.quad(sub(a, p), add(a, p), add(b, p), sub(b, p), mat, color);
   }
 
+  /** Glowing rectangle around a floor plate (prototype selected-floor perimeter, L296) */
+  outline(cx: number, y: number, cz: number, w: number, d: number, width = 0.3) {
+    const [x0, x1, z0, z1] = [cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2];
+    const c: Vec3[] = [
+      [x0, y, z1],
+      [x1, y, z1],
+      [x1, y, z0],
+      [x0, y, z0],
+    ];
+    for (let i = 0; i < 4; i++) this.line(c[i], c[(i + 1) % 4], width, "glow");
+  }
+
   sphere(
     cx: number,
     cy: number,

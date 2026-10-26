@@ -44,7 +44,8 @@ export function AssetCard() {
   const input = useAppStore(
     useShallow((s) => ({
       asset: s.asset,
-      floor: s.floor,
+      // A floor picked in 3D wins over the sliced floor
+      floor: s.selectedFloor ?? s.floor,
       rooms: s.rooms,
       incidents: s.incidents,
       setpoint: s.setpoint,

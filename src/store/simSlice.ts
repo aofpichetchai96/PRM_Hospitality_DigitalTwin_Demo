@@ -169,6 +169,9 @@ export const createSimSlice: StateCreator<AppState, [], [], SimState & SimAction
         ...initialSim(),
         ...twin,
         camera: { ...twin.camera, n: s.camera.n + 1 },
+        // Presenter preferences survive a reset
+        sidebarExpanded: s.sidebarExpanded,
+        quality: s.quality,
         toast: { text: "รีเซ็ต Demo แล้ว", n: (s.toast?.n ?? 0) + 1 },
       };
     }),

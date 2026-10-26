@@ -44,11 +44,14 @@ export default function Viewport({
   settings,
   onSample,
   children,
+  onPointerMissed,
 }: {
   settings: SceneSettings;
   onSample?: (s: FpsSample) => void;
   /** Extra scene content, e.g. hotspot labels */
   children?: ReactNode;
+  /** Click that hit no pickable object */
+  onPointerMissed?: () => void;
 }) {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -69,10 +72,17 @@ export default function Viewport({
         shadows="percentage"
         frameloop="demand"
         dpr={[1, 1.75]}
-        gl={{ powerPreference: "high-performance", antialias: true }}
+        // preserveDrawingBuffer keeps the last frame readable for "capture PNG"
+        gl={{ powerPreference: "high-performance", antialias: true, preserveDrawingBuffer: true }}
+        onPointerMissed={(e) => {
+          // A drag that ends off the building is not a click either
+          if (e.type === "click") onPointerMissed?.();
+        }}
         camera={{ fov: 38, near: 1, far: 1500 }}
         onCreated={({ gl }) => {
           gl.toneMapping = NeutralToneMapping;
+          // Building materials clip during mode transitions (BuildingReveal)
+          gl.localClippingEnabled = true;
           gl.domElement.addEventListener("webglcontextlost", () => setFailed(true), { once: true });
         }}
       >

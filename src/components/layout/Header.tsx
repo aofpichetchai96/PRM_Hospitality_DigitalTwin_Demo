@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumn, CircleQuestionMark, Download, Play, Sparkles } from "lucide-react";
+import { ChartColumn, CircleQuestionMark, Download, MessageSquareText, Play } from "lucide-react";
 import { VIEWS } from "@/data/views";
 import { exportSnapshot } from "@/lib/exportSnapshot";
 import { timeStr } from "@/lib/format";
@@ -47,7 +47,7 @@ export function Header() {
             onClick={() => setChartsOpen(!chartsOpen)}
           />
         )}
-        <HeaderButton icon={<Sparkles size={16} />} label="ถาม AI" onClick={() => setPanel("agent")} />
+        <HeaderButton icon={<MessageSquareText size={16} />} label="ถาม AI" onClick={() => setPanel("agent")} />
         <HeaderButton
           icon={<Download size={16} />}
           label="Export"

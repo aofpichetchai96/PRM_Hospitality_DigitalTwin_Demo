@@ -74,6 +74,7 @@ export function selectKpis(s: KpiInputs) {
 
 /** Label of what is selected in 3D */
 export function selectionLabel(s: AppState) {
+  if (s.selectedFloor) return s.selectedFloor;
   if (s.floor !== "all") return s.floor;
   return s.zone === "all" ? "อาคารทั้งหมด" : s.zone;
 }
@@ -140,7 +141,7 @@ export function selectAssetCard(s: AssetCardInputs): { name: string; code: strin
 }
 
 export function buildAskContext(s: AppState): AskContext {
-  const card = selectAssetCard(s);
+  const card = selectAssetCard({ ...s, floor: s.selectedFloor ?? s.floor });
   return {
     time: timeStr(s.time),
     energy: selectEnergy(s),

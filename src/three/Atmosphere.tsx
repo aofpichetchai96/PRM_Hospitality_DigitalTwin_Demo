@@ -7,19 +7,28 @@ import { FOG_RANGE, LOOK, SUN_POSITION, type TimeOfDay } from "./look";
 import { createSkyTexture } from "./textures";
 
 /** Sky, fog, lights, static shadow map and a file-free environment map */
-export function Atmosphere({ time, shadows }: { time: TimeOfDay; shadows: boolean }) {
+export function Atmosphere({
+  time,
+  shadows,
+  shadowKey,
+}: {
+  time: TimeOfDay;
+  shadows: boolean;
+  /** Changes whenever the shadow-casting geometry changes */
+  shadowKey: string;
+}) {
   const look = LOOK[time];
   const invalidate = useThree((s) => s.invalidate);
   const sky = useMemo(() => createSkyTexture(look.sky, look.skyCenter), [look]);
   useEffect(() => () => sky.dispose(), [sky]);
 
   // Static shadow map: re-render it once per look change instead of every
-  // frame (3D_PLAN 4.3). Geometry does not move in Phase 1.
+  // frame (3D_PLAN 4.3), and again when the building geometry is swapped.
   const shadowDirty = useRef(true);
   useEffect(() => {
     shadowDirty.current = true;
     invalidate();
-  }, [time, shadows, invalidate]);
+  }, [time, shadows, shadowKey, invalidate]);
   useFrame(({ gl }) => {
     gl.shadowMap.autoUpdate = false;
     if (shadowDirty.current) {

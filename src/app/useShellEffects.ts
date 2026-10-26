@@ -3,7 +3,7 @@
 // App-wide side effects owned by AppShell: URL ↔ view, keyboard / clicker
 // shortcuts (PLAN 8.1) and the projector tokens in presentation mode.
 import { useEffect } from "react";
-import { isViewId } from "@/data/views";
+import { isViewId, VIEWS } from "@/data/views";
 import { useAppStore } from "@/store/useAppStore";
 
 /** `?view=` reflects the store; the store stays the source of truth (PLAN R2) */
@@ -23,7 +23,10 @@ export function useUrlSync() {
 
 const TYPING = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
-/** ← / → / PageUp / PageDown step the tour, P presentation, R reset, Esc closes */
+/**
+ * ← / → / PageUp / PageDown step the tour, P presentation, R reset,
+ * [ / ] floor down / up, Home back to the view's shot, Esc closes (3D_PLAN 5.1)
+ */
 export function useKeyboard() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -53,10 +56,22 @@ export function useKeyboard() {
           s.resetDemo();
           break;
         case "Escape":
+          // Innermost first: modal → picked floor → slice → tour → presentation
           if (s.modal) s.closeModal();
+          else if (s.selectedFloor) s.pickFloor(null);
+          else if (s.mode === "slice") s.setMode("exterior");
           else if (s.tour) s.endTour();
           else if (s.presentation) s.togglePresentation();
           else return;
+          break;
+        case "[":
+          s.stepFloor(-1);
+          break;
+        case "]":
+          s.stepFloor(1);
+          break;
+        case "Home":
+          s.flyTo(VIEWS[s.view].camera);
           break;
         default:
           return;

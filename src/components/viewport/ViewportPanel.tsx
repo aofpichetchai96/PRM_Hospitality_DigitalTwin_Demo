@@ -1,10 +1,22 @@
 "use client";
 
-// The 3D viewport with its 2D overlays: spatial switch, time of day, camera
+// The 3D viewport with its 2D overlays: scene mode, time of day, camera
 // toolbar, floor selector, reference thumbnail, floating KPI strip and the
-// guided-demo card. Scene modes (X-ray / Slice / Explode) arrive in Phase 5 and
-// the Floor Plan switch in Phase 8.
-import { House, Layers, Maximize, Minimize, Minus, Moon, Plus, RotateCw, Sun, type LucideIcon } from "lucide-react";
+// guided-demo card. The Floor Plan switch arrives in Phase 8.
+import {
+  Camera,
+  House,
+  Layers,
+  Maximize,
+  Minimize,
+  Minus,
+  Moon,
+  Plus,
+  RotateCw,
+  SeparatorHorizontal,
+  Sun,
+  type LucideIcon,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { type RefObject, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -15,8 +27,12 @@ import { FLOORS } from "@/data/property";
 import { VIEWS } from "@/data/views";
 import { SHORT_SCREEN, useMediaQuery } from "@/lib/useMediaQuery";
 import { useAppStore } from "@/store/useAppStore";
+import { capturePng } from "@/lib/capturePng";
 import { HotspotSet } from "@/three/HotspotSet";
-import type { FloorSelection, TimeOfDay } from "@/types";
+import { FloorHighlight } from "@/three/picking/FloorHighlight";
+import { PickProxies } from "@/three/picking/PickProxies";
+import { SceneTooltip } from "./SceneTooltip";
+import type { FloorSelection, SceneMode, TimeOfDay } from "@/types";
 
 const Viewport = dynamic(() => import("@/three/Viewport"), { ssr: false });
 
@@ -65,11 +81,19 @@ function Scene({ topInset, hotspots }: { topInset: number; hotspots: RefObject<H
       camera: st.camera,
       zoom: st.zoom,
       autoRotate: st.autoRotate,
+      mode: st.mode,
+      floor: st.floor,
+      explode: st.explode,
+      rooms: st.rooms,
+      layers: st.layers,
     })),
   );
+  const pickFloor = useAppStore((st) => st.pickFloor);
   return (
-    <Viewport settings={{ ...s, topInset }}>
+    <Viewport settings={{ ...s, topInset }} onPointerMissed={() => pickFloor(null)}>
       <HotspotSet portal={hotspots} />
+      <PickProxies />
+      <FloorHighlight />
     </Viewport>
   );
 }
@@ -82,6 +106,8 @@ export function ViewportPanel() {
     useShallow((s) => ({
       view: s.view,
       floor: s.floor,
+      mode: s.mode,
+      explode: s.explode,
       timeOfDay: s.timeOfDay,
       autoRotate: s.autoRotate,
       panel: s.panel,
@@ -95,8 +121,11 @@ export function ViewportPanel() {
       zoomCamera: s.zoomCamera,
       togglePresentation: s.togglePresentation,
       setTimeOfDay: s.setTimeOfDay,
+      setMode: s.setMode,
+      toggleExplode: s.toggleExplode,
       selectFloor: s.selectFloor,
       openModal: s.openModal,
+      notify: s.notify,
     })),
   );
   const top = floatKpi ? "top-[96px]" : "top-3";
@@ -107,6 +136,7 @@ export function ViewportPanel() {
       <Scene topInset={floatKpi ? KPI_INSET : 0} hotspots={hotspots} />
       {/* Hotspot labels mount here, above the canvas and below the overlays */}
       <div ref={hotspots} className="pointer-events-none absolute inset-0 z-10 overflow-hidden" />
+      <SceneTooltip />
 
       {floatKpi && (
         <div className="pointer-events-none absolute inset-x-3 top-3 z-30">
@@ -114,7 +144,27 @@ export function ViewportPanel() {
         </div>
       )}
 
-      <div className={`absolute right-3 z-20 ${top}`}>
+      <div className={`absolute right-3 z-20 flex gap-2 ${top}`}>
+        <Segmented<SceneMode>
+          label="โหมดการแสดงผล"
+          value={st.mode}
+          onChange={a.setMode}
+          options={[
+            { value: "exterior", label: "Exterior", title: "ภายนอกอาคาร" },
+            { value: "xray", label: "X-ray", title: "มองทะลุโครงสร้างและงานระบบ" },
+            { value: "slice", label: "Slice", title: "ตัดอาคารที่ชั้นที่เลือก" },
+          ]}
+        />
+        <button
+          aria-pressed={st.explode}
+          title="แยกชั้นอาคาร"
+          onClick={a.toggleExplode}
+          className={`flex items-center gap-1.5 rounded-[var(--radius-button)] border bg-bg/70 px-2.5 text-[12px] backdrop-blur transition-colors ${
+            st.explode ? "border-accent/60 text-accent" : "border-line text-muted hover:text-text"
+          }`}
+        >
+          <SeparatorHorizontal size={14} /> Explode
+        </button>
         <Segmented<TimeOfDay>
           label="ช่วงเวลา"
           value={st.timeOfDay}
@@ -147,6 +197,14 @@ export function ViewportPanel() {
           label={presentation ? "ออกจาก Presentation (P)" : "Presentation mode (P)"}
           pressed={presentation}
           onClick={a.togglePresentation}
+        />
+        <ToolButton
+          icon={Camera}
+          label="บันทึกภาพ 3D (PNG)"
+          onClick={() => {
+            const ok = capturePng(document.querySelector<HTMLCanvasElement>("canvas"), useAppStore.getState().time);
+            a.notify(ok ? "บันทึกภาพ 3D แล้ว" : "3D renderer ยังไม่พร้อม");
+          }}
         />
       </div>
 

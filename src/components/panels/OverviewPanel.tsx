@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, Sparkles, Store } from "lucide-react";
+import { BedDouble, Store } from "lucide-react";
 import type { ReactNode } from "react";
 import { FOOTFALL_BY_ZONE } from "@/data/energy";
 import { fmt } from "@/lib/format";
@@ -81,7 +81,7 @@ export function OverviewPanel() {
 
       <section className="rounded-[var(--radius-card)] border border-accent/30 bg-accent/5 p-3 text-[13px]">
         <p className="mb-1 flex items-center gap-2 text-[11px] font-semibold tracking-wider text-accent">
-          <Sparkles size={14} /> INTELLIGENCE BRIEF
+          INTELLIGENCE BRIEF
         </p>
         <p>
           {open.length} เหตุการณ์ต้องติดตาม · {c.cleaning} ห้องกำลังทำความสะอาด · ทดลองลดภาระ Cooling ได้ใน Energy Lab

@@ -128,3 +128,36 @@ describe("assistant and tour", () => {
     expect(s().incidents).toHaveLength(3);
   });
 });
+
+describe("3D picking", () => {
+  it("picks a floor without slicing, then slices it on the second pick", () => {
+    s().setView("twin");
+    s().pickFloor("H12");
+    expect(s()).toMatchObject({ selectedFloor: "H12", mode: "exterior", asset: "hotel", panel: "details" });
+    expect(selectAssetCard({ ...s(), floor: "H12" }).name).toBe("H12 · Hotel floor");
+    s().selectFloor("H12");
+    expect(s()).toMatchObject({ mode: "slice", floor: "H12", selectedFloor: null });
+  });
+
+  it("steps floors with [ / ] and stops at the ends", () => {
+    s().selectFloor("H01");
+    s().stepFloor(-1);
+    expect(s().floor).toBe("L4");
+    s().selectFloor("H30");
+    s().stepFloor(1);
+    expect(s().floor).toBe("H30");
+  });
+
+  it("frames the exploded building and returns to the whole-building shot", () => {
+    s().toggleExplode();
+    expect(s()).toMatchObject({ explode: true, mode: "xray", camera: { shot: { preset: "explode" } } });
+    s().toggleExplode();
+    expect(s()).toMatchObject({ explode: false, mode: "exterior", camera: { shot: { preset: "all" } } });
+  });
+
+  it("focuses the camera on a picked asset", () => {
+    s().pickAsset("plant");
+    expect(s().camera.shot).toEqual({ focus: [58, 6, -18] });
+    expect(s().asset).toBe("plant");
+  });
+});

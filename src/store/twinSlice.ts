@@ -2,12 +2,14 @@
 // shot, so tour, URL and buttons never fight over the camera (PLAN R2).
 import type { StateCreator } from "zustand";
 import { FLOOR_PLANS } from "@/data/floorPlans";
-import { isHotelFloor } from "@/data/property";
+import { ASSETS } from "@/data/assets";
+import { FLOORS, isHotelFloor } from "@/data/property";
 import { ACTIVE_TOUR, TOURS, type TourSetId } from "@/data/tour";
 import { VIEWS } from "@/data/views";
 import type {
   AssetId,
   CameraShot,
+  FloorId,
   FloorPlanId,
   FloorSelection,
   LayerId,
@@ -33,6 +35,8 @@ export interface TwinState {
   zone: ZoneId;
   mode: SceneMode;
   floor: FloorSelection;
+  /** Floor picked in 3D without slicing (click); double-click slices it */
+  selectedFloor: FloorId | null;
   explode: boolean;
   timeOfDay: TimeOfDay;
   layers: Layers;
@@ -49,6 +53,8 @@ export interface TwinState {
   modal: ModalState | null;
   toast: { text: string; n: number } | null;
   quality: Quality;
+  /** Sidebar width chosen by the presenter; null = automatic (full from 1440px) */
+  sidebarExpanded: boolean | null;
   /** Zoom button requests for the camera rig */
   zoom: { dir: 1 | -1; n: number };
 }
@@ -57,6 +63,10 @@ export interface TwinActions {
   setView: (id: ViewId, overrides?: Partial<Omit<ViewConfig, "id" | "title" | "subtitle">>) => void;
   selectZone: (zone: ZoneId) => void;
   selectFloor: (floor: FloorSelection) => void;
+  pickFloor: (floor: FloorId | null) => void;
+  /** Step the sliced floor up (+1) or down (−1) through the whole schedule */
+  stepFloor: (dir: 1 | -1) => void;
+  pickAsset: (asset: AssetId) => void;
   setMode: (mode: SceneMode) => void;
   toggleExplode: () => void;
   toggleLayer: (layer: LayerId) => void;
@@ -74,6 +84,7 @@ export interface TwinActions {
   closeModal: () => void;
   notify: (text: string) => void;
   setQuality: (quality: Quality) => void;
+  setSidebarExpanded: (expanded: boolean | null) => void;
   zoomCamera: (dir: 1 | -1) => void;
   activateHotspot: (id: HotspotId) => void;
   locateIncident: (id: string) => void;
@@ -89,6 +100,7 @@ export function initialTwin(): TwinState {
     zone: v.zone,
     mode: v.mode,
     floor: v.floor,
+    selectedFloor: null,
     explode: false,
     timeOfDay: v.timeOfDay,
     layers: { ...v.layers },
@@ -104,6 +116,7 @@ export function initialTwin(): TwinState {
     modal: null,
     toast: null,
     quality: "high",
+    sidebarExpanded: null,
     zoom: { dir: 1, n: 0 },
   };
 }
@@ -118,6 +131,7 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
       zone: v.zone,
       mode: v.mode,
       floor: v.floor,
+      selectedFloor: null,
       explode: false,
       timeOfDay: v.timeOfDay,
       layers: { ...v.layers },
@@ -134,6 +148,7 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
       zone,
       asset: zone === "all" ? "site" : zone,
       floor: "all",
+      selectedFloor: null,
       mode: "exterior",
       explode: false,
       spatial: "building",
@@ -146,6 +161,7 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
       const hotel = floor !== "all" && isHotelFloor(floor);
       return {
         floor,
+        selectedFloor: null,
         mode: floor === "all" ? "exterior" : "slice",
         explode: false,
         asset: hotel ? "hotel" : floor === "all" ? "site" : "mall",
@@ -159,10 +175,38 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
   setMode: (mode) => {
     // Slice needs a floor; the prototype opened H12 by default
     if (mode === "slice") return get().selectFloor(get().floor === "all" ? "H12" : get().floor);
-    set({ mode, floor: "all", explode: false });
+    // Leaving a floor view: frame the whole building again
+    const leavingFloor = get().floor !== "all";
+    const wasExploded = get().explode;
+    set({ mode, floor: "all", selectedFloor: null, explode: false });
+    if (leavingFloor || wasExploded) get().flyTo({ preset: "all" });
   },
 
-  toggleExplode: () => set((s) => ({ explode: !s.explode, mode: s.explode ? "exterior" : "xray", floor: "all" })),
+  toggleExplode: () => {
+    const explode = !get().explode;
+    set({ explode, mode: explode ? "xray" : "exterior", floor: "all", selectedFloor: null });
+    // The exploded building is taller: step back so it stays in frame
+    get().flyTo({ preset: explode ? "explode" : "all" });
+  },
+
+  pickFloor: (floor) => {
+    if (!floor) return set({ selectedFloor: null });
+    const hotel = isHotelFloor(floor);
+    set({ selectedFloor: floor, asset: hotel ? "hotel" : "mall", zone: hotel ? "hotel" : "mall", panel: "details" });
+  },
+
+  stepFloor: (dir) => {
+    const ids = FLOORS.map((f) => f.id);
+    const { floor, selectedFloor } = get();
+    const current = floor !== "all" ? floor : selectedFloor;
+    const i = current ? ids.indexOf(current) + dir : dir > 0 ? 0 : ids.length - 1;
+    get().selectFloor(ids[Math.min(ids.length - 1, Math.max(0, i))]);
+  },
+
+  pickAsset: (asset) => {
+    set({ asset, panel: "details", selectedFloor: null });
+    get().flyTo({ focus: ASSETS[asset].position });
+  },
   toggleLayer: (layer) => set((s) => ({ layers: { ...s.layers, [layer]: !s.layers[layer] } })),
   setTimeOfDay: (timeOfDay) => set({ timeOfDay }),
   selectAsset: (asset) => set({ asset }),
@@ -178,6 +222,7 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
   closeModal: () => set({ modal: null }),
   notify: (text) => set((s) => ({ toast: { text, n: (s.toast?.n ?? 0) + 1 } })),
   setQuality: (quality) => set({ quality }),
+  setSidebarExpanded: (sidebarExpanded) => set({ sidebarExpanded }),
   zoomCamera: (dir) => set((s) => ({ zoom: { dir, n: s.zoom.n + 1 }, autoRotate: false })),
 
   // Hotspot clicks (prototype hotspot(), L413)

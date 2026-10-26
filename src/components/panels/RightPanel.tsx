@@ -22,6 +22,8 @@ export function RightPanel() {
   const view = useAppStore((s) => s.view);
   const panel = useAppStore((s) => s.panel);
   const setPanel = useAppStore((s) => s.setPanel);
+  // Picking something in 3D on Overview shows its details instead of the summary
+  const picked = useAppStore((s) => s.selectedFloor !== null || s.asset !== "site");
   const tabs = [
     ["agent", "AI Agent"],
     ["details", DETAILS_TAB[view]],
@@ -49,7 +51,7 @@ export function RightPanel() {
       </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={`${view}-${panel}`} {...fade} className="flex min-h-0 flex-1 flex-col">
-          {panel === "agent" ? <AgentPanel /> : view === "overview" ? <OverviewPanel /> : <DetailsPanel />}
+          {panel === "agent" ? <AgentPanel /> : view === "overview" && !picked ? <OverviewPanel /> : <DetailsPanel />}
         </motion.div>
       </AnimatePresence>
     </aside>

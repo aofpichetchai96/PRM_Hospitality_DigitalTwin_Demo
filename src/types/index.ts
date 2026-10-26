@@ -115,7 +115,7 @@ export type TimeOfDay = "day" | "dusk";
 export type RightPanelTab = "agent" | "details";
 
 /** What the camera should frame: a named preset or a floor (Slice mode) */
-export type CameraShot = { preset: CameraPresetId } | { floor: FloorId };
+export type CameraShot = { preset: CameraPresetId } | { floor: FloorId } | { focus: Vec3; distance?: number };
 
 export interface ViewConfig {
   id: ViewId;

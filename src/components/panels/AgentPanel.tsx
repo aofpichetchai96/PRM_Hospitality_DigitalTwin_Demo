@@ -1,6 +1,6 @@
 "use client";
 
-import { Send, Sparkles } from "lucide-react";
+import { Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { RichText } from "@/components/ui/RichText";
 import { GREETING, QUICK_CHIPS } from "@/data/aiScript";
@@ -25,9 +25,7 @@ export function AgentPanel() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-start justify-between gap-2 border-b border-line px-4 py-3">
         <div>
-          <p className="flex items-center gap-2 font-semibold text-accent">
-            <Sparkles size={16} /> PRM AI Agent
-          </p>
+          <p className="flex items-center gap-2 font-semibold text-accent">PRM AI Agent</p>
           <p className="text-[13px] text-muted">ผู้ช่วยประจำอาคาร · ถามข้อมูลและสำรวจพื้นที่</p>
         </div>
         <span className="shrink-0 rounded border border-gold/50 px-1.5 text-[10px] tracking-wider whitespace-nowrap text-gold">
@@ -40,9 +38,7 @@ export function AgentPanel() {
 
       <div ref={log} className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4 text-[13px]" aria-live="polite">
         <div className="rounded-[var(--radius-card)] border border-line bg-panel-2 p-3.5">
-          <p className="mb-1.5 flex items-center gap-2 font-semibold text-accent">
-            <Sparkles size={14} /> {GREETING.title}
-          </p>
+          <p className="mb-1.5 flex items-center gap-2 font-semibold text-accent">{GREETING.title}</p>
           <p>{GREETING.body}</p>
           <p className="mt-2 text-muted">{GREETING.note}</p>
         </div>

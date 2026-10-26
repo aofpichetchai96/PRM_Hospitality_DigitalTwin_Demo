@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/store/useAppStore";
 import type { ModalState } from "@/store/twinSlice";
 import { EventModal } from "./EventModal";
+import { RoomModal } from "./RoomModal";
 import { AboutModal, HelpModal, ReferenceModal } from "./InfoModals";
 
 /** Title and body per modal kind; kinds land here as their views are built */
@@ -18,6 +19,8 @@ function content(m: ModalState): { title: string; body: React.ReactNode; wide?: 
       return { title: "Facade references · PRM Hospitality", body: <ReferenceModal />, wide: true };
     case "event":
       return m.id ? { title: `เหตุการณ์ ${m.id}`, body: <EventModal id={m.id} /> } : null;
+    case "room":
+      return m.id ? { title: `Hotel room ${m.id} · Simulated`, body: <RoomModal id={m.id} /> } : null;
     default:
       return null;
   }
