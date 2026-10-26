@@ -140,6 +140,15 @@ export function buildSchematic({ mode, floor, explode, rooms }: SchematicOptions
       g.box(tx, yy + 0.25, tz, W, 0.1, 2.4, "stone", [0.6, 0.72, 0.74, 1]);
     } else {
       g.box(tx, yy + 0.06, tz, W, 0.12, D, "stone", [0.3, 0.55, 0.65, 0.9]);
+      // Floors without furniture still show every room as a status tile, so
+      // occupancy reads from a distance (simplified semantic zoom, 3D_PLAN 5.4)
+      const slots = roomSlots(spec);
+      rooms
+        .filter((r) => r.floor === spec.id)
+        .forEach((r, k) => {
+          const { x, z, cell } = slots[k];
+          g.box(x, yy + 0.2, z, cell * 0.86, 0.16, ROOM_DEPTH * 0.86, "stone", ROOM_COLOR[r.status]);
+        });
     }
     if (selected) g.outline(tx, yy + 0.45, tz, W + 1.8, D + 1.8);
   }

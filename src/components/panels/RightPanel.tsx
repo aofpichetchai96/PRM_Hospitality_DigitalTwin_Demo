@@ -6,6 +6,8 @@ import { useAppStore } from "@/store/useAppStore";
 import type { ViewId } from "@/types";
 import { AgentPanel } from "./AgentPanel";
 import { DetailsPanel } from "./DetailsPanel";
+import { EnergyPanel } from "./EnergyPanel";
+import { HotelPanel } from "./HotelPanel";
 import { OverviewPanel } from "./OverviewPanel";
 
 const DETAILS_TAB: Record<ViewId, string> = {
@@ -51,7 +53,17 @@ export function RightPanel() {
       </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={`${view}-${panel}`} {...fade} className="flex min-h-0 flex-1 flex-col">
-          {panel === "agent" ? <AgentPanel /> : view === "overview" && !picked ? <OverviewPanel /> : <DetailsPanel />}
+          {panel === "agent" ? (
+            <AgentPanel />
+          ) : view === "hotel" ? (
+            <HotelPanel />
+          ) : view === "energy" ? (
+            <EnergyPanel />
+          ) : view === "overview" && !picked ? (
+            <OverviewPanel />
+          ) : (
+            <DetailsPanel />
+          )}
         </motion.div>
       </AnimatePresence>
     </aside>

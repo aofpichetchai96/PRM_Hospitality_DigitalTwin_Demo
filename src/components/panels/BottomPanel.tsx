@@ -9,6 +9,8 @@ import { fmt, timeStr } from "@/lib/format";
 import { SHORT_SCREEN, useMediaQuery } from "@/lib/useMediaQuery";
 import { useEnergy, useRoomCounts } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
+import { ScenarioLab } from "./EnergyPanel";
+import { HotelInventory } from "./HotelPanel";
 
 function ChartCard({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
   return (
@@ -113,6 +115,9 @@ export function BottomPanel() {
   const open = useAppStore((s) => s.chartsOpen);
   const setOpen = useAppStore((s) => s.setChartsOpen);
   const short = useMediaQuery(SHORT_SCREEN);
+  // Hotel and Energy always show their working panel (PLAN 5)
+  if (view === "hotel") return <HotelInventory />;
+  if (view === "energy") return <ScenarioLab />;
   const available = view === "overview" || CHARTS_ON_DEMAND.has(view);
   if (!available) return null;
 

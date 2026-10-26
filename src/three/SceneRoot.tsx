@@ -77,8 +77,17 @@ export function SceneRoot({
 
   const { layers } = settings;
   const layerGeometry = useMemo(
-    () => (layers ? buildLayers({ layers, xray: schematicOn, explode }) : null),
-    [layers, schematicOn, explode],
+    () =>
+      layers
+        ? buildLayers({
+            layers,
+            xray: schematicOn,
+            explode,
+            rooms: rooms ?? [],
+            cutFloor: mode === "slice" && floor !== "all" ? floor : undefined,
+          })
+        : null,
+    [layers, schematicOn, explode, rooms, mode, floor],
   );
 
   const hidden = LOOK[settings.time].windows ? [] : (["windowLight"] as const);

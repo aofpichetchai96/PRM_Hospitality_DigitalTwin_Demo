@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { floorSpec } from "@/data/property";
 import { generateRooms } from "@/data/rooms";
 import type { FloorSelection, SceneMode } from "@/types";
+import { buildLayers } from "./layers";
 import { buildSchematic } from "./schematic";
 
 const rooms = generateRooms(84);
@@ -46,5 +47,15 @@ describe("schematic building", () => {
         for (let i = 0; i < n.length; i += 3) expect(Math.hypot(n[i], n[i + 1], n[i + 2])).toBeCloseTo(1, 4);
       }
     }
+  });
+});
+
+describe("data layers", () => {
+  const layers = { energy: true, security: false, people: false, assets: false };
+  it("stop at the sliced floor like the building", () => {
+    const top = (cutFloor?: string) => maxY(buildLayers({ layers, xray: true, explode: false, rooms, cutFloor }));
+    expect(top("H12")).toBeLessThan(floorSpec("H13").y);
+    expect(top("L2")).toBeLessThan(floorSpec("H01").y);
+    expect(top()).toBeGreaterThan(floorSpec("H29").y);
   });
 });

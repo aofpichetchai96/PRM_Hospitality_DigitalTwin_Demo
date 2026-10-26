@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/store/useAppStore";
 import type { ModalState } from "@/store/twinSlice";
 import { EventModal } from "./EventModal";
+import { AllRoomsModal, MethodologyModal } from "./HotelEnergyModals";
 import { RoomModal } from "./RoomModal";
 import { AboutModal, HelpModal, ReferenceModal } from "./InfoModals";
 
@@ -21,6 +22,10 @@ function content(m: ModalState): { title: string; body: React.ReactNode; wide?: 
       return m.id ? { title: `เหตุการณ์ ${m.id}`, body: <EventModal id={m.id} /> } : null;
     case "room":
       return m.id ? { title: `Hotel room ${m.id} · Simulated`, body: <RoomModal id={m.id} /> } : null;
+    case "allRooms":
+      return { title: "Hotel inventory · 600 simulated rooms", body: <AllRoomsModal />, wide: true };
+    case "methodology":
+      return { title: "Energy Lab · Illustrative calculation", body: <MethodologyModal /> };
     default:
       return null;
   }
