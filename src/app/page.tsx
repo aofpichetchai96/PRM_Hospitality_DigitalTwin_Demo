@@ -1,5 +1,5 @@
-import SetupCheck from "./SetupCheck";
+import SpikeView from "./SpikeView";
 
 export default function Home() {
-  return <SetupCheck />;
+  return <SpikeView />;
 }

@@ -160,7 +160,7 @@ src/three/
 | แสงหลัก | ทิศ (−0.6, 1, 0.9), สี (0.80, 0.78, 0.72) | `directionalLight` + **static shadow map** (`shadowMap.autoUpdate = false`, สั่ง update เมื่อเปลี่ยนโหมด/explode) — ดีกว่า ContactShadows เพราะหอคอยสูง 161 m ต้องทอดเงาข้ามลาน |
 | Ambient | 0.54 (day) / 0.45 (dusk) | hemisphere + environment intensity |
 | Fog | day (.29,.41,.52), dusk (.055,.115,.19), เริ่ม 290 จบ 750, หนาสุด 80% | `Fog` near 290 far ~800 (three หนาได้ 100% จึงขยาย far ชดเชย) |
-| Gamma | pow 0.92 | tone mapping AgX/ACES + exposure ปรับให้ใกล้ baseline |
+| Gamma | pow 0.92 | **Khronos Neutral** tone mapping (เลือกใน Phase 1 — AgX ทำให้ท้องฟ้าและกระจกซีดเป็นสีเทา) |
 | หน้าต่างเรืองแสง (dusk) | exterior: 28% ของบาน (L154) | emissive ต่อบาน seeded, ความหนาแน่นผูกกับ occupancy ของชั้นนั้น |
 | Hotspot `hotel` | (31, 118, 3) หรือ y ของชั้นที่ slice + 2 | ลูกของ tower group |
 | Hotspot `mall` / `plant` / `security` / `ahu` / `people` | (−31,19,26) / (58,6,−18) / (38,10,24) / (−12,78,3) / (−24,5,32) | ลูกของ group ที่เกี่ยวข้อง — ไม่ต้อง hard-code ค่าชดเชย explode (+31 / +16) แบบต้นแบบ |
@@ -287,6 +287,7 @@ src/three/
 | 3R5 | Shadow acne / เงาเบลอเพราะฉากใหญ่ (220 × 150 m, สูง 161 m) | shadow camera ครอบเฉพาะ site, map 2048–4096, `normalBias`; static update |
 | 3R6 | ฟอนต์ในป้าย canvas ไม่ใช่ฟอนต์ที่ตั้งไว้ (วาดก่อนโหลดเสร็จ) | วาดหลัง `document.fonts.ready` |
 | 3R7 | Postprocessing / tone mapping บน canvas โปร่ง (แบบต้นแบบ) ทำให้ขอบและพื้นหลังเพี้ยน | canvas ทึบ, background + fog อยู่ในฉาก |
+| 3R8 | **normal ศูนย์ → NaN → ภาพดำทั้งจอเมื่อเปิด Bloom** (พบใน Phase 1): `roundedPath` ที่รัศมี = ครึ่งความกว้าง ให้จุดซ้ำ, ต้นแบบคำนวณ normal จากขอบที่ยุบ | builder คำนวณ normal จากเส้นทแยง + ข้าม polygon ที่ไม่มีพื้นที่; unit test ตรวจว่าทุก normal ยาว 1 |
 
 ---
 
@@ -313,3 +314,22 @@ src/three/
 2. **X-ray → crossfade** จาก ExteriorShell ไปอาคาร schematic แบบต้นแบบ
 3. **Slice → ชั้นด้านบนลอยขึ้น + จางหาย** สำหรับ MVP; section cut ด้วย clipping plane เป็น stretch (Phase 9)
 4. **Ambient motion → ไม่อยู่ใน Demo แรก** — เป็น stretch ใน 3D-10 / Phase 9 และเมื่อทำ ให้เปิดเฉพาะ overview / presentation / attract
+
+---
+
+## 9. ผล Phase 1 (3D Spike + Look-dev) — 2026-10-26
+
+**ทำแล้ว:** 3D-1 ถึง 3D-4 — `GeometryBuilder` (port จากต้นแบบ), ExteriorShell + Site + Fixed, CameraRig (preset ตรงต้นแบบ + แก้ bug มุมสะสม / pan / ความหน่วง / ขอบเขต), Look (sky, fog, แสง, static shadow map, environment จาก Lightformer ไม่ใช้ไฟล์ / เน็ต, N8AO, Bloom, Khronos Neutral, SMAA), หน้าทดสอบพร้อม benchmark
+
+**FPS — กรณีเลวร้ายสุด:** Edge บน **Radeon 780M (GPU ในตัว)**, 1920×1200, scale 1.5, auto-rotate 10 วินาที (ตัดวินาทีแรก)
+
+| Time | High (AO + Bloom + Shadows) | Medium (Bloom + Shadows) | Low (ไม่มี post-processing) | Draw calls |
+|---|---|---|---|---|
+| Day | avg 80.7 · min 77.6 fps | avg 143.3 · min 141.6 fps | 144 fps (เพดานจอ) | 21–54 |
+| Dusk | avg 77.0 · min 74.0 fps | avg 133.3 · min 126.8 fps | 143.9 fps | 23–58 |
+
+→ ผ่านเป้า ≥ 50 fps ทุกระดับแม้ไม่ได้ใช้ RTX 4060; draw calls ≤ 58 (งบ 300) · ยังไม่ได้วัดบน RTX 4060 (ต้องตั้ง Windows Graphics ก่อน — README)
+
+**ภาพเทียบต้นแบบ:** `docs/screens/phase1/compare-*.jpg` (ซ้าย = ต้นแบบ, ขวา = ใหม่) ทุก preset กล้อง และ `dusk-*.jpg` — มุมกล้องและรูปทรงตรงกัน 1:1
+
+**✅ อนุมัติดีไซน์รอบ 1 แล้ว (2026-10-26)** — ใช้ look ปัจจุบัน (กระจก / ด้านหน้าอาคารเข้มกว่าต้นแบบ, bloom และไฟหน้าต่าง dusk ตามค่าใน `look.ts`); ปรับละเอียดได้อีกในรอบ 2 (Phase 5)

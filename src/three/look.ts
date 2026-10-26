@@ -1,0 +1,80 @@
+// Look settings per time of day (docs/3D_PLAN.md 4.3). Values start from the
+// prototype shader (L112) and viewport CSS, then are tuned for tone mapping.
+export type TimeOfDay = "day" | "dusk";
+export type Quality = "high" | "medium" | "low";
+
+export const QUALITY_LABEL: Record<Quality, string> = {
+  high: "High · AO + Bloom + Shadows",
+  medium: "Medium · Bloom + Shadows",
+  low: "Low · no post-processing",
+};
+
+/** Prototype light direction (-0.6, 1, 0.9), placed far enough to cover the site */
+export const SUN_POSITION: [number, number, number] = [-0.6 * 180, 1 * 180, 0.9 * 180];
+
+type Vec3 = [number, number, number];
+/** A rectangular light card in the environment map (what glass reflects) */
+type EnvLight = { color: string; intensity: number; scale: Vec3; position: Vec3; rotation: Vec3 };
+
+type Placement = Omit<EnvLight, "color" | "intensity">;
+// Card placements: overhead sky, then horizon cards behind, left, right and in front of the site
+const OVERHEAD: Placement = { scale: [400, 400, 1], position: [0, 220, 0], rotation: [Math.PI / 2, 0, 0] };
+const BACK: Placement = { scale: [400, 120, 1], position: [0, 60, -220], rotation: [0, 0, 0] };
+const LEFT: Placement = { scale: [400, 120, 1], position: [-220, 60, 0], rotation: [0, Math.PI / 2, 0] };
+const RIGHT: Placement = { scale: [400, 120, 1], position: [220, 60, 0], rotation: [0, -Math.PI / 2, 0] };
+const FRONT: Placement = { scale: [400, 80, 1], position: [0, 30, 220], rotation: [0, Math.PI, 0] };
+const card = (place: Placement, color: string, intensity: number): EnvLight => ({ ...place, color, intensity });
+
+export const LOOK: Record<
+  TimeOfDay,
+  {
+    sky: readonly [string, string, string];
+    skyCenter: readonly [number, number];
+    fog: string;
+    hemi: { sky: string; ground: string; intensity: number };
+    sun: { color: string; intensity: number };
+    envIntensity: number;
+    /** Reflection colours follow the prototype's fresnel sky (#3b5779 → #8fb0c9) */
+    envLights: EnvLight[];
+    windows: boolean;
+    bloom: number;
+  }
+> = {
+  day: {
+    sky: ["#e0e9e8", "#b5ced8", "#708e9f"],
+    skyCenter: [0.5, 0.22],
+    fog: "#4a6985",
+    hemi: { sky: "#dfe9f3", ground: "#4d5862", intensity: 0.65 },
+    sun: { color: "#fff0d8", intensity: 3.2 },
+    envIntensity: 0.75,
+    envLights: [
+      card(OVERHEAD, "#a9c4da", 1.2),
+      card(BACK, "#8fb0c9", 1.0),
+      card(LEFT, "#ffe2bd", 0.8),
+      card(RIGHT, "#8fb0c9", 0.6),
+      card(FRONT, "#6f8fae", 0.4),
+    ],
+    windows: false,
+    bloom: 0.2,
+  },
+  dusk: {
+    sky: ["#23435e", "#0f2236", "#081321"],
+    skyCenter: [0.48, 0.35],
+    fog: "#0e1d30",
+    hemi: { sky: "#5a7698", ground: "#151c27", intensity: 0.45 },
+    sun: { color: "#9db6da", intensity: 0.45 },
+    envIntensity: 0.35,
+    envLights: [
+      card(OVERHEAD, "#5b7ea8", 0.6),
+      card(BACK, "#2d4a6b", 0.35),
+      card(LEFT, "#3b5274", 0.25),
+      card(RIGHT, "#9fb6c8", 0.2),
+      card(FRONT, "#f2b36b", 0.8),
+    ],
+    windows: true,
+    bloom: 1.1,
+  },
+};
+
+/** Fog starts where the prototype's did (290 m); three.js fog reaches 100 %, so the far end is pushed out */
+export const FOG_RANGE: [number, number] = [290, 820];
