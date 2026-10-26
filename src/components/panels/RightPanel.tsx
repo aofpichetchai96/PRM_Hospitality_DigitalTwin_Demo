@@ -5,6 +5,7 @@ import { fade } from "@/lib/motion";
 import { useAppStore } from "@/store/useAppStore";
 import type { ViewId } from "@/types";
 import { AgentPanel } from "./AgentPanel";
+import { PlanDetails } from "@/components/floorplan/PlanDetails";
 import { DetailsPanel } from "./DetailsPanel";
 import { EnergyPanel } from "./EnergyPanel";
 import { HotelPanel } from "./HotelPanel";
@@ -27,6 +28,7 @@ export function RightPanel() {
   const setPanel = useAppStore((s) => s.setPanel);
   // Picking something in 3D on Overview shows its details instead of the summary
   const picked = useAppStore((s) => s.selectedFloor !== null || s.asset !== "site");
+  const plan = useAppStore((s) => s.spatial === "plan");
   const tabs = [
     ["agent", "AI Agent"],
     ["details", DETAILS_TAB[view]],
@@ -53,9 +55,11 @@ export function RightPanel() {
         ))}
       </div>
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={`${view}-${panel}`} {...fade} className="flex min-h-0 flex-1 flex-col">
+        <motion.div key={`${view}-${panel}-${plan}`} {...fade} className="flex min-h-0 flex-1 flex-col">
           {panel === "agent" ? (
             <AgentPanel />
+          ) : plan ? (
+            <PlanDetails />
           ) : view === "hotel" ? (
             <HotelPanel />
           ) : view === "ioc" ? (

@@ -138,6 +138,16 @@ describe("assistant and tour", () => {
     });
   });
 
+  it("opens the floor plan with zone details and closes it on view change", () => {
+    s().setView("twin");
+    s().setSpatial("plan");
+    expect(s()).toMatchObject({ spatial: "plan", panel: "details" });
+    s().setPlanType("social");
+    expect(s().plan).toEqual({ type: "social", zone: "1" });
+    s().setView("hotel");
+    expect(s().spatial).toBe("building");
+  });
+
   it("resets everything in one step", () => {
     s().setView("ioc");
     s().simulateIncident();

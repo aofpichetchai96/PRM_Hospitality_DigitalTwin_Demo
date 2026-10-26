@@ -4,7 +4,9 @@
 // toolbar, floor selector, reference thumbnail, floating KPI strip and the
 // guided-demo card. The Floor Plan switch arrives in Phase 8.
 import {
+  Box,
   Camera,
+  Map as MapIcon,
   House,
   Layers,
   Maximize,
@@ -22,6 +24,7 @@ import { type RefObject, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { KpiStrip } from "@/components/layout/KpiStrip";
 import { CAMERAS, SyntheticFeed } from "@/components/cctv/SyntheticFeed";
+import { FloorPlanExplorer } from "@/components/floorplan/FloorPlanExplorer";
 import { TourCard } from "@/components/tour/TourCard";
 import { Segmented } from "@/components/ui/Segmented";
 import { FLOORS } from "@/data/property";
@@ -114,6 +117,7 @@ export function ViewportPanel() {
       timeOfDay: s.timeOfDay,
       autoRotate: s.autoRotate,
       panel: s.panel,
+      spatial: s.spatial,
     })),
   );
   const a = useAppStore(
@@ -128,6 +132,7 @@ export function ViewportPanel() {
       toggleExplode: s.toggleExplode,
       selectFloor: s.selectFloor,
       openModal: s.openModal,
+      setSpatial: s.setSpatial,
       notify: s.notify,
     })),
   );
@@ -146,6 +151,32 @@ export function ViewportPanel() {
           <KpiStrip floating />
         </div>
       )}
+
+      <div className={`absolute left-3 z-20 ${top}`}>
+        <Segmented<"building" | "plan">
+          label="มุมมองพื้นที่"
+          value={st.spatial}
+          onChange={a.setSpatial}
+          options={[
+            {
+              value: "building",
+              label: (
+                <>
+                  <Box size={14} /> อาคาร 3D
+                </>
+              ),
+            },
+            {
+              value: "plan",
+              label: (
+                <>
+                  <MapIcon size={14} /> Floor Plan
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
 
       <div className={`absolute right-3 z-20 flex gap-2 ${top}`}>
         <Segmented<SceneMode>
@@ -265,6 +296,8 @@ export function ViewportPanel() {
           ))}
         </div>
       )}
+
+      {st.spatial === "plan" && <FloorPlanExplorer />}
 
       <TourCard />
     </div>

@@ -56,8 +56,9 @@ export function useKeyboard() {
           s.resetDemo();
           break;
         case "Escape":
-          // Innermost first: modal → picked floor → slice → tour → presentation
+          // Innermost first: modal → floor plan → picked floor → slice → tour → presentation
           if (s.modal) s.closeModal();
+          else if (s.spatial === "plan") s.setSpatial("building");
           else if (s.selectedFloor) s.pickFloor(null);
           else if (s.mode === "slice") s.setMode("exterior");
           else if (s.tour) s.endTour();

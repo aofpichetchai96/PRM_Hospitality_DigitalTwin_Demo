@@ -218,7 +218,13 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
   setAutoRotate: (autoRotate) => set({ autoRotate }),
   togglePresentation: () => set((s) => ({ presentation: !s.presentation })),
   setChartsOpen: (chartsOpen) => set({ chartsOpen }),
-  setSpatial: (spatial) => set({ spatial }),
+  // Opening the plan shows its zone details in the right panel (prototype setSpatialView)
+  setSpatial: (spatial) =>
+    set((s) => ({
+      spatial,
+      panel: spatial === "plan" ? "details" : s.panel,
+      autoRotate: spatial === "plan" ? false : s.autoRotate,
+    })),
   setPlanType: (type) => set({ plan: { type, zone: FLOOR_PLANS[type].zones[0].id } }),
   selectPlanZone: (zone) => set((s) => ({ plan: { ...s.plan, zone } })),
   openModal: (modal) => set(modal.kind === "event" && modal.id ? { modal, incidentFocus: modal.id } : { modal }),
