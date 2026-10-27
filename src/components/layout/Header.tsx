@@ -24,9 +24,9 @@ export function Header() {
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-b border-line px-4">
       <div className="flex items-center gap-3 wide:w-[188px]">
-        <span className="grid size-9 place-items-center rounded-[var(--radius-button)] border border-text/70 font-semibold">
-          P
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element -- 160 px WebP made from public/images/Logo-Piramid.png */}
+        <img src="/images/Logo-Piramid.webp" alt="Piramid Solutions" className="size-10 shrink-0 rounded-full" />
+
         <div className="hidden leading-tight wide:block">
           <p className="font-semibold">PRM Hospitality</p>
           <p className="text-[10px] tracking-[0.2em] text-muted">DIGITAL TWIN</p>
