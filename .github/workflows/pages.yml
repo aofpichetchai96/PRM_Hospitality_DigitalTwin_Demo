@@ -1,12 +1,12 @@
 name: Pages
 
-# Static build of the demo on GitHub Pages, deployed only after CI passes on main
-# (lint, typecheck, unit + e2e tests). Run it by hand from the Actions tab too.
+# Static build of the demo on GitHub Pages on every push to main (or by hand
+# from the Actions tab). Lint, typecheck and unit tests gate the deploy here;
+# the e2e smoke suite stays in CI and does not block it — software WebGL on the
+# hosted runners is slow and flaky, and the suite is run on the demo machine.
 # Repo setting needed once: Settings → Pages → Source: "GitHub Actions".
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
   workflow_dispatch:
 
@@ -21,18 +21,17 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          # The commit CI just passed, not whatever main points at now
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
       - run: npx next build
         env:
           # Pages serves the site from /<repo>/
