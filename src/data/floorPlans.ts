@@ -1,5 +1,6 @@
 // Interior Atlas plans (prototype PLANS L415–428)
 import type { FloorPlan, FloorPlanId } from "@/types";
+import { asset } from "@/lib/asset";
 
 export const FLOOR_PLANS: Record<FloorPlanId, FloorPlan> = {
   residence: {
@@ -7,7 +8,7 @@ export const FLOOR_PLANS: Record<FloorPlanId, FloorPlan> = {
     title: "Private residences",
     label: "แปลนที่พัก",
     subtitle: "RESIDENTIAL COLLECTION",
-    image: "/images/residence-plan.webp",
+    image: asset("/images/residence-plan.webp"),
     width: 1079,
     height: 1748,
     number: "01",
@@ -70,7 +71,7 @@ export const FLOOR_PLANS: Record<FloorPlanId, FloorPlan> = {
     title: "The social floor",
     label: "พื้นที่ส่วนกลาง",
     subtitle: "SHARED SPACES COLLECTION",
-    image: "/images/social-plan.webp",
+    image: asset("/images/social-plan.webp"),
     width: 800,
     height: 604,
     number: "02",

@@ -3,6 +3,7 @@
 import { ChartColumn, CircleQuestionMark, Download, MessageSquareText } from "lucide-react";
 import { DemoMenu } from "@/components/tour/DemoMenu";
 import { VIEWS } from "@/data/views";
+import { asset } from "@/lib/asset";
 import { exportSnapshot } from "@/lib/exportSnapshot";
 import { timeStr } from "@/lib/format";
 import { useAppStore } from "@/store/useAppStore";
@@ -25,7 +26,11 @@ export function Header() {
     <header className="flex h-16 shrink-0 items-center gap-4 border-b border-line px-4">
       <div className="flex items-center gap-3 wide:w-[188px]">
         {/* eslint-disable-next-line @next/next/no-img-element -- 160 px WebP made from public/images/Logo-Piramid.png */}
-        <img src="/images/Logo-Piramid.webp" alt="Piramid Solutions" className="size-10 shrink-0 rounded-full" />
+        <img
+          src={asset("/images/Logo-Piramid.webp")}
+          alt="Piramid Solutions"
+          className="size-10 shrink-0 rounded-full"
+        />
 
         <div className="hidden leading-tight wide:block">
           <p className="font-semibold">PRM Hospitality</p>

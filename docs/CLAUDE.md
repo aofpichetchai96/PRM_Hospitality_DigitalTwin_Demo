@@ -28,6 +28,11 @@ npm run benchmark                # fps of the heaviest shot + GPU name, needs a 
 npm run format / format:check    # Prettier (printWidth 120); docs/ is ignored
 ```
 
+**GitHub Pages:** `.github/workflows/pages.yml` deploys a static export after CI passes on `main`
+(`PAGES_BASE_PATH=/<repo> next build` → `out/`; run it from PowerShell — Git Bash rewrites the leading `/` into a
+Windows path). That build turns off `cacheComponents` / `partialPrefetching` (static export can't run PPR) and
+prefixes the base path, so files under `public/` must go through `asset()` (`lib/asset.ts`), never a bare `/images/...`.
+
 Before reporting work as done: lint, typecheck, test, format:check, build — and for UI changes drive the real build in
 Edge (Playwright via `createRequire` on the project `package.json`, `channel: "msedge"`) and look at screenshots.
 

@@ -3,6 +3,7 @@
 import { Canvas } from "@react-three/fiber";
 import { Component, type ReactNode, useState } from "react";
 import { NeutralToneMapping } from "three";
+import { asset } from "@/lib/asset";
 import type { FpsSample } from "./FpsProbe";
 import { type SceneSettings, SceneRoot } from "./SceneRoot";
 
@@ -12,7 +13,7 @@ function Fallback({ onRetry }: { onRetry: () => void }) {
     <div className="absolute inset-0 grid place-items-center bg-bg">
       {/* eslint-disable-next-line @next/next/no-img-element -- static fallback, no optimisation needed */}
       <img
-        src="/images/hero.webp"
+        src={asset("/images/hero.webp")}
         alt="PRM Hospitality"
         className="absolute inset-0 h-full w-full object-contain opacity-60"
       />

@@ -1,6 +1,7 @@
 // Static info modals ported from the prototype: help (L383), model notes
 // (L384) and facade references (L385).
 import { Play } from "lucide-react";
+import { asset } from "@/lib/asset";
 import { SourceNotice } from "@/components/ui/Modal";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -151,12 +152,12 @@ export function ReferenceModal() {
       <div className="mt-3 grid grid-cols-2 gap-3">
         {[
           [
-            "/images/reference.webp",
+            asset("/images/reference.webp"),
             "01 · ฟาซาดและสวนลอยฟ้า",
             "Reference 1: rounded white facade and planted sky courts",
           ],
           [
-            "/images/hero.webp",
+            asset("/images/hero.webp"),
             "02 · ครีบแนวตั้งและฐานอาคาร",
             "Reference 2: white fins and terracotta garden terraces",
           ],
