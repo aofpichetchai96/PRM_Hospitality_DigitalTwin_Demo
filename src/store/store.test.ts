@@ -32,8 +32,8 @@ describe("setView", () => {
     expect(s().camera.shot).toEqual({ preset: "plant" });
   });
 
-  it("starts on overview at dusk with auto-rotate", () => {
-    expect(s()).toMatchObject({ view: "overview", timeOfDay: "dusk", autoRotate: true });
+  it("starts on overview in daylight with auto-rotate", () => {
+    expect(s()).toMatchObject({ view: "overview", timeOfDay: "day", autoRotate: true });
   });
 
   it("slices H12 when Slice is chosen with no floor", () => {

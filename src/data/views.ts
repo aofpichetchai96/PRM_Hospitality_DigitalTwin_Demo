@@ -10,7 +10,7 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
     title: "Executive Intelligence",
     subtitle: "ภาพรวมธุรกิจและปฏิบัติการ · ทุกตัวเลขเป็นข้อมูลจำลอง",
     camera: { preset: "all" },
-    timeOfDay: "dusk",
+    timeOfDay: "day",
     mode: "exterior",
     floor: "all",
     zone: "all",

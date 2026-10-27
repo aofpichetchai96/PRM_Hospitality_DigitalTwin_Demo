@@ -151,14 +151,14 @@ Layout ร่วม: **Header (รวม PageHead) → Sidebar → KPI strip →
 
 | View (`ViewId`) | ชื่อ | Viewport (hero shot ใน `views.ts`) | Right panel | Bottom panel |
 |---|---|---|---|---|
-| `overview` | Executive Intelligence | 3D exterior, **dusk**, auto-rotate | **ใหม่:** สรุปธุรกิจ 2 ฝั่ง (Hotel / Mall), Priority events top 3, Intelligence brief | **ใหม่:** Energy profile 24h + Occupancy trend + Footfall by zone |
+| `overview` | Executive Intelligence | 3D exterior, **day**, auto-rotate | **ใหม่:** สรุปธุรกิจ 2 ฝั่ง (Hotel / Mall), Priority events top 3, Intelligence brief | **ใหม่:** Energy profile 24h + Occupancy trend + Footfall by zone |
 | `twin` | Digital Twin Command Center | 3D เต็มรูปแบบ, day | Tabs: AI Agent / Layers & Asset inspector | (ซ่อน, เปิดด้วย "แสดงกราฟ") |
 | `ioc` | Integrated Operations Center | 3D + CCTV overlay 2 จอ | Incident workspace, Work orders | Incident workflow (**แสดง step ตามเหตุการณ์ที่เลือก**) |
 | `energy` | Energy Optimization Lab | 3D exterior + Energy layer, focus plant | Demand breakdown, nudge setpoint 25°C | What-if Scenario Lab (sliders + ผลต่าง % / ฿) |
 | `hotel` | Hotel Operations · 600 Keys | 3D slice ไปที่ชั้นที่เลือก (ค่าเริ่มต้น H12) | Room stats + Room grid ตามชั้น (28 หรือ 17 ห้อง; ชั้น sky court / roof แสดง amenity) | Inventory 600 ห้อง (stacked bar) |
 | `ai` | Ask the Building | 3D | AI Agent (chat + quick chips) | Data lineage |
 
-**หน้าแรก (landing):** `overview` ตอน dusk + auto-rotate — ให้ภาพแรกที่ผู้บริหารเห็นสวยที่สุด (รอยืนยันข้อ 13.16)
+**หน้าแรก (landing):** `overview` ตอนกลางวัน (day) + auto-rotate — เปลี่ยนจาก dusk ตามที่เจ้าของงานขอ (2026-10-27); สลับเป็นพลบค่ำได้ที่ปุ่มพระจันทร์ — ให้ภาพแรกที่ผู้บริหารเห็นสวยที่สุด (รอยืนยันข้อ 13.16)
 
 **Spatial switch:** "อาคาร 3D" ↔ "Floor Plan" (Interior Atlas: Residences / Social floor) — ใช้ได้ทุก view
 

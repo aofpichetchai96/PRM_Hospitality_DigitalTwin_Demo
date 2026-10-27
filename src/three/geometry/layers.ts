@@ -3,6 +3,7 @@
 import { FLOORS, isHotelFloor } from "@/data/property";
 import type { Layers, Room } from "@/types";
 import { GeometryBuilder } from "./builder";
+import { RISER } from "./interiors";
 import { floorLevel } from "./schematic";
 
 const TOWER = FLOORS.filter((f) => isHotelFloor(f.id) && f.type !== "roof");
@@ -15,7 +16,7 @@ export const SECURITY_CAMERAS: [number, number, number][] = [
   [30, 13, 3],
 ];
 
-/** Chilled-water riser from the plant up the core, stopping at the sliced floor */
+/** Chilled-water riser from the plant up the tower core's riser shaft, stopping at the sliced floor */
 export function riserPath(explode: boolean, cutFloor?: string): [number, number, number][] {
   const cutIndex = cutFloor ? TOWER.findIndex((f) => f.id === cutFloor) : TOWER.length - 1;
   const last = TOWER[cutIndex];
@@ -24,7 +25,8 @@ export function riserPath(explode: boolean, cutFloor?: string): [number, number,
     [39, 3.3, -12],
     [39, 27.2, -12],
   ];
-  if (last) path.push([9, 27.2, -12], [9, floorLevel(last.id, explode) + 4, -12]);
+  if (last)
+    path.push([RISER.x, 27.2, -12], [RISER.x, 27.2, RISER.z], [RISER.x, floorLevel(last.id, explode) + 4, RISER.z]);
   return path;
 }
 
@@ -72,13 +74,18 @@ export function buildLayers({
   }
 
   if (layers.energy || xray) {
-    // Chilled-water risers from the central plant up the core, with branches every third floor
+    // Chilled-water riser from the central plant up the core, with ceiling branches every third floor
     const path = riserPath(explode, cutFloor);
     for (let i = 0; i < path.length - 1; i++) g.line(path[i], path[i + 1], 0.7, "blue");
     tower.forEach((spec, i) => {
       if (i % 3 !== 1) return;
       const y = floorLevel(spec.id, explode);
-      g.line([9, y, -12], [spec.footprint.x + spec.footprint.w / 2 - 2, y, -12], 0.35, "blue");
+      g.line(
+        [RISER.x, y + 3.3, RISER.z],
+        [spec.footprint.x + spec.footprint.w / 2 - 2, y + 3.3, RISER.z],
+        0.35,
+        "blue",
+      );
     });
     g.line([39, 8, 0], [-35, 8, 0], 0.55, "blue");
   }

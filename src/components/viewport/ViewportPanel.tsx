@@ -27,7 +27,7 @@ import { CAMERAS, SyntheticFeed } from "@/components/cctv/SyntheticFeed";
 import { FloorPlanExplorer } from "@/components/floorplan/FloorPlanExplorer";
 import { TourCard } from "@/components/tour/TourCard";
 import { Segmented } from "@/components/ui/Segmented";
-import { FLOORS } from "@/data/property";
+import { FLOOR_PROGRAM, FLOORS } from "@/data/property";
 import { VIEWS } from "@/data/views";
 import { SHORT_SCREEN, useMediaQuery } from "@/lib/useMediaQuery";
 import { useAppStore } from "@/store/useAppStore";
@@ -259,14 +259,14 @@ export function ViewportPanel() {
           <optgroup label="Retail podium">
             {FLOORS.filter((f) => f.type === "retail").map((f) => (
               <option key={f.id} value={f.id}>
-                {f.id} · Retail
+                {f.id} · {FLOOR_PROGRAM[f.id]?.label ?? "Retail"}
               </option>
             ))}
           </optgroup>
           <optgroup label="Hotel tower">
             {FLOORS.filter((f) => f.type !== "retail").map((f) => (
               <option key={f.id} value={f.id}>
-                {f.id} · {FLOOR_LABEL[f.type]}
+                {f.id} · {FLOOR_PROGRAM[f.id]?.label ?? FLOOR_LABEL[f.type]}
               </option>
             ))}
           </optgroup>

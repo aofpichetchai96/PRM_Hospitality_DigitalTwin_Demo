@@ -5,7 +5,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { RoomCell, STATUS_META, STATUS_ORDER, StatusIcon, StatusLegend } from "@/components/ui/StatusChip";
-import { FLOOR_AMENITY, floorSpec, isHotelFloor } from "@/data/property";
+import { FLOOR_AMENITY, FLOOR_PROGRAM, floorSpec, isHotelFloor } from "@/data/property";
 import { fmt } from "@/lib/format";
 import { useRoomCounts } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
@@ -104,7 +104,7 @@ export function HotelPanel() {
           </>
         ) : (
           <p className="rounded-[var(--radius-button)] border border-line bg-panel-2 px-3 py-3 text-[13px] text-muted">
-            {FLOOR_AMENITY[spec.type]} · ไม่มีห้องพักในชั้นนี้
+            {FLOOR_PROGRAM[spec.id]?.detail ?? FLOOR_AMENITY[spec.type]} · ไม่มีห้องพักในชั้นนี้
           </p>
         )}
       </section>

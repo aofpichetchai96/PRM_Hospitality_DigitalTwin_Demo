@@ -1,24 +1,25 @@
 // Schematic building for X-ray / Slice / Explode — port of the prototype's
 // schematic branch (L232–297), laid out on the floor schedule instead of the
-// prototype's 30 × 20 demo grid (docs/3D_PLAN.md section 8).
+// prototype's 30 × 20 demo grid (docs/3D_PLAN.md section 8). Floor fit-out
+// (rooms, core, amenities, podium programme) lives in interiors.ts.
 import { floorSpec, FLOORS, isHotelFloor, PODIUM_LEVEL_HEIGHT } from "@/data/property";
-import type { FloorSelection, FloorSpec, Room, RoomStatus, SceneMode } from "@/types";
+import type { FloorSelection, FloorSpec, Room, SceneMode } from "@/types";
 import { GeometryBuilder, type RGBA } from "./builder";
+import {
+  type Detail,
+  guestFloor,
+  guestPlan,
+  MEZZANINE_EDGE,
+  PODIUM_ATRIUM,
+  podiumFloor,
+  roofFloor,
+  ROOM_COLOR,
+  type RoomSlot,
+  skyCourtFloor,
+} from "./interiors";
 
 /** Extra gap per level when exploded (prototype: podium 2.0 m, tower 1.55 m) */
-/** Room cell depth either side of the corridor (m) */
-export const ROOM_DEPTH = 5.7;
-
 export const EXPLODE_GAP = { podium: 2.0, tower: 1.55 };
-
-const ROOM_COLOR: Record<RoomStatus, RGBA> = {
-  occupied: [0.44, 0.7, 0.62, 1],
-  ready: [0.47, 0.63, 0.77, 1],
-  cleaning: [0.79, 0.68, 0.43, 1],
-  maintenance: [0.81, 0.45, 0.45, 1],
-};
-/** Prototype room cell width (m); furniture scales to the actual cell */
-const CELL = 4.4;
 
 export type SchematicOptions = {
   mode: SceneMode;
@@ -42,35 +43,18 @@ export function floorLevel(id: string, explode: boolean) {
   return spec.y + (explode ? i * EXPLODE_GAP.tower : 0);
 }
 
-/** Room cells in index order: front row (+z) then back row, either side of the corridor */
-export function roomSlots(spec: FloorSpec) {
+/** Room cells in index order: front row (+z) then back row, from the corridor to the facade */
+export function roomSlots(spec: FloorSpec): RoomSlot[] {
   const { x: tx, z: tz, w: W } = spec.footprint;
+  const { core, corridor, depth } = guestPlan(spec);
   const perSide = Math.ceil(spec.rooms / 2);
   const cell = W / perSide;
+  const off = core / 2 + corridor + depth / 2;
   return Array.from({ length: spec.rooms }, (_, k) => {
     const front = k < perSide;
     const col = front ? k : k - perSide;
-    return { x: tx - W / 2 + cell / 2 + col * cell, z: tz + (front ? 4.65 : -4.65), front, cell };
+    return { x: tx - W / 2 + cell / 2 + col * cell, z: tz + (front ? off : -off), front, cell, depth, col };
   });
-}
-
-/** Bed, headboard, status bedspread, desk and partition (prototype roomFurniture, L134) */
-function roomFurniture(
-  g: GeometryBuilder,
-  x: number,
-  y: number,
-  z: number,
-  s: number,
-  status: RoomStatus,
-  front: boolean,
-) {
-  const f = front ? 1 : -1;
-  g.box(x, y + 0.05, z, 4.05 * s, 0.12, 5.7, "stone", [0.69, 0.68, 0.61, 1]);
-  g.box(x, y + 0.65, z + 0.6 * f, 2.0 * Math.min(1, s * 1.1), 1.0, 2.65, "stone", [0.88, 0.89, 0.86, 1]);
-  g.box(x, y + 1.22, z - 0.32 * f, 1.8 * Math.min(1, s * 1.1), 0.2, 0.6, "stone", [0.99, 0.96, 0.88, 1]);
-  g.box(x, y + 1.18, z + 1.05 * f, 2.04 * Math.min(1, s * 1.1), 0.08, 1.0, "stone", ROOM_COLOR[status]);
-  g.box(x + 1.5 * s, y + 0.72, z - 0.5 * f, 0.48 * s, 0.8, 0.65, "wood");
-  g.box(x + 2.06 * s, y + 1.3, z, 0.12, 2.6, 6.0, "stone", [0.71, 0.77, 0.79, 1]);
 }
 
 export function buildSchematic({ mode, floor, explode, rooms }: SchematicOptions) {
@@ -79,24 +63,23 @@ export function buildSchematic({ mode, floor, explode, rooms }: SchematicOptions
   const podiumSelected = cut && !isHotelFloor(floor) ? PODIUM.findIndex((f) => f.id === floor) : -1;
   const hotelSelected = cut && isHotelFloor(floor) ? TOWER.findIndex((f) => f.id === floor) : -1;
 
-  // Retail podium: slab, translucent volume, columns, shop units, concourse + escalators
+  // Retail podium: slab (open at the atrium above G), translucent volume, programme
   PODIUM.forEach((spec, i) => {
     if (podiumSelected >= 0 && i > podiumSelected) return;
-    const y = floorLevel(spec.id, explode) + PODIUM_LEVEL_HEIGHT / 2;
+    const base = floorLevel(spec.id, explode);
+    const y = base + PODIUM_LEVEL_HEIGHT / 2;
     const selected = i === podiumSelected;
-    g.box(0, y - 2.35, 0, 86, 0.55, 50, "stone", selected ? [0.71, 0.89, 0.88, 1] : [0.69, 0.74, 0.77, 1]);
-    g.box(0, y + 0.1, 0, 83, 4.5, 47, "transparent", [0.25, 0.55, 0.62, 0.09]);
-    for (let x = -37; x <= 38; x += 15)
-      for (const z of [-19, 19]) g.box(x, y, z, 0.8, 4.6, 0.8, "stone", [0.61, 0.71, 0.77, 1]);
-    for (let x = -30; x <= 30; x += 12) {
-      const c: RGBA = g.rand() < 0.4 ? [0.32, 0.68, 0.72, 1] : [0.5, 0.62, 0.72, 1];
-      g.box(x, y - 1.8, -12, 9, 0.3, 13, "stone", c);
-      g.box(x, y - 1.8, 12, 9, 0.3, 13, "stone", c);
-      g.box(x - 4.5, y - 0.6, -12, 0.18, 2.5, 13, "stone", [0.6, 0.69, 0.73, 1]);
+    const slab: RGBA = selected ? [0.71, 0.89, 0.88, 1] : [0.69, 0.74, 0.77, 1];
+    if (i === 0) g.box(0, y - 2.35, 0, 86, 0.55, 50, "stone", slab);
+    else {
+      const { x0, x1, z0, z1 } = PODIUM_ATRIUM;
+      g.box((-43 + x0) / 2, y - 2.35, 0, x0 + 43, 0.55, 50, "stone", slab);
+      g.box((x1 + 43) / 2, y - 2.35, 0, 43 - x1, 0.55, 50, "stone", slab);
+      g.box((x0 + x1) / 2, y - 2.35, (-25 + z0) / 2, x1 - x0, 0.55, z0 + 25, "stone", slab);
+      g.box((x0 + x1) / 2, y - 2.35, (z1 + 25) / 2, x1 - x0, 0.55, 25 - z1, "stone", slab);
     }
-    g.box(0, y - 1.73, 0, 78, 0.14, 8, "stone", [0.71, 0.75, 0.75, 1]);
-    g.box(-4, y - 0.5, 0, 2, 1.2, 11, "metal");
-    g.box(4, y - 0.5, 0, 2, 1.2, 11, "metal");
+    g.box(0, y + 0.1, 0, 83, 4.5, 47, "transparent", [0.25, 0.55, 0.62, 0.06]);
+    podiumFloor(g, spec.id, y - 2.075, selected);
     if (selected) g.outline(0, y - 2.0, 0, 88, 52);
   });
   if (podiumSelected >= 0) return g.build();
@@ -118,36 +101,46 @@ export function buildSchematic({ mode, floor, explode, rooms }: SchematicOptions
     const { x: tx, z: tz, w: W, d: D } = spec.footprint;
     const yy = floorLevel(spec.id, explode);
     const selected = i === hotelSelected;
-    g.box(tx, yy, tz, W + 0.6, 0.28, D + 0.5, "stone", selected ? [0.71, 0.89, 0.88, 1] : [0.51, 0.65, 0.73, 1]);
-    g.box(tx, yy + 1.5, tz - 1.1, W, 0.12, 0.13, "glow", [0.25, 0.71, 0.7, 0.6]);
+    const slab: RGBA = selected ? [0.71, 0.89, 0.88, 1] : [0.51, 0.65, 0.73, 1];
+    // Upper level of a two-storey sky court: a mezzanine over the back half
+    const mezzanine = spec.type === "skyCourt" && Number(spec.id.slice(1)) % 2 === 1;
+    if (mezzanine) {
+      const z0 = tz - D / 2 - 0.25;
+      const z1 = tz + MEZZANINE_EDGE;
+      g.box(tx, yy, (z0 + z1) / 2, W + 0.6, 0.28, z1 - z0, "stone", slab);
+    } else g.box(tx, yy, tz, W + 0.6, 0.28, D + 0.5, "stone", slab);
     for (const x of [tx - W / 2 + 0.7, tx, tx + W / 2 - 0.7])
       for (const z of [tz - D / 2 + 0.6, tz + D / 2 - 0.6]) g.box(x, yy + 1.85, z, 0.45, 3.7, 0.45, "metal");
 
-    const showInterior = selected || explode || i === top - 1;
+    // Fitted out: the sliced floor, the top floor in X-ray, every floor when exploded
+    const detail: Detail | null =
+      selected || (!explode && i === top - 1) || (explode && floor === spec.id) ? "full" : explode ? "lite" : null;
+    const y = yy + 0.14;
     if (spec.type === "skyCourt" || spec.type === "roof") {
-      // Amenity floors: deck and planting instead of rooms
-      g.box(tx, yy + 0.2, tz, W - 2, 0.12, D - 2, "deck");
-      if (showInterior)
-        for (let x = tx - W / 2 + 4; x < tx + W / 2 - 2; x += 6) g.tree(x, tz + D / 2 - 4, yy + 0.3, 0.55);
-    } else if (showInterior) {
-      const slots = roomSlots(spec);
-      rooms
-        .filter((r) => r.floor === spec.id)
-        .forEach((r, k) => {
-          const { x, z, front, cell } = slots[k];
-          roomFurniture(g, x, yy + 0.2, z, cell / CELL, r.status, front);
-        });
-      g.box(tx, yy + 0.25, tz, W, 0.1, 2.4, "stone", [0.6, 0.72, 0.74, 1]);
+      if (detail && spec.type === "roof") roofFloor(g, spec, y);
+      else if (detail) skyCourtFloor(g, spec, y);
+      else g.box(tx, yy + 0.2, tz, W - 2, 0.12, D - 2, "deck");
+    } else if (detail) {
+      guestFloor(
+        g,
+        spec,
+        y,
+        rooms.filter((r) => r.floor === spec.id),
+        roomSlots(spec),
+        detail,
+      );
     } else {
+      g.box(tx, yy + 1.5, tz - 1.1, W, 0.12, 0.13, "glow", [0.25, 0.71, 0.7, 0.6]);
       g.box(tx, yy + 0.06, tz, W, 0.12, D, "stone", [0.3, 0.55, 0.65, 0.9]);
+      g.box(tx, yy + 0.3, tz, W - 1, 0.3, guestPlan(spec).core, "stone", [0.6, 0.64, 0.66, 1]);
       // Floors without furniture still show every room as a status tile, so
       // occupancy reads from a distance (simplified semantic zoom, 3D_PLAN 5.4)
       const slots = roomSlots(spec);
       rooms
         .filter((r) => r.floor === spec.id)
         .forEach((r, k) => {
-          const { x, z, cell } = slots[k];
-          g.box(x, yy + 0.2, z, cell * 0.86, 0.16, ROOM_DEPTH * 0.86, "stone", ROOM_COLOR[r.status]);
+          const { x, z, cell, depth } = slots[k];
+          g.box(x, yy + 0.2, z, cell * 0.86, 0.16, depth * 0.86, "stone", ROOM_COLOR[r.status]);
         });
     }
     if (selected) g.outline(tx, yy + 0.45, tz, W + 1.8, D + 1.8);

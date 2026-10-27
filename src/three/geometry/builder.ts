@@ -148,6 +148,20 @@ export class GeometryBuilder {
       for (let i = 0; i < segments; i++) this.quad(pt(i, j + 1), pt(i + 1, j + 1), pt(i + 1, j), pt(i, j), mat, color);
   }
 
+  /** Upright cylinder standing on `y` (tanks, pipes, round tables) */
+  cylinder(cx: number, y: number, cz: number, r: number, h: number, mat: MaterialKey = "metal", color?: RGBA, n = 12) {
+    const hi = y + h;
+    for (let i = 0; i < n; i++) {
+      const t0 = (Math.PI * 2 * i) / n,
+        t1 = (Math.PI * 2 * (i + 1)) / n;
+      const p0: [number, number] = [cx + r * Math.cos(t0), cz + r * Math.sin(t0)];
+      const p1: [number, number] = [cx + r * Math.cos(t1), cz + r * Math.sin(t1)];
+      this.quad([p1[0], y, p1[1]], [p0[0], y, p0[1]], [p0[0], hi, p0[1]], [p1[0], hi, p1[1]], mat, color);
+      this.tri([cx, hi, cz], [p1[0], hi, p1[1]], [p0[0], hi, p0[1]], mat, color);
+      this.tri([cx, y, cz], [p0[0], y, p0[1]], [p1[0], y, p1[1]], mat, color);
+    }
+  }
+
   tree(x: number, z: number, y = 0, s = 1) {
     this.box(x, y + 2 * s, z, 0.38 * s, 4 * s, 0.4 * s, "wood");
     this.sphere(x, y + 5.1 * s, z, 2.2 * s, 2.8 * s, 2.3 * s, "foliage", [

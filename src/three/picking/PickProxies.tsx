@@ -7,11 +7,11 @@ import type { ThreeEvent } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { type InstancedMesh, Matrix4 } from "three";
 import { useShallow } from "zustand/react/shallow";
-import { FLOORS, isHotelFloor } from "@/data/property";
+import { FLOOR_PROGRAM, FLOORS, isHotelFloor } from "@/data/property";
 import { STATUS_LABEL } from "@/data/rooms";
 import { useAppStore } from "@/store/useAppStore";
 import type { FloorSpec } from "@/types";
-import { floorLevel, ROOM_DEPTH, roomSlots } from "../geometry/schematic";
+import { floorLevel, roomSlots } from "../geometry/schematic";
 import { setHover } from "./hover";
 
 /** Pointer travel (px) above which a press is a drag, not a click */
@@ -59,7 +59,9 @@ function FloorProxies() {
     const { x, z, w, d } = spec.footprint;
     const y = floorLevel(spec.id, s.explode) + spec.height / 2;
     const detail =
-      spec.rooms > 0 ? `${occupiedByFloor.get(spec.id) ?? 0} / ${spec.rooms} occupied` : FLOOR_LABEL[spec.type];
+      spec.rooms > 0
+        ? `${occupiedByFloor.get(spec.id) ?? 0} / ${spec.rooms} occupied`
+        : (FLOOR_PROGRAM[spec.id]?.label ?? FLOOR_LABEL[spec.type]);
     return (
       <mesh
         key={spec.id}
@@ -109,7 +111,7 @@ function RoomProxies() {
     if (!mesh || !spec) return;
     const y = floorLevel(spec.id, false) + 1.4;
     slots.forEach((slot, i) => {
-      matrix.makeScale(slot.cell * 0.95, 2.8, ROOM_DEPTH);
+      matrix.makeScale(slot.cell * 0.95, 2.8, slot.depth);
       matrix.setPosition(slot.x, y, slot.z);
       mesh.setMatrixAt(i, matrix);
     });

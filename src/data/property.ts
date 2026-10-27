@@ -64,5 +64,24 @@ export const FLOOR_AMENITY: Partial<Record<FloorType, string>> = {
   retail: "Retail podium · ร้านค้า F&B และพื้นที่ส่วนกลาง",
 };
 
+/** Programme of every floor without guest rooms — matches the schematic fit-out (three/geometry/interiors.ts) */
+export const FLOOR_PROGRAM: Partial<Record<FloorId, { label: string; detail: string }>> = {
+  G: {
+    label: "Lobby · Arrival",
+    detail: "ล็อบบี้และ Reception โรงแรม ร้านค้าหน้าถนน ห้องควบคุมความปลอดภัย และ Loading dock",
+  },
+  L1: { label: "Retail", detail: "ร้านค้า 12 ยูนิต Atrium บันไดเลื่อน Kiosk และจุดบริการข้อมูล" },
+  L2: { label: "Food & beverage", detail: "ร้านอาหาร Food court และคาเฟ่ริมกระจก" },
+  L3: { label: "Event hall", detail: "Ballroom พร้อมเวที ห้องประชุม 3 ห้อง และ Pre-function foyer" },
+  L4: { label: "Co-working · Fitness", detail: "Co-working ห้องประชุม Phone booth Fitness และห้อง Server" },
+  H08: { label: "Sky court · Pool", detail: "สระว่ายน้ำ Infinity Jacuzzi ห้องเปลี่ยนเสื้อผ้า และห้องเครื่องสระ" },
+  H09: { label: "Sky court · Library", detail: "Library lounge ชั้นลอย มองลงสระว่ายน้ำ" },
+  H16: { label: "Sky court · Gym", detail: "ฟิตเนส ลู่วิ่ง โซน Free weight และสตูดิโอโยคะ" },
+  H17: { label: "Sky court · Spa", detail: "ห้องทรีตเมนต์ 4 ห้อง ซาวน่า ห้องอบไอน้ำ และ Relaxation lounge" },
+  H24: { label: "Sky court · Restaurant", detail: "ห้องอาหาร Open kitchen และห้องรับประทานอาหารส่วนตัว" },
+  H25: { label: "Sky court · Sky bar", detail: "Sky bar ชั้นลอย โต๊ะสูง และ Lounge" },
+  H30: { label: "Roof · Terrace + plant", detail: "ลานชมวิว Cooling tower ถังเก็บน้ำ Solar และห้องเครื่องลิฟต์" },
+};
+
 /** Site bounds (m) — every data position must fall inside (tested) */
 export const SITE_BOUNDS = { min: [-120, 0, -90], max: [120, 170, 90] } as const;

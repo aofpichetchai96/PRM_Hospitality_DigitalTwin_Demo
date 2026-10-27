@@ -40,6 +40,7 @@ for (const [w, h] of sizes) {
   await page.goto(`http://localhost:${PORT}/?view=overview`);
   await page.locator("canvas:not([role=img])").waitFor();
   await page.keyboard.press("Space"); // skip the intro sweep
+  await page.getByTitle("พลบค่ำ").click(); // overview opens in daylight; dusk adds lit windows + bloom
   await page.waitForTimeout(3000); // shader compile and first shadow pass
   const result = await page.evaluate(async (seconds) => {
     const gl = document.createElement("canvas").getContext("webgl2");
