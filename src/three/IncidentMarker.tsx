@@ -2,7 +2,7 @@
 
 // "Locate in 3D" marker (3D_PLAN 5.5): a ring pulsing 1 → 2.5× and fading,
 // every 1.2 s, plus a thin vertical line so it reads from far away. Only drawn
-// in the IOC view, so other views keep rendering on demand.
+// in the IOC view or for an incoming alert, so other views keep rendering on demand.
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { AdditiveBlending, type Mesh, type MeshBasicMaterial } from "three";
@@ -14,7 +14,10 @@ const COLOR = { high: "#ff7c81", medium: "#dfbd7e", low: "#7eb7ff" };
 export function IncidentMarker() {
   // Same incident the workflow panel follows: the focused one, else the first open one
   const incident = useAppStore((s) => {
-    if (s.view !== "ioc") return undefined;
+    if (s.view !== "ioc") {
+      const alerted = s.alert ? s.incidents.find((e) => e.id === s.alert?.id) : undefined;
+      return alerted && alerted.status === 0 ? alerted : undefined;
+    }
     const open = s.incidents.filter((e) => e.status < 3);
     return open.find((e) => e.id === s.incidentFocus) ?? open[0];
   });

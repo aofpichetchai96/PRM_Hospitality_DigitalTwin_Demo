@@ -2,7 +2,8 @@
 
 // Hotspots from the prototype's updateHotspots (L321), with positions and
 // visibility driven by the store. Pins turn amber / red only while a matching
-// incident is open.
+// incident is open. Each view shows only the pins that belong to its story, so
+// labels don't pile up (review 27 Oct 2026).
 import type { RefObject } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { floorSpec, isHotelFloor } from "@/data/property";
@@ -10,14 +11,24 @@ import { fmt } from "@/lib/format";
 import { roomCounts } from "@/store/selectors";
 import type { HotspotId } from "@/store/twinSlice";
 import { useAppStore } from "@/store/useAppStore";
-import type { IncidentType, Vec3 } from "@/types";
+import type { IncidentType, Vec3, ViewId } from "@/types";
 import { Hotspot, type HotspotTone } from "./Hotspot";
 
 type Spot = { id: HotspotId; position: Vec3; title: string; detail: string; tone: HotspotTone; visible: boolean };
 
+const VIEW_SPOTS: Record<ViewId, readonly HotspotId[]> = {
+  overview: ["hotel", "mall"],
+  twin: ["hotel", "mall", "plant", "security", "ahu", "people"],
+  ioc: ["security", "plant", "ahu", "people"],
+  energy: ["plant", "ahu", "hotel"],
+  hotel: ["hotel", "ahu"],
+  ai: ["hotel", "mall"],
+};
+
 export function HotspotSet({ portal }: { portal: RefObject<HTMLElement | null> }) {
   const s = useAppStore(
     useShallow((st) => ({
+      view: st.view,
       mode: st.mode,
       floor: st.floor,
       explode: st.explode,
@@ -87,7 +98,7 @@ export function HotspotSet({ portal }: { portal: RefObject<HTMLElement | null> }
   ];
 
   return spots
-    .filter((h) => h.visible)
+    .filter((h) => h.visible && VIEW_SPOTS[s.view].includes(h.id))
     .map((h) => (
       <Hotspot
         key={h.id}

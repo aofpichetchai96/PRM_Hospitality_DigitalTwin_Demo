@@ -15,6 +15,9 @@ export function AgentPanel() {
   const presentation = useAppStore((s) => s.presentation);
   const context = useAppStore((s) => `${selectionLabel(s)} · ${timeStr(s.time)}`);
   const [draft, setDraft] = useState("");
+  const [chipsOpen, setChipsOpen] = useState(false);
+  // Suggested questions fold away after the first one, so the answers get the room
+  const showChips = chat.length === 0 || chipsOpen || presentation;
   const log = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,14 +28,14 @@ export function AgentPanel() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-start justify-between gap-2 border-b border-line px-4 py-3">
         <div>
-          <p className="flex items-center gap-2 font-semibold text-accent">PRM AI Agent</p>
+          <p className="flex items-center gap-2 font-semibold text-accent">AI Assistant</p>
           <p className="text-[13px] text-muted">ผู้ช่วยประจำอาคาร · ถามข้อมูลและสำรวจพื้นที่</p>
         </div>
         <span className="shrink-0 rounded border border-gold/50 px-1.5 text-[10px] tracking-wider whitespace-nowrap text-gold">
           LOCAL DEMO
         </span>
       </div>
-      <p className="border-b border-line bg-panel-2 px-4 py-1.5 text-[12px] text-muted">
+      <p className="border-b border-line bg-panel-2 px-4 py-1.5 text-[13px] text-muted">
         บริบท: {context} · ข้อมูลจำลอง
       </p>
 
@@ -60,11 +63,23 @@ export function AgentPanel() {
       </div>
 
       <div className="border-t border-line p-3">
-        <div className="mb-2.5 flex flex-wrap gap-1.5">
+        {chat.length > 0 && !presentation && (
+          <button
+            aria-expanded={chipsOpen}
+            onClick={() => setChipsOpen(!chipsOpen)}
+            className="mb-2 text-[13px] text-accent"
+          >
+            {chipsOpen ? "ซ่อนคำถามแนะนำ ▴" : "คำถามแนะนำ ▾"}
+          </button>
+        )}
+        <div className={`mb-2.5 flex-wrap gap-1.5 ${showChips ? "flex" : "hidden"}`}>
           {QUICK_CHIPS.map((c) => (
             <button
               key={c.label}
-              onClick={() => ask(c.question)}
+              onClick={() => {
+                setChipsOpen(false);
+                ask(c.question);
+              }}
               className="rounded-full border border-line px-2.5 py-0.5 text-[13px] hover:border-accent/60 hover:text-accent"
             >
               {c.label}
@@ -97,7 +112,7 @@ export function AgentPanel() {
             </button>
           </form>
         )}
-        <p className="mt-2 text-[11px] text-muted">ตอบตามกฎจากข้อมูลในหน้านี้ · ยังไม่เชื่อมต่อ AI / LLM</p>
+        <p className="mt-2 text-[13px] text-muted">ตอบจากข้อมูลจำลองในหน้านี้ · ยังไม่เชื่อมต่อ LLM</p>
       </div>
     </div>
   );

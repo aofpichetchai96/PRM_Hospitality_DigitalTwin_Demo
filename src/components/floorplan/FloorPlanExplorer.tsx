@@ -295,7 +295,7 @@ function PlanButton({
       aria-pressed={pressed}
       onClick={onClick}
       disabled={disabled}
-      className={`h-8 rounded-[var(--radius-button)] border border-[#cdd7cd] bg-white disabled:opacity-40 ${
+      className={`h-8 rounded-[var(--radius-button)] border border-[#cdd7cd] bg-white whitespace-nowrap disabled:opacity-40 ${
         wide ? "px-3" : "w-8"
       } ${pressed ? "border-[#204e46] text-[#204e46]" : ""}`}
     >

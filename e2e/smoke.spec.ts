@@ -1,15 +1,15 @@
 // Demo smoke test (PLAN 11): every view at the three demo screen sizes, the
-// full guided tour, Reset Demo, the main modals and the floor plan — with no
+// feature showcase, Reset Demo, the main modals and the floor plan — with no
 // console errors and no request leaving localhost (the demo runs offline).
 import { expect, type Page, test } from "@playwright/test";
 
 const VIEWS = [
-  ["overview", "Executive Intelligence"],
-  ["twin", "Digital Twin Command Center"],
-  ["ioc", "Integrated Operations Center"],
-  ["energy", "Energy Optimization Lab"],
-  ["hotel", "Hotel Operations · 600 Keys"],
-  ["ai", "Ask the Building"],
+  ["overview", "Executive overview"],
+  ["twin", "Digital Twin"],
+  ["ioc", "IOC operations"],
+  ["energy", "Energy Lab"],
+  ["hotel", "Hotel · 600 keys"],
+  ["ai", "AI Assistant"],
 ] as const;
 
 const SIZES = [
@@ -78,15 +78,44 @@ test("KPIs start at the prototype's t0 values and Reset restores them", async ({
   expect(problems).toEqual([]);
 });
 
-test("the full guided demo plays all six steps with the keyboard", async ({ page }) => {
+test("the executive demo shows business outcomes, value and roadmap", async ({ page }) => {
   const problems = watch(page);
   await open(page);
-  await page.getByRole("button", { name: "เริ่มสาธิต" }).click();
-  // The outgoing card animates out while the next one enters, so match by text
-  const card = page.locator('section[aria-label="Guided demo"]');
-  const expected = ["twin", "twin", "ioc", "energy", "hotel", "ai"];
-  for (const [i, view] of expected.entries()) {
-    await expect(page.getByText(`GUIDED DEMO · ${i + 1} / 6`)).toBeVisible();
+  await page.getByRole("button", { name: "ชมเดโม" }).click();
+  await page.getByRole("menuitem", { name: /Executive/ }).click();
+  // .last(): the outgoing chapter's card is still fading out for a moment
+  const card = page.locator('section[aria-label="Feature showcase"]').last();
+  await expect(card).toContainText("EXECUTIVE · 01 / 06");
+  await card.getByRole("button", { name: "หยุดชั่วคราว" }).click();
+  await page.keyboard.press("ArrowRight");
+  await expect(card).toContainText("MTTR");
+  await expect(card).toContainText("ค่าสมมติ");
+  for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight");
+  await expect(page.getByText("EXECUTIVE · 06 / 06").first()).toBeVisible();
+  await card.getByRole("button", { name: "เล่นต่อ" }).click();
+  await expect(page.getByRole("dialog")).toContainText("ค่าสมมติ");
+  expect(problems).toEqual([]);
+});
+
+test("the technical showcase plays on its own and steps through every feature with the keyboard", async ({ page }) => {
+  const problems = watch(page);
+  await open(page);
+  await page.getByRole("button", { name: "ชมเดโม" }).click();
+  await page.getByRole("menuitem", { name: /Technical deep-dive/ }).click();
+  // .last(): the outgoing chapter's card is still fading out for a moment
+  const card = page.locator('section[aria-label="Feature showcase"]').last();
+  await expect(card).toContainText("TECHNICAL · 01 / 16");
+  // The first beat hands over to the second without any input
+  await expect(card).toContainText("Hotel tower · 600 ห้อง", { timeout: 10_000 });
+  await card.getByRole("button", { name: "หยุดชั่วคราว" }).click();
+  await expect(card.getByRole("button", { name: "เล่นต่อ" })).toBeVisible();
+
+  const views = [
+    ...["twin", "twin", "twin", "twin", "twin", "twin", "twin"],
+    ...["ioc", "ioc", "ioc", "energy", "overview", "hotel", "ai", "twin", "overview"],
+  ];
+  for (const [i, view] of views.entries()) {
+    await expect(page.getByText(`TECHNICAL · ${String(i + 1).padStart(2, "0")} / 16`).first()).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`view=${view}`));
     await page.keyboard.press("ArrowRight");
   }
@@ -100,6 +129,14 @@ test("incident workflow, room status and the main modals work", async ({ page })
   await page.getByRole("button", { name: "Verify →" }).click();
   await page.getByRole("button", { name: "Dispatch →" }).click();
   await expect(page.getByText("WO-001")).toBeVisible();
+
+  await page.getByRole("button", { name: "จำลองเหตุการณ์" }).click();
+  const alert = page.getByRole("alert", { name: /แจ้งเตือนใหม่ INC-004/ });
+  await expect(alert).toContainText("ผู้ปฏิบัติงานยืนยันก่อนสั่งงาน");
+  await alert.getByRole("button", { name: "เปิดเหตุการณ์ · Verify" }).click();
+  await expect(page.getByRole("dialog")).toContainText("INC-004");
+  await expect(alert).toHaveCount(0);
+  await page.keyboard.press("Escape");
 
   await page.getByRole("button", { name: /CAM LOBBY-01/ }).click();
   await expect(page.getByRole("dialog")).toContainText("SYNTHETIC SCENE");

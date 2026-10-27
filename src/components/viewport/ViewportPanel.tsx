@@ -25,7 +25,8 @@ import { useShallow } from "zustand/react/shallow";
 import { KpiStrip } from "@/components/layout/KpiStrip";
 import { CAMERAS, SyntheticFeed } from "@/components/cctv/SyntheticFeed";
 import { FloorPlanExplorer } from "@/components/floorplan/FloorPlanExplorer";
-import { TourCard } from "@/components/tour/TourCard";
+import { ShowcaseCard } from "@/components/tour/ShowcaseCard";
+import { AlertFlash, IncomingAlert } from "./IncomingAlert";
 import { Segmented } from "@/components/ui/Segmented";
 import { FLOOR_PROGRAM, FLOORS } from "@/data/property";
 import { VIEWS } from "@/data/views";
@@ -271,7 +272,7 @@ export function ViewportPanel() {
             ))}
           </optgroup>
         </select>
-        <span className="hidden rounded-[var(--radius-button)] bg-bg/60 px-2 py-1 text-[11px] text-text/80 backdrop-blur wide:inline">
+        <span className="hidden rounded-[var(--radius-button)] bg-bg/60 px-2 py-1 text-[13px] text-text/80 backdrop-blur wide:inline">
           ลากเพื่อหมุน · เลื่อนเพื่อซูม · คลิกขวาลากเพื่อเลื่อน
         </span>
       </div>
@@ -281,22 +282,13 @@ export function ViewportPanel() {
         onClick={() => a.flyTo({ azimuth: 0 })}
         title="หันไปทิศเหนือ"
         aria-label="เข็มทิศ · หันไปทิศเหนือ"
-        className="absolute right-[76px] bottom-3 z-20 grid size-11 place-items-center rounded-full border border-line bg-bg/80 backdrop-blur hover:border-accent/60"
+        className="absolute right-3 bottom-3 z-20 grid size-11 place-items-center rounded-full border border-line bg-bg/80 backdrop-blur hover:border-accent/60"
       >
         <span className="absolute -top-4 text-[10px] text-muted">N</span>
         <span id={COMPASS_NEEDLE_ID} className="block h-7 w-1.5 will-change-transform" aria-hidden>
           <span className="block h-1/2 w-full rounded-t-full bg-red" />
           <span className="block h-1/2 w-full rounded-b-full bg-text/60" />
         </span>
-      </button>
-
-      <button
-        onClick={() => a.openModal({ kind: "reference" })}
-        className="absolute right-3 bottom-3 z-20 overflow-hidden rounded-[var(--radius-button)] border border-line bg-bg/80 text-center hover:border-accent/60"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- static reference thumbnail */}
-        <img src="/images/reference.webp" alt="ภาพอ้างอิงอาคาร" className="h-[84px] w-[56px] object-cover" />
-        <span className="block py-0.5 text-[9px] tracking-wider text-muted">REFERENCE</span>
       </button>
 
       {st.view === "ioc" && (
@@ -333,7 +325,9 @@ export function ViewportPanel() {
         </button>
       )}
 
-      <TourCard />
+      <AlertFlash />
+      <IncomingAlert />
+      <ShowcaseCard />
     </div>
   );
 }

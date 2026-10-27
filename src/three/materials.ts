@@ -33,7 +33,9 @@ export type MaterialKey =
   | "line"
   | "transparent"
   | "sign"
-  | "windowLight";
+  | "windowLight"
+  /** Surrounding city: tiling window texture, lit windows at dusk */
+  | "facade";
 
 /** Default vertex colour per material (prototype values, sRGB 0–1 + alpha) */
 export const MATERIAL_COLORS: Record<MaterialKey, [number, number, number, number]> = {
@@ -59,6 +61,7 @@ export const MATERIAL_COLORS: Record<MaterialKey, [number, number, number, numbe
   transparent: [0.24, 0.72, 0.8, 0.15],
   sign: [1, 1, 1, 1],
   windowLight: [1, 0.74, 0.42, 1],
+  facade: [1, 1, 1, 1],
 };
 
 /** Materials whose geometry should not cast shadows */
@@ -75,7 +78,11 @@ export const NO_SHADOW: ReadonlySet<MaterialKey> = new Set([
 
 export type MaterialSet = Record<MaterialKey, Material>;
 
-export function createMaterials(textures: { road: Texture; sign: Texture }): MaterialSet {
+export function createMaterials(textures: {
+  road: Texture;
+  sign: Texture;
+  facade: { map: Texture; lights: Texture };
+}): MaterialSet {
   const standard = (roughness: number, metalness = 0, extra: Partial<MeshStandardMaterial> = {}) =>
     Object.assign(new MeshStandardMaterial({ vertexColors: true, roughness, metalness }), extra);
   const glass = () =>
@@ -119,5 +126,19 @@ export function createMaterials(textures: { road: Texture; sign: Texture }): Mat
       transparent: true,
       depthWrite: false,
     }),
+    facade: createFacadeMaterial(textures.facade, 0),
   };
+}
+
+/** City facade with lit windows at `glow` (look.ts cityGlow); re-created when the time of day changes */
+export function createFacadeMaterial(facade: { map: Texture; lights: Texture }, glow: number) {
+  return new MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.82,
+    metalness: 0.05,
+    map: facade.map,
+    emissiveMap: facade.lights,
+    emissive: new Color("#ffd29a"),
+    emissiveIntensity: glow,
+  });
 }

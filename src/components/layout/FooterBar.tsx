@@ -15,8 +15,13 @@ export function FooterBar() {
 
   return (
     <footer className="flex h-10 shrink-0 items-center gap-4 border-t border-line px-4 text-[11px] text-muted">
-      <span className="truncate">
-        CONCEPT ONLY · 3D massing from reference; floor plans, feeds and AI responses are simulated.
+      <span
+        className="truncate"
+        title="CONCEPT ONLY · 3D massing from reference; floor plans, feeds and AI responses are simulated."
+      >
+        CONCEPT ONLY ·{" "}
+        <span className="hidden wide:inline">3D massing from reference; floor plans, feeds and AI responses are </span>
+        <span className="wide:hidden">all data </span>simulated
       </span>
       <div className="ml-auto flex items-center gap-3">
         <span className={`flex items-center gap-1.5 whitespace-nowrap ${paused ? "text-gold" : "text-green"}`}>

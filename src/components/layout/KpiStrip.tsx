@@ -2,10 +2,21 @@
 
 import { BedDouble, type LucideIcon, TriangleAlert, Users, Zap } from "lucide-react";
 import { Sparkline } from "@/components/charts/Sparkline";
+import { KPI_YESTERDAY } from "@/data/kpis";
 import { fmt } from "@/lib/format";
 import { useKpis } from "@/store/hooks";
 
+/** Change against the same time yesterday; `good` colours it green */
+type Delta = { text: string; up: boolean; good: boolean };
+
+const pct = (now: number, before: number) => ((now - before) / before) * 100;
+function delta(change: number, unit: string, upIsGood: boolean, digits = 1): Delta | undefined {
+  if (Math.abs(change) < 0.05) return undefined;
+  return { text: `${fmt(Math.abs(change), digits)}${unit}`, up: change > 0, good: change > 0 === upIsGood };
+}
+
 type Card = {
+  /** What the number covers (Hotel / Mall / whole building) and when */
   label: string;
   /** Label for cards under 1440px wide */
   shortLabel: string;
@@ -18,6 +29,7 @@ type Card = {
   color: string;
   sparkColor: string;
   trend: readonly number[];
+  delta?: Delta;
 };
 
 /**
@@ -28,8 +40,8 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
   const k = useKpis();
   const cards: Card[] = [
     {
-      label: "HOTEL OCCUPANCY",
-      shortLabel: "OCCUPANCY",
+      label: "OCCUPANCY · HOTEL NOW",
+      shortLabel: "OCCUPANCY · HOTEL",
       icon: BedDouble,
       value: fmt(k.occupancy.value),
       unit: "%",
@@ -38,10 +50,11 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
       color: "var(--green)",
       sparkColor: "var(--accent)",
       trend: k.occupancy.trend,
+      delta: delta(k.occupancy.value - KPI_YESTERDAY.occupancy, " pts", true),
     },
     {
-      label: "BUILDING DEMAND",
-      shortLabel: "DEMAND",
+      label: "DEMAND · WHOLE BUILDING NOW",
+      shortLabel: "DEMAND · BUILDING",
       icon: Zap,
       value: fmt(k.demand.value),
       unit: "kW",
@@ -51,10 +64,11 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
       color: "var(--accent)",
       sparkColor: "var(--accent)",
       trend: k.demand.trend,
+      delta: delta(pct(k.demand.value, KPI_YESTERDAY.demand), "%", false),
     },
     {
-      label: "MALL FOOTFALL TODAY",
-      shortLabel: "FOOTFALL",
+      label: "FOOTFALL · MALL TODAY",
+      shortLabel: "FOOTFALL · MALL",
       icon: Users,
       value: fmt(k.footfall.value),
       note: "Entry counts, not unique people",
@@ -62,18 +76,20 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
       color: "var(--accent)",
       sparkColor: "var(--accent)",
       trend: k.footfall.trend,
+      delta: delta(pct(k.footfall.value, KPI_YESTERDAY.footfall), "%", true),
     },
     {
-      label: "OPEN INCIDENTS",
-      shortLabel: "INCIDENTS",
+      label: "INCIDENTS · MALL + HOTEL OPEN",
+      shortLabel: "INCIDENTS · OPEN",
       icon: TriangleAlert,
       value: String(k.incidents.value),
-      unit: `${k.incidents.high} high priority`,
-      note: k.incidents.workOrders ? `${k.incidents.workOrders} work orders` : "Detect → Verify → Respond",
+      // The high-priority count lives in the note: next to the value the sparkline covered it
+      note: `${k.incidents.high} high priority${k.incidents.workOrders ? ` · ${k.incidents.workOrders} work orders` : ""}`,
       source: "IOC",
       color: "var(--gold)",
       sparkColor: "var(--gold)",
       trend: k.incidents.trend,
+      delta: delta(k.incidents.value - KPI_YESTERDAY.incidents, "", false, 0),
     },
   ];
 
@@ -97,6 +113,15 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
           <p className="mt-1.5 flex items-baseline whitespace-nowrap">
             <span className="text-[27px] leading-none font-[550] tracking-[-0.03em] tabular-nums">{c.value}</span>
             {c.unit && <small className="ml-1.5 text-[11px] text-[#95a9bd]">{c.unit}</small>}
+            {c.delta && (
+              <small
+                title="เทียบกับเมื่อวานเวลาเดียวกัน (ค่าสมมติ)"
+                className={`ml-2 hidden text-[11px] font-semibold wide:inline ${c.delta.good ? "text-green" : "text-gold"}`}
+              >
+                {c.delta.up ? "▲" : "▼"} {c.delta.text}
+                <span className="font-normal text-[#8197af]"> vs. yesterday</span>
+              </small>
+            )}
           </p>
           {/* Screens under 900px tall drop the note line, as the prototype did on small screens */}
           <div className={`mt-2 justify-between gap-2 text-[10px] text-[#8197af] ${floating ? "hidden" : "flex"}`}>

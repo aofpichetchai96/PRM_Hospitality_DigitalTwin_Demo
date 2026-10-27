@@ -41,6 +41,12 @@ export function computeEnergy(i: EnergyInput): EnergyResult {
   };
 }
 
+/** Guest comfort risk of a cooling setpoint (demo rule of thumb, not a comfort model) */
+export function comfortRisk(setpoint: number): "low" | "medium" | "high" {
+  if (setpoint <= 25) return "low";
+  return setpoint < 26 ? "medium" : "high";
+}
+
 /** Mall entry counts so far today at a decimal hour (prototype timeline, L451) */
 export function footfallAt(time: number) {
   return Math.max(1200, Math.round(REFERENCE_FOOTFALL * Math.pow(Math.max(0, time - 5) / 9.5, 1.22)));

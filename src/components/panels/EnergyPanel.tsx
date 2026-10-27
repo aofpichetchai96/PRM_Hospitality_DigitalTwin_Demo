@@ -3,7 +3,7 @@
 // Energy Lab (prototype L368, L373): demand breakdown in the right panel and
 // the what-if scenario lab in the bottom panel. Linear, illustrative model.
 import { useShallow } from "zustand/react/shallow";
-import { OTHER_LOADS_KW, REFERENCE_SETPOINT, SCENARIO_LIMITS } from "@/data/energy";
+import { comfortRisk, OTHER_LOADS_KW, REFERENCE_SETPOINT, SCENARIO_LIMITS } from "@/data/energy";
 import { fmt } from "@/lib/format";
 import { useEnergy } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
@@ -93,6 +93,12 @@ function Slider({
   );
 }
 
+const COMFORT = {
+  low: { label: "ต่ำ", tone: "text-green" },
+  medium: { label: "กลาง", tone: "text-gold" },
+  high: { label: "สูง", tone: "text-red" },
+} as const;
+
 /** Bottom panel: what-if scenario sliders and the difference against 24 °C */
 export function ScenarioLab() {
   const s = useAppStore(
@@ -102,6 +108,14 @@ export function ScenarioLab() {
   const openModal = useAppStore((st) => st.openModal);
   const e = useEnergy();
   const tone = e.savingPct > 0.05 ? "text-green" : e.savingPct < -0.05 ? "text-red" : "text-accent";
+  const headline =
+    e.savingPct > 0.05
+      ? `ประหยัด ${fmt(e.savingPct, 1)}%`
+      : e.savingPct < -0.05
+        ? `ใช้เพิ่ม ${fmt(-e.savingPct, 1)}%`
+        : "เท่าฐาน";
+  const yearM = Math.abs(e.dayCost * 365) / 1e6;
+  const risk = COMFORT[comfortRisk(s.setpoint)];
 
   return (
     <section className="flex h-[156px] shrink-0 flex-col gap-2 rounded-[var(--radius-card)] border border-line bg-panel px-4 py-3">
@@ -152,15 +166,18 @@ export function ScenarioLab() {
           </label>
         </div>
         <div className="border-l border-line pl-5">
-          <p className="text-[11px] font-semibold tracking-wider text-muted">ผลต่างจากฐาน 24°C</p>
-          <p className={`text-[28px] leading-tight font-semibold tabular-nums ${tone}`}>
-            {fmt(e.savingPct, 1)}
-            <small className="ml-0.5 text-[14px]">%</small>
-          </p>
+          <p className="text-[13px] text-muted">เทียบฐาน 24°C · ค่าสมมติ</p>
+          <p className={`text-[24px] leading-tight font-semibold tabular-nums ${tone}`}>{headline}</p>
+          {Math.abs(e.savingPct) > 0.05 && (
+            <p className="text-[13px] text-muted">
+              {e.dayCost < 0 && "ค่าไฟเพิ่ม "}≈{" "}
+              <span className="text-text tabular-nums">{fmt(Math.abs(e.dayCost))}</span> ฿/วัน ·{" "}
+              <span className="text-text tabular-nums">{fmt(yearM, 1)}</span> ล้าน ฿/ปี
+            </p>
+          )}
           <p className="text-[13px] text-muted">
-            <span className="text-text tabular-nums">{fmt(e.dayCost)}</span> ฿ / วัน (สมมติ)
+            Comfort risk ของแขก <b className={`font-semibold ${risk.tone}`}>{risk.label}</b>
           </p>
-          <p className="mt-1 text-[11px] leading-snug text-muted">ค่าบวก = ลดพลังงาน · ค่าลบ = ใช้เพิ่ม</p>
         </div>
       </div>
     </section>

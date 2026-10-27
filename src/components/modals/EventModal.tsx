@@ -2,7 +2,7 @@
 // (prototype eventModal L387). The full IOC workspace comes in Phase 7.
 import { Check, Crosshair } from "lucide-react";
 import { SourceNotice } from "@/components/ui/Modal";
-import { INCIDENT_STEPS, INCIDENT_STEPS_TH } from "@/data/events";
+import { INCIDENT_STEPS, INCIDENT_STEPS_TH, incidentSource } from "@/data/events";
 import { useAppStore } from "@/store/useAppStore";
 
 const PRIORITY = {
@@ -29,16 +29,7 @@ export function EventModal({ id }: { id: string }) {
       </div>
       <h3 className="!mt-3 text-[18px]">{e.title.th}</h3>
       <p className="font-mono text-[12px] text-muted">{e.assetCode}</p>
-      <p className="mt-1 text-[13px] text-muted">
-        แหล่งข้อมูล:{" "}
-        {e.type === "security"
-          ? "ACS event + synthetic CCTV"
-          : e.type === "leak"
-            ? "Water sensor + BMS mock feed"
-            : e.type === "people"
-              ? "People counting + synthetic CCTV"
-              : "BMS + energy / asset mock feed"}
-      </p>
+      <p className="mt-1 text-[13px] text-muted">แหล่งข้อมูล: {incidentSource(e.type)}</p>
 
       <ol className="mt-4 grid grid-cols-4 gap-2" aria-label="Incident workflow">
         {INCIDENT_STEPS.map((step, i) => {

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { answerQuestion, type AskContext } from "./aiScript";
 import { ASSETS } from "./assets";
-import { computeEnergy, FOOTFALL_BY_ZONE, footfallAt, REFERENCE_FOOTFALL } from "./energy";
+import { comfortRisk, computeEnergy, FOOTFALL_BY_ZONE, footfallAt, REFERENCE_FOOTFALL } from "./energy";
 import { INITIAL_INCIDENTS, SIMULATED_INCIDENTS } from "./events";
 import { FLOOR_PLANS } from "./floorPlans";
 import { FLOORS, GUEST_FLOORS, SITE_BOUNDS, TOTAL_KEYS } from "./property";
 import { adjustOccupancy, generateRooms } from "./rooms";
-import { TOURS } from "./tour";
+import { SHOWCASES } from "./showcase";
+import { ANNUAL_ENERGY_SAVING_THB, ROADMAP, VALUE_METRICS } from "./value";
 import { VIEWS } from "./views";
 
 const count = (rooms: { status: string }[], status: string) => rooms.filter((r) => r.status === status).length;
@@ -110,10 +111,18 @@ describe("data validation", () => {
     for (const p of Object.values(FLOOR_PLANS)) expect(unique(p.zones.map((z) => z.id))).toBe(true);
   });
 
-  it("only tours views that exist, MVP first", () => {
-    expect(TOURS.mvp.map((s) => s.view)).toEqual(["twin", "twin", "energy", "hotel"]);
-    expect(TOURS.full).toHaveLength(6);
-    for (const s of TOURS.full) expect(VIEWS[s.view]).toBeDefined();
+  it("showcase chapters open with their own view and point at real ids", () => {
+    for (const path of Object.values(SHOWCASES)) expect(unique(path.map((c) => c.id))).toBe(true);
+    expect(SHOWCASES.executive.length).toBeLessThanOrEqual(6);
+    for (const c of Object.values(SHOWCASES).flat()) {
+      expect(c.beats[0].run[0], c.id).toMatchObject({ do: "view" });
+      for (const b of c.beats)
+        for (const a of b.run) {
+          if (a.do === "view") expect(VIEWS[a.view]).toBeDefined();
+          if (a.do === "incident" || a.do === "locate" || (a.do === "modal" && a.kind === "event"))
+            expect(a.id === "focus" || INITIAL_INCIDENTS.some((e) => e.id === a.id)).toBe(true);
+        }
+    }
   });
 });
 
@@ -150,5 +159,18 @@ describe("assistant script", () => {
 
   it("falls back to the scripted scope", () => {
     expect(answerQuestion("what is the weather on Mars", ctx).source).toContain("No external AI");
+  });
+});
+
+describe("sales pages", () => {
+  it("rates guest comfort by setpoint", () => {
+    expect([24, 25, 25.5, 26].map(comfortRisk)).toEqual(["low", "low", "medium", "high"]);
+  });
+
+  it("derives the yearly energy figure from the energy model at 25 °C", () => {
+    // Same figure the Energy Lab shows at 25 °C (≈ 4,780 ฿/day at t0) × 365 → ≈ 1.7 M ฿/year
+    expect(Math.round(ANNUAL_ENERGY_SAVING_THB / 1e5) / 10).toBe(1.7);
+    expect(VALUE_METRICS.find((m) => m.id === "energy")?.after).toContain("1.7 ล้าน ฿");
+    expect(ROADMAP).toHaveLength(3);
   });
 });

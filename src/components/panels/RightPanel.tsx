@@ -13,7 +13,7 @@ import { IocPanel } from "./IocPanel";
 import { OverviewPanel } from "./OverviewPanel";
 
 const DETAILS_TAB: Record<ViewId, string> = {
-  overview: "ภาพรวม",
+  overview: "Overview",
   twin: "Layers & Asset",
   ioc: "Operations",
   energy: "Energy",
@@ -21,7 +21,7 @@ const DETAILS_TAB: Record<ViewId, string> = {
   ai: "Layers & Asset",
 };
 
-/** 320 / 340px panel with an AI Agent tab and a view-specific details tab */
+/** 320 / 340px panel with an AI Assistant tab and a view-specific details tab */
 export function RightPanel() {
   const view = useAppStore((s) => s.view);
   const panel = useAppStore((s) => s.panel);
@@ -30,7 +30,7 @@ export function RightPanel() {
   const picked = useAppStore((s) => s.selectedFloor !== null || s.asset !== "site");
   const plan = useAppStore((s) => s.spatial === "plan");
   const tabs = [
-    ["agent", "AI Agent"],
+    ["agent", "AI Assistant"],
     ["details", DETAILS_TAB[view]],
   ] as const;
 

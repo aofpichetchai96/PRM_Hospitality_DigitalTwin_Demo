@@ -1,5 +1,5 @@
 // Incidents and work-order owners (prototype state L342, simulate L390)
-import type { Incident } from "@/types";
+import type { Incident, IncidentType } from "@/types";
 
 export const INCIDENT_STEPS = ["Detected", "Verified", "Dispatched", "Resolved"] as const;
 export const INCIDENT_STEPS_TH = ["ตรวจพบ", "ตรวจสอบ", "มอบหมาย", "ปิดเหตุการณ์"] as const;
@@ -77,3 +77,28 @@ export const SIMULATED_INCIDENTS: readonly Omit<Incident, "id" | "status" | "tim
     assetCode: "PRM-H12-HVAC-AHU-12",
   },
 ];
+
+/** Where an incident's evidence comes from (shown in the event modal and the incoming alert) */
+export function incidentSource(type: IncidentType): string {
+  if (type === "security") return "ACS event + synthetic CCTV";
+  if (type === "leak") return "Water sensor + BMS mock feed";
+  if (type === "people") return "People counting + synthetic CCTV";
+  return "BMS + energy / asset mock feed";
+}
+
+/** Response-time target the incoming alert counts down from (minutes, demo assumption) */
+export const RESPONSE_SLA_MIN = { high: 5, medium: 15, low: 30 } as const;
+
+/** What the platform prepares the moment an alert arrives (steps tick in one by one); people approve any dispatch */
+export function autoResponse(e: Pick<Incident, "type" | "owner" | "priority">): string[] {
+  const watch =
+    e.type === "security" || e.type === "people"
+      ? "เปิดกล้อง CCTV ใกล้จุดเกิดเหตุ"
+      : "ดึงค่า Sensor และแนวโน้มย้อนหลัง 24 ชม.";
+  return [
+    "ระบุตำแหน่งบนโมเดล 3D",
+    watch,
+    `แนะนำแจ้ง ${e.owner} · รอผู้ปฏิบัติงานยืนยัน`,
+    `เริ่มนับ SLA ตอบสนอง ${RESPONSE_SLA_MIN[e.priority]} นาที`,
+  ];
+}

@@ -10,6 +10,8 @@ const VISIBLE_MS = 3600;
 /** Shows the store's latest toast for a few seconds (prototype L351) */
 export function Toast() {
   const toast = useAppStore((s) => s.toast);
+  // The showcase card sits at the bottom, so its toasts show at the top
+  const showcase = useAppStore((s) => s.showcase !== null);
   const [hidden, setHidden] = useState<number | null>(null);
 
   useEffect(() => {
@@ -20,7 +22,10 @@ export function Toast() {
 
   const visible = toast && hidden !== toast.n;
   return (
-    <div aria-live="polite" className="pointer-events-none fixed bottom-14 left-1/2 z-[60] -translate-x-1/2">
+    <div
+      aria-live="polite"
+      className={`pointer-events-none fixed left-1/2 z-[60] -translate-x-1/2 ${showcase ? "top-20" : "bottom-14"}`}
+    >
       <AnimatePresence>
         {visible && (
           <motion.p

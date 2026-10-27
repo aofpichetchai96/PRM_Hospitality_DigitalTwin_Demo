@@ -10,9 +10,15 @@ export function buildSite() {
   // Plinth, plaza, road and markings
   g.box(0, -1.7, -1, 220, 2.7, 150, "base", [0.57, 0.61, 0.59, 1]);
   g.box(0, -0.22, 0, 121, 0.7, 73, "stone", [0.7, 0.72, 0.68, 1]);
-  g.quad([-160, -0.08, 39], [160, -0.08, 39], [160, -0.08, 69], [-160, -0.08, 69], "road");
-  for (let x = -160; x < 160; x += 12) g.box(x, 0.04, 54, 5.5, 0.03, 0.22, "stone", [0.72, 0.76, 0.68, 1]);
-  for (const z of [40.4, 67.6]) g.box(0, 0.03, z, 320, 0.04, 0.24, "stone", [0.68, 0.73, 0.73, 1]);
+  // The avenue continues into the city grid (city.ts) beyond the plinth
+  g.quad([-110, -0.08, 39], [110, -0.08, 39], [110, -0.08, 69], [-110, -0.08, 69], "road", undefined, [
+    [0, 0],
+    [220 / 24, 0],
+    [220 / 24, 30 / 24],
+    [0, 30 / 24],
+  ]);
+  for (let x = -106; x < 110; x += 12) g.box(x, 0.04, 54, 5.5, 0.03, 0.22, "stone", [0.72, 0.76, 0.68, 1]);
+  for (const z of [40.4, 67.6]) g.box(0, 0.03, z, 220, 0.04, 0.24, "stone", [0.68, 0.73, 0.73, 1]);
   for (let i = 0; i < 11; i++) g.box(-39 + i * 0.95, 0.09, 55, 0.4, 0.04, 24, "stone", [0.82, 0.84, 0.83, 1]);
 
   // Street planters and trees
@@ -25,25 +31,9 @@ export function buildSite() {
     g.tree(54, z, 0.4, 1.08);
   }
 
-  // Plaza survey grid
-  for (let x = -50; x <= 50; x += 5.5) g.line([x, 0.07, -34], [x, 0.07, 32], 0.035, "line");
-  for (let z = -33; z <= 33; z += 5.5) g.line([-60, 0.09, z], [60, 0.09, z], 0.04, "line");
-
-  // Distant urban silhouettes, kept low-contrast
-  for (let i = 0; i < 24; i++) {
-    const x = (i - 12) * 16 + (g.rand() - 0.5) * 8,
-      z = -90 - g.rand() * 62,
-      h = 14 + g.rand() * 44,
-      w = 8 + g.rand() * 11,
-      d = 9 + g.rand() * 14;
-    g.box(x, h / 2 - 0.3, z, w, h, d, "base", [
-      0.5 + g.rand() * 0.05,
-      0.58 + g.rand() * 0.04,
-      0.61 + g.rand() * 0.03,
-      1,
-    ]);
-    for (let k = 3; k < h; k += 5) g.box(x, k, z + d / 2 + 0.02, w * 0.77, 0.2, 0.03, "line", [0.32, 0.45, 0.55, 0.4]);
-  }
+  // Plaza survey grid, just above the plaza top (0.13 m) — below it, the lines flicker through
+  for (let x = -50; x <= 50; x += 5.5) g.line([x, 0.16, -34], [x, 0.16, 32], 0.035, "line");
+  for (let z = -33; z <= 33; z += 5.5) g.line([-60, 0.16, z], [60, 0.16, z], 0.04, "line");
 
   // Cars and pedestrians for human scale (static; ambient motion is Phase 9)
   const carColors: [number, number, number, number][] = [
@@ -53,7 +43,7 @@ export function buildSite() {
     [0.74, 0.74, 0.66, 1],
   ];
   for (let i = 0; i < 10; i++) {
-    const x = -130 + i * 28 + (i % 2) * 10,
+    const x = -100 + i * 21 + (i % 2) * 6,
       z = i % 2 ? 47 : 61;
     g.box(x, 1, z, 4.9, 1.05, 2.25, "metal", carColors[i % 4]);
     g.box(x + 0.1, 1.85, z, 2.8, 0.8, 1.96, "glass");

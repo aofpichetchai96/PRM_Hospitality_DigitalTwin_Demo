@@ -18,7 +18,7 @@ export const QUICK_CHIPS: readonly { label: string; question: string }[] = [
 ];
 
 export const GREETING = {
-  title: "สวัสดีครับ ผมคือผู้ช่วย PRM Hospitality",
+  title: "สวัสดีครับ ผมคือ AI Assistant ของ PRM Hospitality",
   body: "ผมช่วยสรุปภาพรวมอาคาร ตรวจเหตุการณ์ค้าง วิเคราะห์พลังงาน และดูสถานะห้องพักได้ครับ",
   note: "คำตอบเปลี่ยนตาม Room status, Energy Lab และ Incident ที่ทดลองในหน้านี้",
 };
@@ -94,7 +94,7 @@ const RULES: Rule[] = [
   {
     match: (q) => /ฟาซาด|facade|façade|ออกแบบ|ชื่ออาคาร|ชื่อตึก/.test(q),
     answer: () => ({
-      text: "**PRM Hospitality**\n\nแนวคิดฟาซาดใช้ครีบสีขาวแนวตั้ง กระจกมุมโค้ง และกรอบโครงสร้างสีอิฐ ตัดด้วยสวนลอยฟ้าและสวนบนฐานอาคาร\n\nรูปทรงอ้างอิงภาพที่ให้มา ผังภายในและข้อมูลปฏิบัติการเป็นข้อมูลจำลอง สามารถกด REFERENCE เพื่อเทียบภาพต้นทางได้",
+      text: "**PRM Hospitality**\n\nแนวคิดฟาซาดใช้ครีบสีขาวแนวตั้ง กระจกมุมโค้ง และกรอบโครงสร้างสีอิฐ ตัดด้วยสวนลอยฟ้าและสวนบนฐานอาคาร\n\nรูปทรงอ้างอิงภาพที่ให้มา ผังภายในและข้อมูลปฏิบัติการเป็นข้อมูลจำลอง ดูภาพต้นทางได้ใน Model notes",
       source: "User-supplied facade references · Concept 3D model",
     }),
   },

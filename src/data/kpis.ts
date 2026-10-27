@@ -7,5 +7,8 @@ export const KPI_HISTORY = {
   incidents: [6, 4, 5, 3, 2, 4, 3],
 } as const;
 
+/** Same time yesterday (assumed) — the cards show ▲ / ▼ against these */
+export const KPI_YESTERDAY = { occupancy: 82, demand: 2580, footfall: 26950, incidents: 4 } as const;
+
 /** Daily hotel occupancy for the overview trend (last value is today) */
 export const OCCUPANCY_WEEK: readonly number[] = [78, 81, 83, 80, 86, 88];

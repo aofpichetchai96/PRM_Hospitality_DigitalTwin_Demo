@@ -86,14 +86,14 @@ export function AssetCard({ showDetails = true }: { showDetails?: boolean }) {
             onClick={() => openModal({ kind: "asset" })}
             className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-button)] border border-line py-1.5 text-[13px] hover:border-accent/60"
           >
-            <Database size={14} /> Asset details
+            <Database size={14} className="shrink-0" /> Asset details
           </button>
         )}
         <button
           onClick={() => createWorkOrder(card.code)}
           className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-button)] border border-line py-1.5 text-[13px] hover:border-accent/60"
         >
-          <Gauge size={14} /> Create work order
+          <Gauge size={14} className="shrink-0" /> สร้างใบงาน
         </button>
       </div>
     </div>

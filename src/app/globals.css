@@ -73,3 +73,26 @@ body {
   font-family: var(--font-sans);
   line-height: 1.6; /* Thai needs room for stacked vowel and tone marks */
 }
+
+/* Showcase beat progress: duration and play state are set inline per beat */
+@keyframes showcase-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Incoming alert: the viewport edge pulses in the alert's colour */
+@keyframes alert-flash {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 3px var(--alert-color),
+      inset 0 0 80px -10px var(--alert-color);
+  }
+}

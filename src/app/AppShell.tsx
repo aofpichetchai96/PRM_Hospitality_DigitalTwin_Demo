@@ -8,13 +8,14 @@ import { Header } from "@/components/layout/Header";
 import { KpiStrip } from "@/components/layout/KpiStrip";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ModalHost } from "@/components/modals/ModalHost";
+import { ShowcaseBar } from "@/components/tour/ShowcaseCard";
 import { BottomPanel } from "@/components/panels/BottomPanel";
 import { RightPanel } from "@/components/panels/RightPanel";
 import { Toast } from "@/components/ui/Toast";
 import { ViewportPanel } from "@/components/viewport/ViewportPanel";
 import { useAppStore } from "@/store/useAppStore";
 import { useSimTicker } from "@/store/useSimTicker";
-import { useAttractMode, useKeyboard, useProjectorTokens, useUrlSync } from "./useShellEffects";
+import { useAttractMode, useKeyboard, useProjectorTokens, useShowcasePlayer, useUrlSync } from "./useShellEffects";
 
 export default function AppShell() {
   const presentation = useAppStore((s) => s.presentation);
@@ -22,6 +23,7 @@ export default function AppShell() {
   useUrlSync();
   useKeyboard();
   useAttractMode();
+  useShowcasePlayer();
   useProjectorTokens(presentation);
 
   return (
@@ -46,6 +48,7 @@ export default function AppShell() {
         {!presentation && <FooterBar />}
       </div>
       <ModalHost />
+      <ShowcaseBar />
       <Toast />
     </MotionConfig>
   );

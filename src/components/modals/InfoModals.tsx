@@ -14,14 +14,14 @@ const HELP_KEYS: [string, string][] = [
 ];
 
 const SHORTCUTS: [string, string][] = [
-  ["← / →", "ขั้นก่อนหน้า / ถัดไปของ Guided Demo (รองรับ clicker)"],
+  ["← / →", "ฟังก์ชันก่อนหน้า / ถัดไประหว่างสาธิต (รองรับ clicker)"],
   ["P", "Presentation mode"],
   ["R", "Reset Demo กลับค่าเริ่มต้น"],
   ["Esc", "ปิดหน้าต่าง / จบ Demo / ออกจาก Presentation"],
 ];
 
 export function HelpModal() {
-  const startTour = useAppStore((s) => s.startTour);
+  const startShowcase = useAppStore((s) => s.startShowcase);
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
   const attract = useAppStore((s) => s.attractEnabled);
@@ -71,14 +71,14 @@ export function HelpModal() {
           onChange={(e) => setAttract(e.target.checked)}
           className="size-4 accent-[var(--accent)]"
         />
-        เล่น Guided Demo วนเองเมื่อไม่มีการใช้งาน 2 นาที · แตะหรือกดปุ่มใดก็ได้เพื่อหยุด
+        เล่นเดโม Executive วนเองเมื่อไม่มีการใช้งาน 2 นาที · แตะหรือกดปุ่มใดก็ได้เพื่อหยุด
       </label>
       <SourceNotice>ทำงานบนเครื่องนี้ทั้งหมด ไม่ต้องใช้อินเทอร์เน็ต / API key และไม่ส่งข้อมูลออกภายนอก</SourceNotice>
       <button
-        onClick={() => startTour()}
+        onClick={() => startShowcase()}
         className="mt-4 flex items-center gap-2 rounded-[var(--radius-button)] bg-accent px-4 py-2 font-semibold text-bg"
       >
-        <Play size={16} fill="currentColor" /> เริ่ม Guided Demo
+        <Play size={16} fill="currentColor" /> ชมเดโม · Executive
       </button>
     </>
   );
@@ -105,8 +105,8 @@ export function AboutModal() {
       </p>
       <h3>ข้อมูลอ้างอิงและความแม่นยำ</h3>
       <p className="text-muted">
-        รูปทรงอาคารและลายฟาซาดอ้างอิงภาพโครงการที่ผู้ใช้ให้: หอสูงมุมโค้งเหนือฐานอาคาร ครีบฟาซาดสีขาว กระจก โครงสีอิฐ
-        และสวนลอยฟ้าเป็นช่วงชั้น โมเดลนี้สร้างขึ้นใหม่ด้วยเรขาคณิต 3D ไม่ใช่ไฟล์ BIM หรือ As-built
+        รูปทรงอาคารและลายฟาซาดอ้างอิงภาพโครงการที่ได้รับจาก PRM Hospitality: หอสูงมุมโค้งเหนือฐานอาคาร ครีบฟาซาดสีขาว
+        กระจก โครงสีอิฐ และสวนลอยฟ้าเป็นช่วงชั้น โมเดลนี้สร้างขึ้นใหม่ด้วยเรขาคณิต 3D ไม่ใช่ไฟล์ BIM หรือ As-built
       </p>
       <table className="mt-3 w-full text-[13px]">
         <thead>

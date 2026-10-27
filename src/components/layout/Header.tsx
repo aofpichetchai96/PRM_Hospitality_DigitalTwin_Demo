@@ -1,6 +1,7 @@
 "use client";
 
-import { ChartColumn, CircleQuestionMark, Download, MessageSquareText, Play } from "lucide-react";
+import { ChartColumn, CircleQuestionMark, Download, MessageSquareText } from "lucide-react";
+import { DemoMenu } from "@/components/tour/DemoMenu";
 import { VIEWS } from "@/data/views";
 import { exportSnapshot } from "@/lib/exportSnapshot";
 import { timeStr } from "@/lib/format";
@@ -16,7 +17,6 @@ export function Header() {
   const chartsOpen = useAppStore((s) => s.chartsOpen);
   const setChartsOpen = useAppStore((s) => s.setChartsOpen);
   const setPanel = useAppStore((s) => s.setPanel);
-  const startTour = useAppStore((s) => s.startTour);
   const openModal = useAppStore((s) => s.openModal);
   const notify = useAppStore((s) => s.notify);
   const { title, subtitle } = VIEWS[view];
@@ -56,13 +56,7 @@ export function Header() {
             notify("ส่งออก Snapshot ข้อมูลจำลองแล้ว");
           }}
         />
-        <button
-          onClick={() => startTour()}
-          className="flex h-9 items-center gap-2 rounded-[var(--radius-button)] bg-accent px-4 font-semibold text-bg hover:brightness-110"
-        >
-          <Play size={16} fill="currentColor" />
-          เริ่มสาธิต
-        </button>
+        <DemoMenu />
       </nav>
 
       <div className="flex items-center gap-3 border-l border-line pl-4">

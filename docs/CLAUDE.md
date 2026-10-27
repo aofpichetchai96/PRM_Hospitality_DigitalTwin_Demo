@@ -37,8 +37,8 @@ Edge (Playwright via `createRequire` on the project `package.json`, `channel: "m
 src/app          AppShell (single page), useShellEffects (URL sync, keyboard, attract mode, projector tokens)
 src/components   layout/ panels/ modals/ floorplan/ viewport/ cctv/ tour/ charts/ ui/   (2D UI)
 src/three        Viewport (Canvas), SceneRoot, CameraRig, Atmosphere, Effects, look.ts, materials.ts,
-                 geometry/ (GeometryBuilder, exterior, site, schematic, interiors, layers), picking/, effects/
-src/data         all hard-coded data: property (floor schedule), rooms, events, assets, energy, views, tour,
+                 geometry/ (GeometryBuilder, exterior, site, city, schematic, interiors, layers), picking/, effects/
+src/data         all hard-coded data: property (floor schedule), rooms, events, assets, energy, views, showcase,
                  aiScript, floorPlans, kpis, nav
 src/store        one Zustand store = twinSlice (view / scene / UI) + simSlice (clock, rooms, incidents…);
                  selectors.ts (derived values), hooks.ts (narrow subscriptions), useSimTicker
@@ -81,8 +81,23 @@ src/types        shared domain types
 - **No sparkle (✨ `Sparkles`) icons** — removed at the owner's request. KPI cards keep the prototype layout
   (label + icon, big value, note + `SOURCE · DEMO`, corner sparkline). Ask before broad visual restyles.
 - **No placeholder buttons in the demo** — hide a control until its feature exists.
-- Keyboard: `→/←/PageUp/PageDown` tour, `P` presentation, `R` reset, `[ ]` floors, `Home`, `Esc` (closes innermost:
-  modal → floor plan → picked floor → slice → tour → presentation; works even from inside inputs for modals).
+- **Demo showcase** ("ชมเดโม" menu, `data/showcase.ts`): two paths — **Executive** (6 chapters, business outcomes with
+  assumed figures from `data/value.ts`) and **Technical deep-dive** (16 chapters, one per feature). Each chapter is a
+  list of timed beats that drive the real store actions; beat 0 always sets its own view so any chapter can be jumped
+  to. Plays on its own (`useShowcasePlayer`); a click or wheel outside the card pauses it; ending it restores the sim
+  data it changed. Attract mode loops the executive path. **Wording rule:** say only what the demo does now, then
+  "ระบบจริงจะ…" — never claim more than the disclaimers (real-time, real building, auto-notify, live AI).
+- **Sales pages:** Value / ROI and Roadmap 3 เฟส are modals (`modals/ProposalModals.tsx`) opened by the demo's closing chapters
+  and from each other — no menu entry (removed at the owner's request). Every
+  figure there is labelled ค่าสมมติ; the energy figure comes from the energy model at 25 °C, not a hand-typed number.
+- **Naming:** page title = menu label; the assistant is "AI Assistant" everywhere. 3D pins are filtered per view
+  (`VIEW_SPOTS` in `three/HotspotSet.tsx`). KPI labels say what they cover (Hotel / Mall / whole building) and show
+  ▲▼ vs. yesterday (`KPI_YESTERDAY`, assumed) from 1440 px.
+- **Incoming alert:** `simulateIncident` → `raiseAlert` (alert card `viewport/IncomingAlert.tsx`, viewport edge flash,
+  camera flies to it, the 3D marker shows in any view). Auto-response steps come from `autoResponse()` in
+  `data/events.ts`. The card goes when the incident is opened / verified or dismissed.
+- Keyboard: `→/←/PageUp/PageDown` showcase chapters, `P` presentation, `R` reset, `[ ]` floors, `Home`, `Esc` (closes
+  innermost: modal → showcase → floor plan → picked floor → slice → presentation; works even from inside inputs for modals).
 - Reset Demo restores the seeded state but keeps presenter preferences (sidebar, quality, attract) and never replays
   the intro.
 - Windows dev machine: Bash is Git Bash; `TaskStop` leaves the `next start` node process holding the port — free it
@@ -93,7 +108,7 @@ src/types        shared domain types
 ## Testing
 
 - Unit (`src/**/*.test.ts`): energy model, rooms, floor schedule, data validation, assistant rules, store actions
-  (views, tour, incidents, picking, floor plan), schematic / layer geometry.
+  (views, showcase, incidents, picking, floor plan), schematic / layer geometry.
 - E2E (`e2e/smoke.spec.ts`): fails on any console error or **any request leaving localhost** (offline guarantee).
   The WebGL canvas is `canvas:not([role=img])` (CCTV feeds are canvases too). Press a key first to skip the intro.
   CI runs it on Chromium with SwiftShader (`CI=1` switches the launch flags in `playwright.config.ts`).

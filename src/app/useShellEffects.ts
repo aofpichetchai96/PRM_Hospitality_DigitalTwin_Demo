@@ -2,8 +2,8 @@
 
 // App-wide side effects owned by AppShell: URL ↔ view, keyboard / clicker
 // shortcuts (PLAN 8.1) and the projector tokens in presentation mode.
-import { useEffect } from "react";
-import { TOURS } from "@/data/tour";
+import { useEffect, useRef } from "react";
+import { SHOWCASES } from "@/data/showcase";
 import { isViewId, VIEWS } from "@/data/views";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -29,7 +29,7 @@ export function useUrlSync() {
 const TYPING = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 /**
- * ← / → / PageUp / PageDown step the tour, P presentation, R reset,
+ * ← / → / PageUp / PageDown step the showcase chapters, P presentation, R reset,
  * [ / ] floor down / up, Home back to the view's shot, Esc closes (3D_PLAN 5.1)
  */
 export function useKeyboard() {
@@ -54,13 +54,13 @@ export function useKeyboard() {
       switch (e.key) {
         case "ArrowRight":
         case "PageDown":
-          if (!s.tour) return;
-          s.goToTourStep(s.tour.step + 1);
+          if (!s.showcase) return;
+          s.goToChapter(s.showcase.chapter + 1);
           break;
         case "ArrowLeft":
         case "PageUp":
-          if (!s.tour) return;
-          s.goToTourStep(s.tour.step - 1);
+          if (!s.showcase) return;
+          s.goToChapter(s.showcase.chapter - 1);
           break;
         case "p":
         case "P":
@@ -72,12 +72,12 @@ export function useKeyboard() {
           s.resetDemo();
           break;
         case "Escape":
-          // Innermost first: modal → floor plan → picked floor → slice → tour → presentation
+          // Innermost first: modal → showcase → floor plan → picked floor → slice → presentation
           if (s.modal) s.closeModal();
+          else if (s.showcase) s.endShowcase();
           else if (s.spatial === "plan") s.setSpatial("building");
           else if (s.selectedFloor) s.pickFloor(null);
           else if (s.mode === "slice") s.setMode("exterior");
-          else if (s.tour) s.endTour();
           else if (s.presentation) s.togglePresentation();
           else return;
           break;
@@ -111,14 +111,12 @@ export function useProjectorTokens(on: boolean) {
 
 /** No input for this long starts attract mode (PLAN 5: default 2 minutes) */
 export const ATTRACT_IDLE_MS = 120_000;
-/** How long each tour step stays on screen while attract mode plays */
-export const ATTRACT_STEP_MS = 12_000;
 const TICK_MS = 1_000;
 const ATTRACT_KEY = "prm.attractEnabled";
 
 /**
- * Booth attract mode: after a quiet spell the full tour plays on its own in a
- * loop with auto-rotate; any pointer, wheel or key input hands control back.
+ * Booth attract mode: after a quiet spell the feature showcase plays on its own
+ * in a loop; any pointer, wheel or key input hands control back.
  */
 export function useAttractMode() {
   useEffect(() => {
@@ -133,34 +131,21 @@ export function useAttractMode() {
     });
 
     let idle = 0;
-    let onStep = 0;
     const onInput = () => {
       idle = 0;
       const s = useAppStore.getState();
       if (!s.attractActive) return;
       s.setAttractActive(false);
-      s.endTour();
-      s.setAutoRotate(false);
+      s.endShowcase();
     };
 
     const timer = window.setInterval(() => {
       const s = useAppStore.getState();
-      if (s.attractActive) {
-        onStep += TICK_MS;
-        if (onStep < ATTRACT_STEP_MS) return;
-        onStep = 0;
-        // Loop back to the first step instead of ending the tour
-        s.goToTourStep(s.tour ? (s.tour.step + 1) % TOURS.full.length : 0);
-        if (!useAppStore.getState().tour) s.startTour("full");
-        s.setAutoRotate(true);
-        return;
-      }
+      if (s.attractActive) return;
       idle += TICK_MS;
-      if (!s.attractEnabled || s.modal || s.tour || idle < ATTRACT_IDLE_MS) return;
-      onStep = 0;
+      if (!s.attractEnabled || s.modal || s.showcase || idle < ATTRACT_IDLE_MS) return;
       s.setAttractActive(true);
-      s.startTour("full");
-      s.setAutoRotate(true);
+      s.startShowcase({ loop: true });
     }, TICK_MS);
 
     const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
@@ -168,6 +153,46 @@ export function useAttractMode() {
     return () => {
       unsubscribe();
       window.clearInterval(timer);
+      for (const e of events) window.removeEventListener(e, onInput, { capture: true });
+    };
+  }, []);
+}
+
+/** Clicks and wheel outside the showcase card: the presenter takes over, so it pauses */
+const SHOWCASE_CARD = "[data-showcase]";
+
+/**
+ * Plays the showcase: each beat waits its `wait` and then moves on. A pause
+ * keeps the remaining time, so the card's progress bar and the timer agree.
+ */
+export function useShowcasePlayer() {
+  const key = useAppStore((s) => (s.showcase ? `${s.showcase.chapter}:${s.showcase.beat}:${s.showcase.n}` : null));
+  const playing = useAppStore((s) => s.showcase?.playing ?? false);
+  const left = useRef<{ key: string; ms: number } | null>(null);
+
+  useEffect(() => {
+    if (!key || !playing) return;
+    const sc = useAppStore.getState().showcase;
+    if (!sc) return;
+    const ms = left.current?.key === key ? left.current.ms : SHOWCASES[sc.path][sc.chapter].beats[sc.beat].wait;
+    const started = performance.now();
+    const timer = window.setTimeout(() => useAppStore.getState().nextBeat(), ms);
+    return () => {
+      window.clearTimeout(timer);
+      left.current = { key, ms: Math.max(0, ms - (performance.now() - started)) };
+    };
+  }, [key, playing]);
+
+  useEffect(() => {
+    const onInput = (e: Event) => {
+      const s = useAppStore.getState();
+      if (!s.showcase?.playing || s.attractActive) return;
+      if (e.target instanceof Element && e.target.closest(SHOWCASE_CARD)) return;
+      s.setShowcasePlaying(false);
+    };
+    const events = ["pointerdown", "wheel"] as const;
+    for (const e of events) window.addEventListener(e, onInput, { capture: true, passive: true });
+    return () => {
       for (const e of events) window.removeEventListener(e, onInput, { capture: true });
     };
   }, []);

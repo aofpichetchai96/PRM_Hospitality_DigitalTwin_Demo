@@ -10,6 +10,7 @@ import { AllRoomsModal, MethodologyModal } from "./HotelEnergyModals";
 import { AssetModal, CctvModal } from "./OpsModals";
 import { RoomModal } from "./RoomModal";
 import { AboutModal, HelpModal, ReferenceModal } from "./InfoModals";
+import { RoadmapModal, ValueModal } from "./ProposalModals";
 
 /** Title and body per modal kind; kinds land here as their views are built */
 function content(m: ModalState): { title: string; body: React.ReactNode; wide?: boolean } | null {
@@ -36,6 +37,10 @@ function content(m: ModalState): { title: string; body: React.ReactNode; wide?: 
       };
     case "asset":
       return { title: "Asset information · Digital Twin link", body: <AssetModal /> };
+    case "value":
+      return { title: "Value / ROI · ผลลัพธ์ที่คาดหวัง (ค่าสมมติ)", body: <ValueModal />, wide: true };
+    case "roadmap":
+      return { title: "Roadmap 3 เฟส · เริ่มเล็ก ขยายได้", body: <RoadmapModal />, wide: true };
     default:
       return null;
   }

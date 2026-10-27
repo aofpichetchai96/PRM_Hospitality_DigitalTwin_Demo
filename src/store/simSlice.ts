@@ -145,7 +145,7 @@ export const createSimSlice: StateCreator<AppState, [], [], SimState & SimAction
       time: timeStr(get().time),
     };
     set((s) => ({ incidents: [e, ...s.incidents], incidentFocus: e.id }));
-    get().notify(`${e.id}: เพิ่มเหตุการณ์จำลองแล้ว`);
+    get().raiseAlert(e.id);
     return e.id;
   },
 

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The dev-mode "N" badge sat over the Piramid logo in the sidebar during rehearsals
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

@@ -54,6 +54,52 @@ export function createRoadTexture() {
   return t;
 }
 
+/**
+ * Facade tile for the surrounding city: 4 bays × 3 floors per repeat (about
+ * 12 × 12 m), kept low-contrast so the hotel tower stays the focus. `lights`
+ * is the emissive mask with a scatter of lit windows for dusk.
+ */
+export function createFacadeTextures() {
+  const S = 512;
+  const [c, x] = canvas(S, S);
+  const [lc, lx] = canvas(S, S);
+  const rand = createRng(31337);
+  x.fillStyle = "#d6d9da";
+  x.fillRect(0, 0, S, S);
+  lx.fillStyle = "#000";
+  lx.fillRect(0, 0, S, S);
+  const floor = S / 3,
+    bay = S / 4;
+  for (let f = 0; f < 3; f++)
+    for (let b = 0; b < 4; b++) {
+      // Window band in the upper ~75 % of each floor; spandrel (solid wall) below
+      const wx = b * bay + 7,
+        wy = f * floor + 10,
+        ww = bay - 14,
+        wh = floor * 0.72;
+      const v = 112 + Math.floor(rand() * 22);
+      const g = x.createLinearGradient(0, wy, 0, wy + wh);
+      g.addColorStop(0, `rgb(${v + 18},${v + 30},${v + 40})`);
+      g.addColorStop(1, `rgb(${v},${v + 12},${v + 22})`);
+      x.fillStyle = g;
+      x.fillRect(wx, wy, ww, wh);
+      x.fillStyle = "rgba(214,217,218,.55)";
+      x.fillRect(wx + ww / 2 - 1.5, wy, 3, wh);
+      if (rand() < 0.15) {
+        lx.fillStyle = `rgba(255,${200 + Math.floor(rand() * 40)},150,${0.55 + rand() * 0.4})`;
+        lx.fillRect(wx, wy, ww, wh);
+      }
+    }
+  const make = (cv: HTMLCanvasElement) => {
+    const t = new CanvasTexture(cv);
+    t.colorSpace = SRGBColorSpace;
+    t.wrapS = t.wrapT = RepeatWrapping;
+    t.anisotropy = 8;
+    return t;
+  };
+  return { map: make(c), lights: make(lc) };
+}
+
 /** Screen-space radial sky matching the prototype's viewport CSS background */
 export function createSkyTexture(stops: readonly [string, string, string], center: readonly [number, number]) {
   const [c, x] = canvas(1024, 512);

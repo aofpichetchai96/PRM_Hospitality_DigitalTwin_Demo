@@ -7,7 +7,7 @@ export const DEFAULT_LAYERS: Layers = { energy: false, security: true, people: f
 export const VIEWS: Record<ViewId, ViewConfig> = {
   overview: {
     id: "overview",
-    title: "Executive Intelligence",
+    title: "Executive overview",
     subtitle: "ภาพรวมธุรกิจและปฏิบัติการ · ทุกตัวเลขเป็นข้อมูลจำลอง",
     camera: { preset: "all" },
     timeOfDay: "day",
@@ -21,7 +21,7 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
   },
   twin: {
     id: "twin",
-    title: "Digital Twin Command Center",
+    title: "Digital Twin",
     subtitle: "อาคารเดียว สองธุรกิจ เชื่อมการมองเห็นและการตัดสินใจ",
     camera: { preset: "all" },
     timeOfDay: "day",
@@ -34,7 +34,7 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
   },
   ioc: {
     id: "ioc",
-    title: "Integrated Operations Center",
+    title: "IOC operations",
     subtitle: "ตรวจพบ → ตรวจสอบ → มอบหมาย → ปิดเหตุการณ์",
     camera: { preset: "mall" },
     timeOfDay: "day",
@@ -47,7 +47,7 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
   },
   energy: {
     id: "energy",
-    title: "Energy Optimization Lab",
+    title: "Energy Lab",
     subtitle: "ทดลองปรับอุณหภูมิและ Occupancy เพื่อเปรียบเทียบสถานการณ์",
     camera: { preset: "plant" },
     timeOfDay: "day",
@@ -60,7 +60,7 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
   },
   hotel: {
     id: "hotel",
-    title: "Hotel Operations · 600 Keys",
+    title: "Hotel · 600 keys",
     subtitle: "สถานะห้องพัก งานบริการ และพลังงาน · ไม่ใช้ข้อมูลแขกจริง",
     camera: { floor: "H12" },
     timeOfDay: "day",
@@ -73,7 +73,7 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
   },
   ai: {
     id: "ai",
-    title: "Ask the Building",
+    title: "AI Assistant",
     subtitle: "ผู้ช่วยตอบคำถามจากสถานการณ์จำลอง · ยังไม่เชื่อมต่อ LLM จริง",
     camera: { preset: "all" },
     timeOfDay: "day",

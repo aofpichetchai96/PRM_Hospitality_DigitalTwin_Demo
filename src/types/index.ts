@@ -165,14 +165,5 @@ export interface FloorPlan {
   zones: PlanZone[];
 }
 
-export interface TourStep {
-  view: ViewId;
-  title: string;
-  body: string;
-  zone?: ZoneId;
-  mode?: SceneMode;
-  floor?: FloorId;
-}
-
 /** Rich text: paragraphs split by blank lines, **bold** spans */
 export type ChatMessage = { role: "user"; text: string } | { role: "assistant"; text: string; source: string };

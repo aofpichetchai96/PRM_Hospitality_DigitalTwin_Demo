@@ -7,6 +7,7 @@ import { BuildingReveal, REVEAL_PLANE } from "./BuildingReveal";
 import { CameraRig } from "./CameraRig";
 import { Effects } from "./Effects";
 import { FpsProbe, type FpsSample } from "./FpsProbe";
+import { buildCity } from "./geometry/city";
 import { buildExterior } from "./geometry/exterior";
 import { buildLayers } from "./geometry/layers";
 import { buildSchematic } from "./geometry/schematic";
@@ -14,9 +15,9 @@ import { buildSite } from "./geometry/site";
 import { Atmosphere } from "./Atmosphere";
 import type { Quality, TimeOfDay } from "./look";
 import { LOOK } from "./look";
-import { createMaterials } from "./materials";
+import { createFacadeMaterial, createMaterials } from "./materials";
 import { SceneBatches } from "./SceneBatches";
-import { createRoadTexture, createSignTexture } from "./textures";
+import { createFacadeTextures, createRoadTexture, createSignTexture } from "./textures";
 
 export type SceneSettings = {
   time: TimeOfDay;
@@ -44,14 +45,17 @@ export function SceneRoot({
 }) {
   const invalidate = useThree((s) => s.invalidate);
   const site = useMemo(() => buildSite(), []);
+  const city = useMemo(() => buildCity(), []);
   const exterior = useMemo(() => buildExterior(), []);
-  const { materials, buildingMaterials, sign, road } = useMemo(() => {
+  const { materials, buildingMaterials, sign, road, facade } = useMemo(() => {
     const sign = createSignTexture();
     const road = createRoadTexture();
+    const facade = createFacadeTextures();
+    const textures = { road, sign: sign.texture, facade };
     // A second set for the building only, so the mode reveal clips nothing else
-    const buildingMaterials = createMaterials({ road, sign: sign.texture });
+    const buildingMaterials = createMaterials(textures);
     for (const m of Object.values(buildingMaterials)) m.clippingPlanes = [REVEAL_PLANE];
-    return { materials: createMaterials({ road, sign: sign.texture }), buildingMaterials, sign, road };
+    return { materials: createMaterials(textures), buildingMaterials, sign, road, facade };
   }, []);
 
   useEffect(() => {
@@ -65,8 +69,18 @@ export function SceneRoot({
       Object.values(buildingMaterials).forEach((m) => m.dispose());
       sign.texture.dispose();
       road.dispose();
+      facade.map.dispose();
+      facade.lights.dispose();
     };
-  }, [materials, buildingMaterials, sign, road, invalidate]);
+  }, [materials, buildingMaterials, sign, road, facade, invalidate]);
+
+  // City windows light up at dusk: its own material set with the facade per time of day
+  const cityGlow = LOOK[settings.time].cityGlow;
+  const cityMaterials = useMemo(
+    () => ({ ...materials, facade: createFacadeMaterial(facade, cityGlow) }),
+    [materials, facade, cityGlow],
+  );
+  useEffect(() => () => cityMaterials.facade.dispose(), [cityMaterials]);
 
   const { mode = "exterior", floor = "all", explode = false, rooms } = settings;
   const schematicOn = mode !== "exterior" || explode;
@@ -97,6 +111,7 @@ export function SceneRoot({
     <>
       <Atmosphere time={settings.time} shadows={settings.quality !== "low"} shadowKey={buildingKey} />
       <BuildingReveal revealKey={buildingKey} />
+      <SceneBatches geometries={city} materials={cityMaterials} />
       <SceneBatches geometries={site} materials={materials} hidden={hidden} />
       {schematic ? (
         <SceneBatches geometries={schematic} materials={buildingMaterials} />

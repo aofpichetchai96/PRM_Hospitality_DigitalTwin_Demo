@@ -38,12 +38,15 @@ export const LOOK: Record<
     envLights: EnvLight[];
     windows: boolean;
     bloom: number;
+    /** Emissive strength of the city's lit windows */
+    cityGlow: number;
   }
 > = {
   day: {
     sky: ["#e0e9e8", "#b5ced8", "#708e9f"],
     skyCenter: [0.5, 0.22],
-    fog: "#4a6985",
+    // Light haze matching the sky, so the city fades out instead of turning into a dark band
+    fog: "#b4c7d1",
     hemi: { sky: "#dfe9f3", ground: "#4d5862", intensity: 0.65 },
     sun: { color: "#fff0d8", intensity: 3.2 },
     envIntensity: 0.75,
@@ -56,6 +59,7 @@ export const LOOK: Record<
     ],
     windows: false,
     bloom: 0.2,
+    cityGlow: 0,
   },
   dusk: {
     sky: ["#23435e", "#0f2236", "#081321"],
@@ -73,8 +77,9 @@ export const LOOK: Record<
     ],
     windows: true,
     bloom: 1.1,
+    cityGlow: 0.28,
   },
 };
 
-/** Fog starts where the prototype's did (290 m); three.js fog reaches 100 %, so the far end is pushed out */
-export const FOG_RANGE: [number, number] = [290, 820];
+/** Fog starts at 420 m so the hotel stays crisp even at full zoom-out (560 m), and is complete before the camera far plane (1,500 m) */
+export const FOG_RANGE: [number, number] = [420, 1400];

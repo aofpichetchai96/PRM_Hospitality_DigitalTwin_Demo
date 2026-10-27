@@ -22,7 +22,7 @@ function IncidentRow({ e, focused }: { e: Incident; focused: boolean }) {
       >
         <span className={`mt-2 size-2 shrink-0 rounded-full ${e.status === 3 ? "bg-green" : TONE[e.priority]}`} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-medium">
+          <span className="line-clamp-2 block text-[13px] font-medium">
             <span className="font-mono text-[11px] text-muted">{e.id}</span> {e.title.th}
           </span>
           <span className="block text-[11px] text-muted">
@@ -40,7 +40,6 @@ export function IocPanel() {
   const workOrders = useAppStore((s) => s.workOrders);
   const focus = useAppStore((s) => s.incidentFocus);
   const simulate = useAppStore((s) => s.simulateIncident);
-  const openModal = useAppStore((s) => s.openModal);
   const open = incidents.filter((e) => e.status < 3);
   // Open incidents first, newest first within each group
   const sorted = [...open, ...incidents.filter((e) => e.status === 3)];
@@ -55,7 +54,7 @@ export function IocPanel() {
             ค้าง {open.length} · ปิดแล้ว {incidents.length - open.length}
           </span>
           <button
-            onClick={() => openModal({ kind: "event", id: simulate() })}
+            onClick={() => simulate()}
             className="flex items-center gap-1 rounded-[var(--radius-button)] border border-red/40 px-2.5 py-1 text-[12px] text-red hover:bg-red/10"
           >
             <Plus size={13} /> จำลองเหตุการณ์
