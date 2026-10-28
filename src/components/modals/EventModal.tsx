@@ -1,16 +1,13 @@
-// Incident detail with the Detect → Verify → Dispatch → Resolve workflow
-// (prototype eventModal L387). The full IOC workspace comes in Phase 7.
+// Alarm / incident detail: severity, the reading against its limit, the
+// New → Acknowledged → In progress → Closed workflow and the SOP checklist
+// (prototype eventModal L387).
 import { Check, Crosshair } from "lucide-react";
+import { ReadingLine, SeverityChip, SopChecklist } from "@/components/panels/alarm";
 import { SourceNotice } from "@/components/ui/Modal";
 import { INCIDENT_STEPS, INCIDENT_STEPS_TH, incidentSource } from "@/data/events";
 import { useAppStore } from "@/store/useAppStore";
 
-const PRIORITY = {
-  high: "border-red/60 text-red",
-  medium: "border-gold/60 text-gold",
-  low: "border-blue/60 text-blue",
-};
-const NEXT_LABEL = ["ยืนยันเหตุการณ์ (Verify)", "มอบหมายงาน (Dispatch)", "ปิดเหตุการณ์ (Resolve)"];
+const NEXT_LABEL = ["รับทราบ (Acknowledge)", "เริ่มดำเนินการ (Start work)", "ปิดงาน (Close)"];
 
 export function EventModal({ id }: { id: string }) {
   const e = useAppStore((s) => s.incidents.find((x) => x.id === id));
@@ -22,7 +19,7 @@ export function EventModal({ id }: { id: string }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 text-[13px]">
-        <span className={`rounded border px-2 uppercase ${PRIORITY[e.priority]}`}>{e.priority}</span>
+        <SeverityChip priority={e.priority} />
         <span className="text-muted">
           {e.location} · {e.time} · {e.owner}
         </span>
@@ -30,6 +27,11 @@ export function EventModal({ id }: { id: string }) {
       <h3 className="!mt-3 text-[18px]">{e.title.th}</h3>
       <p className="font-mono text-[12px] text-muted">{e.assetCode}</p>
       <p className="mt-1 text-[13px] text-muted">แหล่งข้อมูล: {incidentSource(e.type)}</p>
+      {e.reading && (
+        <p className="mt-1 text-[14px]">
+          <ReadingLine e={e} />
+        </p>
+      )}
 
       <ol className="mt-4 grid grid-cols-4 gap-2" aria-label="Incident workflow">
         {INCIDENT_STEPS.map((step, i) => {
@@ -49,6 +51,10 @@ export function EventModal({ id }: { id: string }) {
           );
         })}
       </ol>
+
+      <div className="mt-4 rounded-[var(--radius-card)] border border-line bg-panel-2 p-3">
+        <SopChecklist e={e} />
+      </div>
 
       {workOrder && (
         <p className="mt-3 text-[13px] text-muted">
@@ -73,11 +79,8 @@ export function EventModal({ id }: { id: string }) {
         </button>
       </div>
       <SourceNotice>
-        {e.type === "security"
-          ? "ตัวอย่างขั้นตอน: ตรวจสอบภาพและสถานะประตู → ยืนยันกับเจ้าหน้าที่ประจำพื้นที่ → ส่งทีมตรวจสอบ → บันทึกสาเหตุและหลักฐานการปิดงาน"
-          : "ตัวอย่างขั้นตอน: ตรวจสอบ Sensor / Trend → ยืนยันสภาพหน้างาน → มอบหมายทีมวิศวกรรม → บันทึกผลและปิดงาน"}
-        <br />
-        Workflow นี้เป็นการสาธิต ไม่ใช่ SOP ที่อนุมัติสำหรับโครงการ · ไม่มีคำสั่งไปยังระบบจริง
+        SOP และ Workflow นี้เป็นตัวอย่างเพื่อสาธิต ไม่ใช่ SOP ที่อนุมัติสำหรับโครงการ · ไม่มีคำสั่งไปยังระบบจริง
+        ระบบจริงจะใช้ SOP ของเจ้าของอาคารและส่งใบงานเข้า CMMS
       </SourceNotice>
     </>
   );

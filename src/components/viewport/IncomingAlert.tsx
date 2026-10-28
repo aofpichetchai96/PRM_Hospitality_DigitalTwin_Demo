@@ -3,7 +3,8 @@
 import { Check, Cctv, Crosshair, Siren, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { autoResponse, incidentSource } from "@/data/events";
+import { ReadingLine } from "@/components/panels/alarm";
+import { autoResponse, incidentSource, SEVERITY } from "@/data/events";
 import { DURATION, EASE_OUT } from "@/lib/motion";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -11,9 +12,9 @@ import { useAppStore } from "@/store/useAppStore";
 const STEP_MS = 700;
 
 const TONE = {
-  high: { border: "border-red/70", text: "text-red", bg: "bg-red", label: "HIGH" },
-  medium: { border: "border-gold/70", text: "text-gold", bg: "bg-gold", label: "MEDIUM" },
-  low: { border: "border-blue/70", text: "text-blue", bg: "bg-blue", label: "LOW" },
+  high: { border: "border-red/70", text: "text-red", bg: "bg-red" },
+  medium: { border: "border-orange/70", text: "text-orange", bg: "bg-orange" },
+  low: { border: "border-gold/70", text: "text-gold", bg: "bg-gold" },
 };
 
 /**
@@ -64,7 +65,9 @@ function AlertCard({ id }: { id: string }) {
           <span className={`absolute inset-0 animate-ping rounded-full opacity-40 ${tone.bg}`} />
           <Siren size={15} />
         </span>
-        <span className="font-mono text-[11px] font-semibold tracking-wider">INCOMING ALERT · {tone.label}</span>
+        <span className="font-mono text-[11px] font-semibold tracking-wider">
+          INCOMING ALARM · {SEVERITY[e.priority].label.toUpperCase()}
+        </span>
         <span className="ml-auto font-mono text-[11px] text-muted">
           {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}
         </span>
@@ -80,6 +83,11 @@ function AlertCard({ id }: { id: string }) {
         <h3 className="text-[15px] font-semibold">{e.title.th}</h3>
         <p className="text-[13px] text-muted">{e.location}</p>
         <p className="text-[13px] text-muted">แหล่งข้อมูล: {incidentSource(e.type)}</p>
+        {e.reading && (
+          <p className="text-[13px]">
+            <ReadingLine e={e} />
+          </p>
+        )}
 
         <p className="mt-2 text-[13px] font-semibold text-muted">ระบบเตรียมการให้ · ผู้ปฏิบัติงานยืนยันก่อนสั่งงาน</p>
         <ol className="mt-1 flex flex-col gap-1">
@@ -105,7 +113,7 @@ function AlertCard({ id }: { id: string }) {
             onClick={() => openModal({ kind: "event", id: e.id })}
             className="rounded-[var(--radius-button)] bg-accent px-3 py-1.5 text-[13px] font-semibold text-bg"
           >
-            เปิดเหตุการณ์ · Verify
+            เปิด Alarm · Acknowledge
           </button>
           {camera ? (
             <button
@@ -140,7 +148,8 @@ export function AlertFlash() {
       className="pointer-events-none absolute inset-0 z-30 rounded-[inherit]"
       style={{
         animation: "alert-flash 0.9s ease-in-out 3 forwards",
-        ["--alert-color" as string]: priority === "high" ? "var(--red)" : "var(--gold)",
+        ["--alert-color" as string]:
+          priority === "high" ? "var(--red)" : priority === "medium" ? "var(--orange)" : "var(--gold)",
       }}
     />
   );

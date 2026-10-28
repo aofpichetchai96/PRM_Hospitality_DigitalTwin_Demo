@@ -2,19 +2,22 @@
 
 // "Locate in 3D" marker (3D_PLAN 5.5): a ring pulsing 1 → 2.5× and fading,
 // every 1.2 s, plus a thin vertical line so it reads from far away. Only drawn
-// in the IOC view or for an incoming alert, so other views keep rendering on demand.
+// in Back of House or for an incoming alert, so other views keep rendering on demand.
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { AdditiveBlending, type Mesh, type MeshBasicMaterial } from "three";
 import { useAppStore } from "@/store/useAppStore";
 
 const PERIOD = 1.2;
-const COLOR = { high: "#ff7c81", medium: "#dfbd7e", low: "#7eb7ff" };
+/** Severity colours: Critical red, Major orange, Minor amber */
+const COLOR = { high: "#ff7c81", medium: "#f2a065", low: "#dfbd7e" };
 
 export function IncidentMarker() {
   // Same incident the workflow panel follows: the focused one, else the first open one
   const incident = useAppStore((s) => {
-    if (s.view !== "ioc") {
+    // Not while a chiller is opened up: the ring would hang over its insides
+    if (s.chillerView !== null) return undefined;
+    if (s.view !== "boh" && s.view !== "ioc") {
       const alerted = s.alert ? s.incidents.find((e) => e.id === s.alert?.id) : undefined;
       return alerted && alerted.status === 0 ? alerted : undefined;
     }

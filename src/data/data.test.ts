@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { answerQuestion, type AskContext } from "./aiScript";
 import { ASSETS } from "./assets";
 import { comfortRisk, computeEnergy, FOOTFALL_BY_ZONE, footfallAt, REFERENCE_FOOTFALL } from "./energy";
-import { INITIAL_INCIDENTS, SIMULATED_INCIDENTS } from "./events";
+import { INITIAL_INCIDENTS, SCENARIOS } from "./events";
 import { FLOOR_PLANS } from "./floorPlans";
 import { FLOORS, GUEST_FLOORS, SITE_BOUNDS, TOTAL_KEYS } from "./property";
-import { adjustOccupancy, generateRooms } from "./rooms";
-import { SHOWCASES } from "./showcase";
+import {
+  adjustOccupancy,
+  generateRooms,
+  PRECOOL_KW,
+  roomControl,
+  roomPowers,
+  roomStay,
+  roomTrend,
+  STANDBY_KW,
+} from "./rooms";
 import { ANNUAL_ENERGY_SAVING_THB, ROADMAP, VALUE_METRICS } from "./value";
-import { VIEWS } from "./views";
 
 const count = (rooms: { status: string }[], status: string) => rooms.filter((r) => r.status === status).length;
 const unique = (ids: string[]) => new Set(ids).size === ids.length;
@@ -30,15 +36,10 @@ describe("floor schedule", () => {
 });
 
 describe("rooms", () => {
-  it("matches the prototype mix at 84 %: 504 / 62 / 28 / 6", () => {
+  it("has three statuses at 84 %: 504 occupied / 34 reserved / 62 available", () => {
     const rooms = generateRooms(84);
     expect(rooms).toHaveLength(600);
-    expect([
-      count(rooms, "occupied"),
-      count(rooms, "ready"),
-      count(rooms, "cleaning"),
-      count(rooms, "maintenance"),
-    ]).toEqual([504, 62, 28, 6]);
+    expect([count(rooms, "occupied"), count(rooms, "reserved"), count(rooms, "available")]).toEqual([504, 34, 62]);
     expect(unique(rooms.map((r) => r.id))).toBe(true);
     expect(rooms.find((r) => r.id === "H12-07")).toBeDefined();
     expect(rooms.find((r) => r.id === "H08-01")).toBeUndefined();
@@ -53,10 +54,52 @@ describe("rooms", () => {
     const up = adjustOccupancy(rooms, 90);
     expect(count(up, "occupied")).toBe(540);
     expect(up.filter((r, i) => r.status !== rooms[i].status).length).toBe(36);
+    // Booked guests arrive before walk-ins take vacant rooms
+    expect(count(up, "reserved")).toBe(0);
     const down = adjustOccupancy(up, 50);
     expect(count(down, "occupied")).toBe(300);
-    expect(count(down, "cleaning")).toBe(count(up, "cleaning"));
+    expect(count(down, "available")).toBe(300);
     expect(count(adjustOccupancy(rooms, 100), "occupied")).toBe(600);
+  });
+});
+
+describe("room stays and energy", () => {
+  const rooms = generateRooms(84);
+
+  it("gives every booked room a stay and none to vacant rooms, the same every time", () => {
+    for (const r of rooms) {
+      const stay = roomStay(r);
+      if (r.status === "available") expect(stay).toBeNull();
+      else {
+        expect(stay!.guests).toBeGreaterThanOrEqual(1);
+        expect(stay!.guests).toBeLessThanOrEqual(3);
+        expect(stay!.expected).toBe(r.status === "reserved");
+        expect(stay!.checkOut.day).toBeGreaterThan(stay!.checkIn.day);
+        // In-house guests arrived before now (14:30)
+        if (r.status === "occupied") expect(stay!.checkIn.day * 24 + stay!.checkIn.hour).toBeLessThanOrEqual(14.5);
+      }
+    }
+    expect(roomStay(rooms[0])).toEqual(roomStay(rooms[0]));
+  });
+
+  it("splits the hotel load over the 600 rooms so they add up exactly", () => {
+    const kw = roomPowers(rooms, 756);
+    const total = [...kw.values()].reduce((a, b) => a + b, 0);
+    expect(total).toBeCloseTo(756, 6);
+    const reserved = rooms.find((r) => r.status === "reserved")!;
+    const available = rooms.find((r) => r.status === "available")!;
+    expect(kw.get(reserved.id)).toBe(PRECOOL_KW);
+    expect(kw.get(available.id)).toBe(STANDBY_KW);
+    const occupied = rooms.filter((r) => r.status === "occupied").map((r) => kw.get(r.id)!);
+    expect(Math.min(...occupied)).toBeGreaterThan(1);
+    expect(Math.max(...occupied)).toBeLessThan(2);
+  });
+
+  it("ends each room trend at its live value and reports the GRMS state", () => {
+    const occupied = rooms.find((r) => r.status === "occupied")!;
+    expect(roomTrend(occupied, 14.5, 1.4).at(-1)).toBeCloseTo(1.4);
+    expect(roomControl({ id: "x", status: "available" }, 14.5, 24).hvac).toContain("Eco");
+    expect(roomControl({ id: "x", status: "reserved" }, 14.5, 24).hvac).toContain("Pre-cool");
   });
 });
 
@@ -101,7 +144,7 @@ describe("data validation", () => {
     for (const p of [
       ...Object.values(ASSETS).map((a) => a.position),
       ...INITIAL_INCIDENTS.map((e) => e.position),
-      ...SIMULATED_INCIDENTS.map((e) => e.position),
+      ...Object.values(SCENARIOS).map((e) => e.position),
     ])
       expect(inside(p)).toBe(true);
   });
@@ -109,56 +152,6 @@ describe("data validation", () => {
   it("has unique ids", () => {
     expect(unique(INITIAL_INCIDENTS.map((e) => e.id))).toBe(true);
     for (const p of Object.values(FLOOR_PLANS)) expect(unique(p.zones.map((z) => z.id))).toBe(true);
-  });
-
-  it("showcase chapters open with their own view and point at real ids", () => {
-    for (const path of Object.values(SHOWCASES)) expect(unique(path.map((c) => c.id))).toBe(true);
-    expect(SHOWCASES.executive.length).toBeLessThanOrEqual(6);
-    for (const c of Object.values(SHOWCASES).flat()) {
-      expect(c.beats[0].run[0], c.id).toMatchObject({ do: "view" });
-      for (const b of c.beats)
-        for (const a of b.run) {
-          if (a.do === "view") expect(VIEWS[a.view]).toBeDefined();
-          if (a.do === "incident" || a.do === "locate" || (a.do === "modal" && a.kind === "event"))
-            expect(a.id === "focus" || INITIAL_INCIDENTS.some((e) => e.id === a.id)).toBe(true);
-        }
-    }
-  });
-});
-
-describe("assistant script", () => {
-  const ctx: AskContext = {
-    time: "14:30",
-    energy: computeEnergy({
-      occupancy: 0.84,
-      setpoint: 24,
-      outdoor: 32,
-      tariff: 4.5,
-      footfallFactor: 1,
-      operatingHours: 16,
-    }),
-    counts: { occupied: 504, ready: 62, cleaning: 28, maintenance: 6 },
-    footfall: 27840,
-    openIncidents: INITIAL_INCIDENTS,
-    workOrders: [],
-    scenario: { outdoor: 32, setpoint: 24, tariff: 4.5, operatingHours: 16 },
-    selection: { label: "อาคารทั้งหมด", assetName: "Site", assetCode: "PRM-SITE-01", metrics: [] },
-    plan: { open: false, type: "residence", selectedZone: "A" },
-  };
-
-  it.each([
-    ["ทำไมค่าไฟสูงวันนี้", "2,616 kW"],
-    ["ห้องพักพร้อมขายกี่ห้อง", "พร้อมขาย / ว่าง 62 ห้อง"],
-    ["มีเหตุการณ์อะไรค้างอยู่", "3 เหตุการณ์ค้าง"],
-    ["สรุปสถานการณ์อาคารวันนี้", "Simulated brief"],
-    ["Tell me about the library", "Library gallery"],
-    ["ฟาซาดอาคารออกแบบอย่างไร", "ครีบสีขาว"],
-  ])("answers %s", (q, expected) => {
-    expect(answerQuestion(q, ctx).text).toContain(expected);
-  });
-
-  it("falls back to the scripted scope", () => {
-    expect(answerQuestion("what is the weather on Mars", ctx).source).toContain("No external AI");
   });
 });
 

@@ -1,0 +1,105 @@
+// Simulated air quality. Outdoor PM2.5 follows the time of day (traffic peaks
+// in the morning and evening); indoor air is the outdoor air through the AHU
+// filters plus CO₂ from the people inside. Pure functions of the clock, so the
+// 24 h sparklines are computed rather than stored and t0 is always the same.
+// Demo model only: no sensor is read.
+
+export interface AirReading {
+  /** US EPA AQI from PM2.5 */
+  aqi: number;
+  /** µg/m³ */
+  pm25: number;
+  /** ppm */
+  co2: number;
+}
+
+export type AirBandId = "good" | "moderate" | "sensitive" | "unhealthy";
+export interface AirBand {
+  id: AirBandId;
+  label: string;
+  th: string;
+  color: string;
+}
+
+export const AIR_BANDS: Record<AirBandId, AirBand> = {
+  good: { id: "good", label: "Good", th: "ดี", color: "var(--green)" },
+  moderate: { id: "moderate", label: "Moderate", th: "ปานกลาง", color: "var(--gold)" },
+  sensitive: {
+    id: "sensitive",
+    label: "Unhealthy for sensitive",
+    th: "เริ่มมีผลต่อกลุ่มเสี่ยง",
+    color: "var(--orange)",
+  },
+  unhealthy: { id: "unhealthy", label: "Unhealthy", th: "มีผลต่อสุขภาพ", color: "var(--red)" },
+};
+
+/** PM2.5 → AQI breakpoints (US EPA, 2024) up to "Unhealthy" */
+const PM25_BREAKPOINTS: readonly [number, number, number, number][] = [
+  [0, 9, 0, 50],
+  [9.1, 35.4, 51, 100],
+  [35.5, 55.4, 101, 150],
+  [55.5, 125.4, 151, 200],
+];
+
+export function pm25ToAqi(pm25: number): number {
+  const c = Math.max(0, Math.floor(pm25 * 10) / 10);
+  const row = PM25_BREAKPOINTS.find(([lo, hi]) => c >= lo && c <= hi) ?? PM25_BREAKPOINTS.at(-1)!;
+  const [lo, hi, aqiLo, aqiHi] = row;
+  return Math.round(Math.min(aqiHi, aqiLo + ((aqiHi - aqiLo) * (c - lo)) / (hi - lo)));
+}
+
+export function aqiBand(aqi: number): AirBand {
+  if (aqi <= 50) return AIR_BANDS.good;
+  if (aqi <= 100) return AIR_BANDS.moderate;
+  if (aqi <= 150) return AIR_BANDS.sensitive;
+  return AIR_BANDS.unhealthy;
+}
+
+/** Indoor CO₂ bands (ventilation rule of thumb, not a health limit) */
+export function co2Band(ppm: number): AirBand {
+  if (ppm <= 800) return AIR_BANDS.good;
+  if (ppm <= 1000) return AIR_BANDS.moderate;
+  if (ppm <= 1500) return AIR_BANDS.sensitive;
+  return AIR_BANDS.unhealthy;
+}
+
+const peak = (time: number, at: number, width: number) => {
+  // Distance on the 24 h clock, so the evening peak also lifts the small hours a little
+  const d = Math.min(Math.abs(time - at), 24 - Math.abs(time - at));
+  return Math.exp(-(d * d) / (2 * width * width));
+};
+const round1 = (v: number) => Math.round(v * 10) / 10;
+
+/** Outdoor air at a decimal hour */
+export function outdoorAir(time: number): AirReading {
+  const pm25 = round1(24 + 15 * peak(time, 8, 1.6) + 12 * peak(time, 18.5, 1.8) + 6 * peak(time, 14, 3));
+  const co2 = Math.round(418 + 22 * peak(time, 8, 1.6) + 18 * peak(time, 18.5, 1.8));
+  return { aqi: pm25ToAqi(pm25), pm25, co2 };
+}
+
+/** Share of outdoor PM2.5 that gets past the AHU filters (demo assumption) */
+export const FILTER_PASS = { ok: 0.22, fault: 0.5 } as const;
+const INDOOR_PM_BASE = 1.2;
+/** Indoor CO₂ at the outdoor level plus this much per unit of occupancy × activity */
+const CO2_PER_LOAD = 360;
+
+/** How busy the building is at a decimal hour (0–1): low overnight, highest mid-afternoon */
+export function activityAt(time: number) {
+  return 0.35 + 0.6 * peak(time, 15, 4);
+}
+
+/**
+ * Indoor air of the whole building: filtered outdoor PM2.5 and CO₂ that rises
+ * with occupancy (0–1) and the time of day. `ahuOk` false = an AHU filter fault.
+ */
+export function indoorAir(time: number, occupancy: number, ahuOk = true): AirReading {
+  const out = outdoorAir(time);
+  const pm25 = round1(out.pm25 * (ahuOk ? FILTER_PASS.ok : FILTER_PASS.fault) + INDOOR_PM_BASE);
+  const co2 = Math.round(out.co2 + 40 + CO2_PER_LOAD * occupancy * activityAt(time));
+  return { aqi: pm25ToAqi(pm25), pm25, co2 };
+}
+
+/** One value per hour for the 24 h up to `time` (oldest first, last = now) */
+export function last24h(time: number, read: (t: number) => number): number[] {
+  return Array.from({ length: 25 }, (_, i) => read((time - 24 + i + 24) % 24));
+}

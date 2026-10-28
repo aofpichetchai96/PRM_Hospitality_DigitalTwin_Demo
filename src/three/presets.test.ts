@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAMERA_LIMITS, CAMERA_PRESETS, floorPose, nearestAngle } from "./presets";
+import { CAMERA_LIMITS, CAMERA_PRESETS, floorPose, nearestAngle, planDistance } from "./presets";
 
 describe("nearestAngle", () => {
   it("returns the target unchanged when already closest", () => {
@@ -34,5 +34,24 @@ describe("camera presets", () => {
     expect(floorPose("H01").target[1]).toBe(29);
     expect(floorPose("L2")).toMatchObject({ target: [0, 10.4, 0], distance: 148 });
     expect(floorPose("G").target[1]).toBe(0);
+  });
+});
+
+describe("plan view", () => {
+  const plate = { w: 44, d: 28 };
+  it("comes closer on a wide screen than on a narrow one, within the limits", () => {
+    const wide = planDistance(plate, { width: 1340, height: 770, inset: 0, fov: 38 });
+    const narrow = planDistance(plate, { width: 870, height: 515, inset: 90, fov: 38 });
+    expect(wide).toBeLessThan(narrow);
+    expect(wide).toBeGreaterThanOrEqual(CAMERA_LIMITS.minDistance);
+    expect(narrow).toBeLessThanOrEqual(CAMERA_LIMITS.maxDistance);
+  });
+
+  it("keeps the whole plate on screen", () => {
+    const view = { width: 1340, height: 770, inset: 0, fov: 38 };
+    const d = planDistance(plate, view);
+    const pxPerM = view.height / (2 * d * Math.tan((19 * Math.PI) / 180));
+    expect(plate.w * pxPerM).toBeLessThanOrEqual(view.width);
+    expect(plate.d * pxPerM).toBeLessThanOrEqual(view.height);
   });
 });

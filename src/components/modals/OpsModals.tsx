@@ -1,21 +1,22 @@
 "use client";
 
 // CCTV feed (prototype feedModal L407) and asset detail (prototype assetDetail L393)
-import { CAMERAS, SyntheticFeed } from "@/components/cctv/SyntheticFeed";
+import { CAMERAS, CctvFeed } from "@/components/cctv/CctvFeed";
 import { AssetCard } from "@/components/panels/DetailsPanel";
 import { SourceNotice } from "@/components/ui/Modal";
 
 export function CctvModal({ camera }: { camera: number }) {
   return (
     <>
-      <div className="relative h-[300px] overflow-hidden rounded-[var(--radius-card)] border border-line">
-        <SyntheticFeed camera={camera} />
-        <span className="absolute top-2 left-3 font-mono text-[11px] tracking-wider text-[#b2e4cf]">
-          {CAMERAS[camera].id} · SYNTHETIC SCENE · NOT LIVE CCTV
+      <div className="relative aspect-video overflow-hidden rounded-[var(--radius-card)] border border-line bg-bg">
+        <CctvFeed camera={camera} />
+        <span className="absolute bottom-2 left-2 rounded bg-bg/80 px-2 py-0.5 font-mono text-[11px] tracking-wider text-[#b2e4cf]">
+          {CAMERAS[camera].id} · SAMPLE FOOTAGE · NOT LIVE CCTV
         </span>
       </div>
       <SourceNotice>
-        ภาพนี้วาดขึ้นเพื่อจำลองหน้าจอ CCTV และกรอบ People detection ไม่มีภาพจากกล้องจริงหรือข้อมูลบุคคลจริง
+        ภาพตัวอย่างการตรวจจับคน (People detection) เพื่อสาธิตหน้าจอ CCTV analytics ไม่ใช่ภาพสดจากกล้องของอาคารนี้
+        ระบบจริงจะนับคนแบบไม่ระบุตัวตนจากกล้องที่ได้รับอนุญาต
       </SourceNotice>
       <p className="mt-3 text-[13px] text-muted">
         ตัวอย่าง Workflow: Detection → Operator verification → Locate in Digital Twin → Dispatch → Close incident

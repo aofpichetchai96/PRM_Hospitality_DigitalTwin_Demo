@@ -1,25 +1,47 @@
 "use client";
 
-import { ChartColumn, CircleQuestionMark, Download, MessageSquareText } from "lucide-react";
-import { DemoMenu } from "@/components/tour/DemoMenu";
+import { useSyncExternalStore } from "react";
+import { AssistantIcon } from "@/components/ui/AssistantIcon";
 import { VIEWS } from "@/data/views";
 import { asset } from "@/lib/asset";
-import { exportSnapshot } from "@/lib/exportSnapshot";
-import { timeStr } from "@/lib/format";
 import { useAppStore } from "@/store/useAppStore";
 
-/** Views whose bottom panel is hidden until "แสดงกราฟ" is pressed */
-export const CHARTS_ON_DEMAND = new Set(["twin"]);
+const BANGKOK = "Asia/Bangkok";
+const clockTime = new Intl.DateTimeFormat("en-GB", {
+  timeZone: BANGKOK,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+// "28 Oct 26"
+const clockDate = new Intl.DateTimeFormat("en-GB", {
+  timeZone: BANGKOK,
+  day: "2-digit",
+  month: "short",
+  year: "2-digit",
+});
+
+/** Wall-clock minute in Thailand, ticking on the client; null while prerendering (no hydration mismatch) */
+function subscribeMinute(onChange: () => void) {
+  const id = window.setInterval(onChange, 5_000);
+  return () => window.clearInterval(id);
+}
+const minuteNow = () => Math.floor(Date.now() / 60_000);
+const noMinute = () => null;
+
+function useBangkokClock() {
+  const minute = useSyncExternalStore(subscribeMinute, minuteNow, noMinute);
+  if (minute === null) return { time: "--:--", date: "" };
+  const now = new Date(minute * 60_000);
+  return { time: clockTime.format(now), date: clockDate.format(now) };
+}
 
 /** Header with the page head merged in (PLAN 8) — 64px instead of the prototype's ~150px */
 export function Header() {
   const view = useAppStore((s) => s.view);
-  const time = useAppStore((s) => timeStr(s.time));
-  const chartsOpen = useAppStore((s) => s.chartsOpen);
-  const setChartsOpen = useAppStore((s) => s.setChartsOpen);
+  // The real time in Thailand; the simulation clock is in the footer bar
+  const clock = useBangkokClock();
   const setPanel = useAppStore((s) => s.setPanel);
-  const openModal = useAppStore((s) => s.openModal);
-  const notify = useAppStore((s) => s.notify);
   const { title, subtitle } = VIEWS[view];
 
   return (
@@ -44,15 +66,8 @@ export function Header() {
       </div>
 
       <nav className="flex items-center gap-2 text-[13px]" aria-label="คำสั่ง">
-        {CHARTS_ON_DEMAND.has(view) && (
-          <HeaderButton
-            icon={<ChartColumn size={16} />}
-            label={chartsOpen ? "ซ่อนกราฟ" : "แสดงกราฟ"}
-            pressed={chartsOpen}
-            onClick={() => setChartsOpen(!chartsOpen)}
-          />
-        )}
-        <HeaderButton icon={<MessageSquareText size={16} />} label="ถาม AI" onClick={() => setPanel("agent")} />
+        <HeaderButton icon={<AssistantIcon size={20} />} label="AI Assistant" onClick={() => setPanel("agent")} />
+        {/* Hidden at the owner's request; lib/exportSnapshot.ts is kept
         <HeaderButton
           icon={<Download size={16} />}
           label="Export"
@@ -60,25 +75,25 @@ export function Header() {
             exportSnapshot(useAppStore.getState());
             notify("ส่งออก Snapshot ข้อมูลจำลองแล้ว");
           }}
-        />
-        <DemoMenu />
+        /> */}
       </nav>
 
       <div className="flex items-center gap-3 border-l border-line pl-4">
         <span className="rounded-full border border-gold/50 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-gold">
           SIMULATED DEMO
         </span>
-        <p className="text-right leading-tight">
-          <span className="font-mono text-[15px]">{time}</span>
-          <span className="block text-[10px] text-muted">ICT · DAY 01</span>
+        <p className="text-right leading-tight" title="เวลาปัจจุบัน (ประเทศไทย)">
+          <time className="font-mono text-[15px]">{clock.time}</time>
+          <span className="block text-[10px] text-muted">{clock.date}</span>
         </p>
+        {/* Help button hidden at the owner's request; the help modal (shortcuts, quality, Value / ROI) still exists
         <button
           aria-label="ช่วยเหลือ"
           onClick={() => openModal({ kind: "help" })}
           className="text-muted hover:text-text"
         >
           <CircleQuestionMark size={20} />
-        </button>
+        </button> */}
       </div>
     </header>
   );

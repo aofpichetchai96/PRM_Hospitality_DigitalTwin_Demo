@@ -59,19 +59,22 @@ export function AssetCard({ showDetails = true }: { showDetails?: boolean }) {
   const createWorkOrder = useAppStore((s) => s.createWorkOrder);
   const openModal = useAppStore((s) => s.openModal);
   const info = ASSETS[input.asset];
+  const alarm = card.metrics.some((m) => m.status === "alert");
 
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-panel-2 p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="font-semibold">{card.name}</p>
-        <span className={`size-2 rounded-full ${info.status === "ok" ? "bg-green" : "bg-gold"}`} />
+        <span className={`size-2 rounded-full ${alarm ? "bg-red" : info.status === "ok" ? "bg-green" : "bg-gold"}`} />
       </div>
       <p className="font-mono text-[10px] text-muted">{card.code} · SIMULATED ASSET</p>
       <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
         {card.metrics.map((m) => (
           <div key={m.label}>
             <dt className="text-[11px] text-muted">{m.label}</dt>
-            <dd className={`font-semibold tabular-nums ${m.status === "warn" ? "text-gold" : ""}`}>
+            <dd
+              className={`font-semibold tabular-nums ${m.status === "alert" ? "text-red" : m.status === "warn" ? "text-gold" : ""}`}
+            >
               {m.value} {m.unit && <span className="text-[11px] font-normal text-muted">{m.unit}</span>}
             </dd>
           </div>

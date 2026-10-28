@@ -1,16 +1,15 @@
 // Room status in 2D always pairs colour with an icon, so red / green colour
 // blindness never hides a status (PLAN 8).
-import { CircleCheck, type LucideIcon, SprayCan, UserRound, Wrench } from "lucide-react";
+import { CalendarClock, CircleCheck, type LucideIcon, UserRound } from "lucide-react";
 import type { RoomStatus } from "@/types";
 
 export const STATUS_META: Record<RoomStatus, { label: string; th: string; color: string; Icon: LucideIcon }> = {
   occupied: { label: "Occupied", th: "มีผู้เข้าพัก", color: "var(--status-occupied)", Icon: UserRound },
-  ready: { label: "Ready", th: "พร้อมขาย", color: "var(--status-ready)", Icon: CircleCheck },
-  cleaning: { label: "Cleaning", th: "ทำความสะอาด", color: "var(--status-cleaning)", Icon: SprayCan },
-  maintenance: { label: "Maintenance", th: "ปิดซ่อม", color: "var(--status-maintenance)", Icon: Wrench },
+  reserved: { label: "Reserved", th: "จองแล้ว ยังไม่เข้าพัก", color: "var(--status-reserved)", Icon: CalendarClock },
+  available: { label: "Available", th: "ว่าง พร้อมขาย", color: "var(--status-available)", Icon: CircleCheck },
 };
 
-export const STATUS_ORDER: RoomStatus[] = ["occupied", "ready", "cleaning", "maintenance"];
+export const STATUS_ORDER: RoomStatus[] = ["occupied", "reserved", "available"];
 
 export function StatusIcon({ status, size = 12 }: { status: RoomStatus; size?: number }) {
   const { Icon, color, label } = STATUS_META[status];

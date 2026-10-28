@@ -1,32 +1,32 @@
 // Static info modals ported from the prototype: help (L383), model notes
 // (L384) and facade references (L385).
-import { Play } from "lucide-react";
+import { ChartNoAxesCombined, Route } from "lucide-react";
 import { asset } from "@/lib/asset";
 import { SourceNotice } from "@/components/ui/Modal";
 import { useAppStore } from "@/store/useAppStore";
 
 const HELP_KEYS: [string, string][] = [
+  ["5 ฉากใน Property Explorer", "Overview · Guest Room · Public Area · Back of House · AI Assistant · กดแล้วแสดงทันที"],
   ["หมุน / ซูมอาคาร", "ลากเมาส์หรือนิ้วเพื่อหมุน · เลื่อนล้อเมาส์หรือจีบนิ้วเพื่อซูม · คลิกขวาลากเพื่อ Pan"],
   ["สำรวจภายใน", "กด X-ray / Explode หรือเลือกชั้น G, L1–L4, H01–H30 จากเมนูใต้ภาพ"],
-  ["Incident workflow", "IOC operations → เลือกเหตุการณ์ → Verify → Dispatch → Resolve"],
-  ["จำลองพลังงาน", "Energy Lab → ปรับ Setpoint / Occupancy / Outdoor temperature → ดูผลเปรียบเทียบ"],
-  ["Hotel / AI Assistant", "ดูห้องทั้งหมด 600 ห้อง หรือลองถามคำถามภาษาไทยเกี่ยวกับข้อมูลจำลอง"],
+  ["Alarm & SOP", "Back of House → เลือก Alarm → Ack → In progress → Closed พร้อม Checklist ตาม SOP"],
+  ["จำลองพลังงาน", "AI Assistant → ปรับ Setpoint / Occupancy / Outdoor temperature → ดูผลเปรียบเทียบ"],
   ["Presentation / Snapshot", "ปุ่มขยายซ่อนแผงข้อมูล · Export ส่งออกข้อมูล JSON"],
 ];
 
 const SHORTCUTS: [string, string][] = [
-  ["← / →", "ฟังก์ชันก่อนหน้า / ถัดไประหว่างสาธิต (รองรับ clicker)"],
+  ["1 – 5", "เปิดฉาก Overview / Guest Room / Public Area / Back of House / AI"],
+  ["← / →", "ฉากก่อนหน้า / ถัดไป (รองรับ clicker)"],
+  ["⇧ 1 – 5", "จำลองเหตุการณ์: CT fan trip / CHWS สูง / Pump vibration / Water leak / Lobby หนาแน่น"],
   ["P", "Presentation mode"],
   ["R", "Reset Demo กลับค่าเริ่มต้น"],
-  ["Esc", "ปิดหน้าต่าง / จบ Demo / ออกจาก Presentation"],
+  ["Esc", "ปิดหน้าต่าง / ออกจากชั้นที่ตัด / ออกจาก Presentation"],
 ];
 
 export function HelpModal() {
-  const startShowcase = useAppStore((s) => s.startShowcase);
+  const openModal = useAppStore((s) => s.openModal);
   const quality = useAppStore((s) => s.quality);
   const setQuality = useAppStore((s) => s.setQuality);
-  const attract = useAppStore((s) => s.attractEnabled);
-  const setAttract = useAppStore((s) => s.setAttractEnabled);
   return (
     <>
       <p>สำรวจโครงการ Mixed-use ผ่านโมเดล 3D อ้างอิงภาพที่ให้มา พร้อมทดลองกระบวนการ IOC และข้อมูลจำลอง</p>
@@ -64,23 +64,22 @@ export function HelpModal() {
           </button>
         ))}
       </div>
-      <h3>Attract mode (บูธ / งาน event)</h3>
-      <label className="flex items-center gap-2 text-[14px]">
-        <input
-          type="checkbox"
-          checked={attract}
-          onChange={(e) => setAttract(e.target.checked)}
-          className="size-4 accent-[var(--accent)]"
-        />
-        เล่นเดโม Executive วนเองเมื่อไม่มีการใช้งาน 2 นาที · แตะหรือกดปุ่มใดก็ได้เพื่อหยุด
-      </label>
+      <h3>ข้อเสนอโครงการ</h3>
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => openModal({ kind: "value" })}
+          className="flex items-center gap-2 rounded-[var(--radius-button)] border border-line px-3 py-1.5 text-[13px] hover:border-accent/60"
+        >
+          <ChartNoAxesCombined size={15} /> Value / ROI
+        </button>
+        <button
+          onClick={() => openModal({ kind: "roadmap" })}
+          className="flex items-center gap-2 rounded-[var(--radius-button)] border border-line px-3 py-1.5 text-[13px] hover:border-accent/60"
+        >
+          <Route size={15} /> Roadmap 3 เฟส
+        </button>
+      </div>
       <SourceNotice>ทำงานบนเครื่องนี้ทั้งหมด ไม่ต้องใช้อินเทอร์เน็ต / API key และไม่ส่งข้อมูลออกภายนอก</SourceNotice>
-      <button
-        onClick={() => startShowcase()}
-        className="mt-4 flex items-center gap-2 rounded-[var(--radius-button)] bg-accent px-4 py-2 font-semibold text-bg"
-      >
-        <Play size={16} fill="currentColor" /> ชมเดโม · Executive
-      </button>
     </>
   );
 }

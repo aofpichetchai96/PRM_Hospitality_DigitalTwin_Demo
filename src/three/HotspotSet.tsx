@@ -17,12 +17,17 @@ import { Hotspot, type HotspotTone } from "./Hotspot";
 type Spot = { id: HotspotId; position: Vec3; title: string; detail: string; tone: HotspotTone; visible: boolean };
 
 const VIEW_SPOTS: Record<ViewId, readonly HotspotId[]> = {
-  overview: ["hotel", "mall"],
+  executive: ["hotel", "mall"],
   twin: ["hotel", "mall", "plant", "security", "ahu", "people"],
   ioc: ["security", "plant", "ahu", "people"],
   energy: ["plant", "ahu", "hotel"],
-  hotel: ["hotel", "ahu"],
-  ai: ["hotel", "mall"],
+  overview: ["hotel", "mall", "security"],
+  // The plan view keeps the rooms and their kW clear of pins
+  rooms: [],
+  public: ["security"],
+  // The alarm callout (AlarmCallout) labels the alarmed unit, so no CH-01 pin on top of it
+  boh: ["ahu"],
+  ai: ["hotel", "mall", "plant"],
 };
 
 export function HotspotSet({ portal }: { portal: RefObject<HTMLElement | null> }) {
@@ -65,7 +70,7 @@ export function HotspotSet({ portal }: { portal: RefObject<HTMLElement | null> }
     },
     {
       id: "plant",
-      position: [58, 6, -18],
+      position: [56, 6, -26],
       title: "CH-01 · CENTRAL PLANT",
       detail: "Energy + asset health",
       tone: openTypes.has("plant") || openTypes.has("leak") ? "warning" : "info",

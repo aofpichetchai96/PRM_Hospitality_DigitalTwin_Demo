@@ -16,6 +16,7 @@ import {
 } from "three";
 import { useShallow } from "zustand/react/shallow";
 import { REFERENCE_FOOTFALL } from "@/data/energy";
+import { isHotelFloor } from "@/data/property";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { createLcg } from "@/lib/random";
 import { useAppStore } from "@/store/useAppStore";
@@ -182,9 +183,11 @@ function SecurityCones() {
 export function LayerEffects() {
   const layers = useAppStore((s) => s.layers);
   const reduced = useMediaQuery(REDUCED_MOTION);
+  // No riser to flow along when a podium floor is sliced (geometry/layers.ts)
+  const podiumCut = useAppStore((s) => s.mode === "slice" && s.floor !== "all" && !isHotelFloor(s.floor));
   return (
     <>
-      {layers.energy && !reduced && <EnergyFlow />}
+      {layers.energy && !reduced && !podiumCut && <EnergyFlow />}
       {layers.people && <PeopleHeatmap />}
       {layers.security && <SecurityCones />}
     </>

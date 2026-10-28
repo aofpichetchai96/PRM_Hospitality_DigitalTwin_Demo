@@ -17,18 +17,17 @@ type Dir = 0 | 1 | 2 | 3;
 /** Section height: walls, shafts and stairs stop here so the plan reads from above */
 const CUT = 2.9;
 
+/** Room status in 3D: red occupied · yellow reserved · green available (same as the 2D grid) */
 export const ROOM_COLOR: Record<RoomStatus, RGBA> = {
-  occupied: [0.44, 0.7, 0.62, 1],
-  ready: [0.47, 0.63, 0.77, 1],
-  cleaning: [0.79, 0.68, 0.43, 1],
-  maintenance: [0.81, 0.45, 0.45, 1],
+  occupied: [0.86, 0.45, 0.5, 1],
+  reserved: [0.9, 0.76, 0.36, 1],
+  available: [0.42, 0.76, 0.56, 1],
 };
 /** Door status light beside every room door (unlit, so it reads at dusk too) */
 const STATUS_LIGHT: Record<RoomStatus, RGBA> = {
-  occupied: [0.4, 0.92, 0.72, 1],
-  ready: [0.45, 0.78, 1, 1],
-  cleaning: [1, 0.8, 0.38, 1],
-  maintenance: [1, 0.42, 0.42, 1],
+  occupied: [1, 0.5, 0.56, 1],
+  reserved: [1, 0.85, 0.36, 1],
+  available: [0.42, 0.92, 0.66, 1],
 };
 
 const C = {
@@ -651,14 +650,8 @@ function guestRoom(g: G, slot: RoomSlot, y: number, status: RoomStatus, detail: 
   if (w > 2.8) g.cylinder(tx2, y, tz2, 0.22, 0.55, "wood", C.woodDark, 10);
   for (const s of [-1, 1]) P(s * (w / 2 - 0.22), dp - 0.18, 0.05, 0.32, 2.4, 0.12, "stone", C.curtain);
 
-  // Housekeeping cart / maintenance cone in the corridor outside the door
-  if (status === "cleaning") {
-    P(ud, -0.6, 0, 0.55, 1.0, 1.1, "metal", C.steel);
-    P(ud, -0.6, 1.0, 0.5, 0.2, 1.0, "stone", C.linen);
-  } else if (status === "maintenance") {
-    g.cylinder(x + m * (ud + 0.55), y, z0 - f * 0.5, 0.17, 0.5, "stone", C.orange, 8);
-    P(ud - 0.2, -0.45, 0, 0.5, 0.75, 0.04, "stone", C.yellow);
-  }
+  // Reserved: luggage rack set out by the door, ready for the arriving guests
+  if (status === "reserved") P(ud + 0.9, 0.35, 0, 0.9, 0.5, 0.45, "wood", C.woodDark);
 }
 
 export function guestFloor(
@@ -1109,7 +1102,8 @@ function podiumCommon(g: G, level: number, y: number, cut: boolean) {
   // Structure, hotel shuttle-lift shaft, fire stairs, toilets, AHU room
   for (let x = -37; x <= 38; x += 15)
     for (const z of [-19, 19]) {
-      block(g, x, y, z, 0.8, 4.6, 0.8, "stone", [0.61, 0.71, 0.77, 1]);
+      // Columns stop at the section cut like the walls
+      block(g, x, y, z, 0.8, cut ? CUT : 4.6, 0.8, "stone", [0.61, 0.71, 0.77, 1]);
       if (z < 0 && (x + 37) % 30 === 0) fireCabinet(g, x, y, z + 0.4, 0);
     }
   if (level > 0) {
@@ -1165,7 +1159,95 @@ function podiumCommon(g: G, level: number, y: number, cut: boolean) {
 /** Podium floor-to-floor height (m) */
 const PODIUM_STEP = 5.2;
 
-function podiumG(g: G, y: number) {
+/** Doors in the G street front (z 24.5): two sliding doors and the revolving door, as x ranges */
+export const LOBBY_DOORS = [
+  { x0: -20, x1: -15.5 },
+  { x0: -13.8, x1: -10.2 },
+  { x0: -8, x1: -3.5 },
+] as const;
+
+/** G enclosure: glazed street front with door gaps, solid flanks and back, lobby and lift-hall partitions */
+function lobbyWalls(g: G, y: number, h: number) {
+  const front = 24.45;
+  // Street front: glass between the doors, mullions every 3 m, a stone sill
+  let x = -43;
+  for (const d of [...LOBBY_DOORS, { x0: 43, x1: 43 }]) {
+    if (d.x0 > x) {
+      pane(g, [x, y, front], [d.x0, y, front], h);
+      for (let m = x; m <= d.x0 + 0.01; m += Math.max(1, (d.x0 - x) / Math.ceil((d.x0 - x) / 3)))
+        block(g, m, y, front, 0.12, h, 0.16, "metal", C.dark);
+      block(g, (x + d.x0) / 2, y, front, d.x0 - x, 0.25, 0.3, "stone", C.stoneDark);
+    }
+    if (d.x1 > d.x0 && d.x1 < 43) {
+      // Door frame: posts and a header
+      for (const px of [d.x0, d.x1]) block(g, px, y, front, 0.2, h, 0.3, "metal", C.dark);
+      block(g, (d.x0 + d.x1) / 2, y + h - 0.25, front, d.x1 - d.x0, 0.25, 0.3, "metal", C.dark);
+      // Entrance mat inside the door
+      block(g, (d.x0 + d.x1) / 2, y, front - 1.4, d.x1 - d.x0 - 0.4, 0.035, 2.2, "stone", C.stoneDark);
+    }
+    x = d.x1;
+  }
+  // Flanks and back of the podium
+  for (const s of [-1, 1]) block(g, s * 42.85, y, 0, 0.3, h, 49, "stone", C.wall);
+  block(g, 0, y, -25.05, 86, h, 0.3, "stone", C.wall);
+  // Lobby side wall (up to the fire stair) with art panels, and the wall behind reception
+  block(g, -37.85, y, 12.75, 0.25, h, 11.4, "stone", [0.86, 0.82, 0.75, 1]);
+  for (const z of [10, 15]) block(g, -37.7, y + 0.9, z, 0.05, 1.5, 2.6, "stone", pick(g, BRAND));
+  block(g, -30.9, y, 7.05, 13.9, h, 0.25, "stone", [0.86, 0.82, 0.75, 1]);
+  // Glass screen between the lounge and the retail link, open at both ends
+  pane(g, [-2.7, y, 9], [-2.7, y, 19.5], Math.min(h, 2.4));
+  for (const z of [9, 14.25, 19.5]) block(g, -2.7, y, z, 0.1, Math.min(h, 2.4), 0.1, "metal", C.brass);
+  // Lift hall: stone side walls framing the lifts
+  for (const sx of [2.75, 15.25]) block(g, sx, y, 0.25, 0.3, h, 6.5, "stone", [0.8, 0.76, 0.7, 1]);
+}
+
+/** Lobby finishes: inlay border, entrance medallion, queue posts, luggage trolleys, sculpture, extra planters */
+function lobbyDecor(g: G, y: number) {
+  const inlay: RGBA = [0.62, 0.55, 0.45, 1];
+  // Border band around the lobby floor and a medallion inside the revolving door
+  for (const z of [7.6, 24]) block(g, -19.4, y, z, 36, 0.04, 0.35, "stone", inlay);
+  for (const x of [-37.4, -1.4]) block(g, x, y, 15.8, 0.35, 0.04, 16.4, "stone", inlay);
+  g.cylinder(-12, y, 21.6, 2.2, 0.04, "stone", inlay, 24);
+  g.cylinder(-12, y, 21.6, 1.6, 0.05, "stone", C.lobbyFloor, 24);
+  // Reception queue: brass posts with a rope, two lanes
+  for (const qx of [-27.2, -22.8]) {
+    for (let i = 0; i < 4; i++) {
+      g.cylinder(qx, y, 13.3 + i * 1.1, 0.05, 0.95, "metal", C.brass, 6);
+      g.cylinder(qx, y, 13.3 + i * 1.1, 0.16, 0.04, "metal", C.brass, 10);
+    }
+    g.line([qx, y + 0.9, 13.3], [qx, y + 0.9, 16.6], 0.05, "metal", [0.55, 0.16, 0.18, 1]);
+  }
+  // Bell desk with luggage trolleys by the doors
+  counter(g, -32, y, 22.4, 1, 2.2, C.woodDark);
+  for (const [tx, tz] of [
+    [-35.5, 22.6],
+    [-36.8, 21.4],
+  ] as const) {
+    block(g, tx, y + 0.18, tz, 1.0, 0.05, 0.6, "metal", C.brass);
+    for (const s of [-1, 1]) block(g, tx + s * 0.48, y + 0.2, tz, 0.05, 1.7, 0.05, "metal", C.brass);
+    block(g, tx, y + 1.85, tz, 1.0, 0.05, 0.05, "metal", C.brass);
+    block(g, tx - 0.1, y + 0.25, tz, 0.5, 0.65, 0.35, "stone", pick(g, BRAND));
+  }
+  // Sculpture on a plinth in front of the concierge, planters along the walls
+  block(g, -11, y, 12.5, 1.4, 0.6, 1.4, "stone", C.white);
+  g.sphere(-11, y + 1.3, 12.5, 0.55, 0.7, 0.55, "metal", C.brass, 10, 8);
+  for (const [px, pz] of [
+    [-37, 8.2],
+    [-37, 12.6],
+    [-19, 8.4],
+    [-3.6, 8.4],
+    [3.6, 3.6],
+    [14.4, 3.6],
+  ] as const)
+    plant(g, px, y, pz, 1.1);
+  // Waiting benches facing the lifts and a directory screen
+  for (const bx of [6, 12]) block(g, bx, y, 3.4, 2.4, 0.45, 0.6, "wood", C.woodLight);
+  block(g, 9, y + 0.6, 4.35, 1.6, 1.0, 0.08, "glow", C.screen);
+}
+
+function podiumG(g: G, y: number, cut: boolean) {
+  lobbyWalls(g, y, cut ? CUT : 4.4);
+  lobbyDecor(g, y);
   // Hotel lobby: reception, lounge, concierge, revolving door
   block(g, -20.5, y, 15.8, 39, 0.03, 17.5, "stone", C.lobbyFloor);
   counter(g, -25, y, 11.6, 0, 9);
@@ -1181,7 +1263,7 @@ function podiumG(g: G, y: number) {
   g.cylinder(-12, y + 2.6, 24.3, 1.7, 0.2, "metal", C.steel, 16);
   block(g, -4, y, 20.5, 0.7, 0.1, 1.2, "metal", C.brass);
   for (const dz of [-0.55, 0.55]) block(g, -4, y, 20.5 + dz, 0.06, 1.8, 0.06, "metal", C.brass);
-  for (const x of [-38, -30, -20, -2]) plant(g, x, y, 23.4, 1.3);
+  for (const x of [-30, -22.5, -2]) plant(g, x, y, 23.4, 1.3);
   // Hotel lift lobby at the foot of the tower core
   block(g, HOTEL_SHAFT.x, y, 0.5, 12, 0.03, 7, "stone", C.lobbyFloor);
   for (let i = 0; i < 4; i++) lift(g, 4.5 + i * 3, y, -3, 0);
@@ -1382,5 +1464,6 @@ function podiumL4(g: G, y: number) {
 export function podiumFloor(g: G, id: string, y: number, cut: boolean) {
   const level = id === "G" ? 0 : Number(id.slice(1));
   podiumCommon(g, level, y, cut);
-  [podiumG, podiumL1, podiumL2, podiumL3, podiumL4][level](g, y);
+  if (level === 0) podiumG(g, y, cut);
+  else [podiumL1, podiumL2, podiumL3, podiumL4][level - 1](g, y);
 }

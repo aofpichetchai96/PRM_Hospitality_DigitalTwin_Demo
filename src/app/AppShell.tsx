@@ -1,29 +1,26 @@
 "use client";
 
 // Header + Sidebar + KPI + [Viewport | Right panel] + Bottom panel + Footer
-// (PLAN 8). The Canvas mounts once; switching views only changes store state.
+// (PLAN 8). The Canvas mounts once; switching scenes only changes store state.
 import { MotionConfig } from "motion/react";
 import { FooterBar } from "@/components/layout/FooterBar";
 import { Header } from "@/components/layout/Header";
 import { KpiStrip } from "@/components/layout/KpiStrip";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ModalHost } from "@/components/modals/ModalHost";
-import { ShowcaseBar } from "@/components/tour/ShowcaseCard";
 import { BottomPanel } from "@/components/panels/BottomPanel";
 import { RightPanel } from "@/components/panels/RightPanel";
 import { Toast } from "@/components/ui/Toast";
 import { ViewportPanel } from "@/components/viewport/ViewportPanel";
 import { useAppStore } from "@/store/useAppStore";
 import { useSimTicker } from "@/store/useSimTicker";
-import { useAttractMode, useKeyboard, useProjectorTokens, useShowcasePlayer, useUrlSync } from "./useShellEffects";
+import { useKeyboard, useProjectorTokens, useUrlSync } from "./useShellEffects";
 
 export default function AppShell() {
   const presentation = useAppStore((s) => s.presentation);
   useSimTicker();
   useUrlSync();
   useKeyboard();
-  useAttractMode();
-  useShowcasePlayer();
   useProjectorTokens(presentation);
 
   return (
@@ -48,7 +45,6 @@ export default function AppShell() {
         {!presentation && <FooterBar />}
       </div>
       <ModalHost />
-      <ShowcaseBar />
       <Toast />
     </MotionConfig>
   );

@@ -1,5 +1,5 @@
 // Business value and delivery roadmap for the sales pitch (Value / ROI and
-// Roadmap pages, executive showcase). Every figure is an assumption to frame
+// Roadmap pages, opened from Help). Every figure is an assumption to frame
 // the conversation — real savings need measurement and verification (M&V).
 import { computeEnergy, REFERENCE_SETPOINT } from "./energy";
 

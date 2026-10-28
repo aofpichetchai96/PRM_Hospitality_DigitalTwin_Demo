@@ -1,10 +1,23 @@
 "use client";
 
-import { BedDouble, type LucideIcon, TriangleAlert, Users, Zap } from "lucide-react";
+import {
+  BedDouble,
+  CalendarClock,
+  ClipboardList,
+  DoorOpen,
+  type LucideIcon,
+  PlugZap,
+  Users,
+  Wind,
+  Zap,
+} from "lucide-react";
 import { Sparkline } from "@/components/charts/Sparkline";
-import { KPI_YESTERDAY } from "@/data/kpis";
+import { aqiBand } from "@/data/airQuality";
+import { KPI_HISTORY, type KpiId, KPI_SETS, KPI_YESTERDAY } from "@/data/kpis";
 import { fmt } from "@/lib/format";
-import { useKpis } from "@/store/hooks";
+import { DENSITY_LABEL } from "@/data/publicZones";
+import { useAir, useEnergy, useGuests, useKpis, usePublic, useRoomCounts } from "@/store/hooks";
+import { useAppStore } from "@/store/useAppStore";
 
 /** Change against the same time yesterday; `good` colours it green */
 type Delta = { text: string; up: boolean; good: boolean };
@@ -33,13 +46,21 @@ type Card = {
 };
 
 /**
- * Four KPI cards in the prototype's layout (~94px; ~72px when floating), all derived from the store. `floating` renders
- * the translucent variant laid over the viewport on screens under 900px tall.
+ * Four KPI cards in the prototype's layout (~94px; ~72px when floating), all derived from the store; which four
+ * depends on the scene (KPI_SETS). `floating` renders the translucent variant laid over the viewport on screens
+ * under 900px tall.
  */
 export function KpiStrip({ floating = false }: { floating?: boolean }) {
   const k = useKpis();
-  const cards: Card[] = [
-    {
+  const air = useAir();
+  const view = useAppStore((s) => s.view);
+  const rooms = useRoomCounts();
+  const guests = useGuests();
+  const energy = useEnergy();
+  const lobby = usePublic();
+  const indoorBand = aqiBand(air.indoor.aqi);
+  const all: Record<KpiId, Card> = {
+    occupancy: {
       label: "OCCUPANCY · HOTEL NOW",
       shortLabel: "OCCUPANCY · HOTEL",
       icon: BedDouble,
@@ -52,7 +73,7 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
       trend: k.occupancy.trend,
       delta: delta(k.occupancy.value - KPI_YESTERDAY.occupancy, " pts", true),
     },
-    {
+    demand: {
       label: "DEMAND · WHOLE BUILDING NOW",
       shortLabel: "DEMAND · BUILDING",
       icon: Zap,
@@ -66,7 +87,7 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
       trend: k.demand.trend,
       delta: delta(pct(k.demand.value, KPI_YESTERDAY.demand), "%", false),
     },
-    {
+    footfall: {
       label: "FOOTFALL · MALL TODAY",
       shortLabel: "FOOTFALL · MALL",
       icon: Users,
@@ -78,20 +99,104 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
       trend: k.footfall.trend,
       delta: delta(pct(k.footfall.value, KPI_YESTERDAY.footfall), "%", true),
     },
-    {
-      label: "INCIDENTS · MALL + HOTEL OPEN",
-      shortLabel: "INCIDENTS · OPEN",
-      icon: TriangleAlert,
-      value: String(k.incidents.value),
-      // The high-priority count lives in the note: next to the value the sparkline covered it
-      note: `${k.incidents.high} high priority${k.incidents.workOrders ? ` · ${k.incidents.workOrders} work orders` : ""}`,
+    cases: {
+      label: "CASE MANAGEMENT",
+      shortLabel: "CASE MANAGEMENT",
+      icon: ClipboardList,
+      // Cases still outstanding: Open + Pending
+      value: String(k.incidents.active),
+      unit: "outstanding",
+      // The split lives in the note: next to the value the sparkline covered it
+      note: `Open ${k.incidents.open} · Pending ${k.incidents.pending} · Resolved today ${k.incidents.resolved}`,
       source: "IOC",
       color: "var(--gold)",
       sparkColor: "var(--gold)",
       trend: k.incidents.trend,
       delta: delta(k.incidents.value - KPI_YESTERDAY.incidents, "", false, 0),
     },
-  ];
+    indoorAir: {
+      label: "INDOOR AIR · AQI NOW",
+      shortLabel: "INDOOR AQI",
+      icon: Wind,
+      value: String(air.indoor.aqi),
+      unit: indoorBand.label,
+      note: `PM2.5 ${fmt(air.indoor.pm25, 1)} µg/m³ · CO₂ ${fmt(air.indoor.co2)} ppm · Outdoor ${air.outdoor.aqi}`,
+      source: "IAQ",
+      color: indoorBand.color,
+      sparkColor: "var(--accent)",
+      trend: air.trend.indoor,
+    },
+    roomMix: {
+      label: "ROOMS · OCCUPIED / RESERVED / AVAILABLE",
+      shortLabel: "ROOM STATUS",
+      icon: DoorOpen,
+      value: `${rooms.occupied} / ${rooms.reserved} / ${rooms.available}`,
+      note: "Red · yellow · green on the 3D model",
+      source: "PMS",
+      color: "var(--green)",
+      sparkColor: "var(--status-occupied)",
+      trend: k.occupancy.trend,
+    },
+    hotelPower: {
+      label: "ROOM LOAD · HOTEL NOW",
+      shortLabel: "ROOM LOAD · HOTEL",
+      icon: PlugZap,
+      value: fmt(energy.hotel),
+      unit: "kW",
+      note: `≈ ${fmt(energy.hotel / Math.max(1, rooms.occupied), 2)} kW per occupied room`,
+      source: "GRMS",
+      color: "var(--accent)",
+      sparkColor: "var(--accent)",
+      trend: k.demand.trend.map((v) => (v * energy.hotel) / k.demand.value),
+    },
+    arrivals: {
+      label: "ARRIVALS · TODAY",
+      shortLabel: "ARRIVALS",
+      icon: CalendarClock,
+      value: String(guests.arrivals),
+      unit: "rooms",
+      note: `${guests.checkedInToday} checked in today · ${fmt(guests.inHouse)} guests in house`,
+      source: "PMS",
+      color: "var(--green)",
+      sparkColor: "var(--status-reserved)",
+      trend: [...KPI_HISTORY.arrivals, guests.arrivals],
+    },
+    lobbyPeople: {
+      label: "LOBBY · PEOPLE NOW",
+      shortLabel: "LOBBY NOW",
+      icon: Users,
+      value: fmt(lobby.people),
+      note: `${lobby.zones.length} zones · aggregated counts, no identity`,
+      source: "AI",
+      color: "var(--accent)",
+      sparkColor: "var(--accent)",
+      trend: [...KPI_HISTORY.lobbyPeople, lobby.people],
+    },
+    doorCount: {
+      label: "MAIN ENTRANCE · IN / OUT TODAY",
+      shortLabel: "ENTRANCE IN / OUT",
+      icon: DoorOpen,
+      value: `${fmt(lobby.entrance.in)} / ${fmt(lobby.entrance.out)}`,
+      note: "Counted since 06:00 · entries, not unique people",
+      source: "AI",
+      color: "var(--accent)",
+      sparkColor: "var(--green)",
+      trend: [...KPI_HISTORY.entrance, lobby.entrance.in],
+    },
+    busiestZone: {
+      label: "BUSIEST ZONE · LOBBY",
+      shortLabel: "BUSIEST ZONE",
+      icon: Users,
+      value: lobby.busiest.zone.name,
+      unit: `${Math.round(lobby.busiest.load * 100)}%`,
+      note: `${lobby.busiest.people} people · ${DENSITY_LABEL[lobby.busiest.level].label} density`,
+      source: "AI",
+      color: DENSITY_LABEL[lobby.busiest.level].color,
+      sparkColor: DENSITY_LABEL[lobby.busiest.level].color,
+      trend: lobby.zones.map((z) => z.load),
+    },
+  };
+  const cards = KPI_SETS[view].map((id) => all[id]);
 
   return (
     <section aria-label="Simulated operational metrics" className="grid grid-cols-4 gap-2 tall:gap-3">

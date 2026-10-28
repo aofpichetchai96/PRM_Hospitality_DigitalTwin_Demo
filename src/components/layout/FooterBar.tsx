@@ -11,7 +11,6 @@ export function FooterBar() {
   const setTime = useAppStore((s) => s.setTime);
   const togglePause = useAppStore((s) => s.togglePause);
   const resetDemo = useAppStore((s) => s.resetDemo);
-  const openModal = useAppStore((s) => s.openModal);
 
   return (
     <footer className="flex h-10 shrink-0 items-center gap-4 border-t border-line px-4 text-[11px] text-muted">
@@ -56,9 +55,10 @@ export function FooterBar() {
         >
           <RotateCcw size={12} /> Reset
         </button>
+        {/* Hidden at the owner's request; the Model notes modal still exists (ModalHost "about")
         <button onClick={() => openModal({ kind: "about" })} className="whitespace-nowrap hover:text-text">
           Model notes ↗
-        </button>
+        </button> */}
       </div>
     </footer>
   );

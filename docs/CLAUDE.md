@@ -40,28 +40,46 @@ Edge (Playwright via `createRequire` on the project `package.json`, `channel: "m
 ## Architecture
 
 ```
-src/app          AppShell (single page), useShellEffects (URL sync, keyboard, attract mode, projector tokens)
-src/components   layout/ panels/ modals/ floorplan/ viewport/ cctv/ tour/ charts/ ui/   (2D UI)
+src/app          AppShell (single page), useShellEffects (URL sync, keyboard, projector tokens)
+src/components   layout/ panels/ modals/ floorplan/ viewport/ cctv/ charts/ ui/   (2D UI)
 src/three        Viewport (Canvas), SceneRoot, CameraRig, Atmosphere, Effects, look.ts, materials.ts,
                  geometry/ (GeometryBuilder, exterior, site, city, schematic, interiors, layers), picking/, effects/
-src/data         all hard-coded data: property (floor schedule), rooms, events, assets, energy, views, showcase,
-                 aiScript, floorPlans, kpis, nav
+src/data         all hard-coded data: property (floor schedule), rooms, events, sop, assets, energy, airQuality,
+                 publicZones, views (the 5 scenes), aiScript, floorPlans, kpis, value, nav
 src/store        one Zustand store = twinSlice (view / scene / UI) + simSlice (clock, rooms, incidents…);
                  selectors.ts (derived values), hooks.ts (narrow subscriptions), useSimTicker
 src/types        shared domain types
 ```
 
-- **One page, store is the single source of truth.** Views switch via `setView(id)`, which applies the hero shot from
-  `data/views.ts` (camera, mode, layers, time of day). The URL `?view=` only mirrors the store. Never set camera / mode
-  from a component's mount.
+- **One page, five scenes, store is the single source of truth.** The PROPERTY EXPLORER menu lists the scenes
+  `overview · rooms · public · boh · ai` (`ViewId`, `data/views.ts`, keys `1`–`5`). `setView(id)` applies a scene's
+  hero shot (camera, mode, floor, layers) — Guest Room slices H12 in a plan view (`{floor, top}` shot, distance
+  fitted to the viewport by `planDistance`; each room's kW from `roomPowers` on its window side, `three/RoomPower.tsx`),
+  Public Area G in a plan view too (whole podium, `PLAN_MARGIN.podium`; the chilled-water riser is left out on a
+  sliced podium floor), Back of House the central plant (no floor cut; a rooftop alarm in focus slices H30, a
+  chiller alarm brings the whole building back — `showAlarmUnit` in twinSlice). Lobby zones each follow their own daily rhythm (`atT0`, `rhythm` in
+  `data/publicZones.ts`): at t0 Reception is High (check-in), Entrance Low. The two CCTV feeds (Public Area, IOC)
+  are sample people-detection GIFs in `public/gifs` (`components/cctv/CctvFeed.tsx`), labelled SAMPLE / NOT LIVE. The right panel,
+  bottom panel, KPI strip (`KPI_SETS` in `data/kpis.ts`), 3D pins and assistant chips all follow the scene.
+  The URL `?scene=` only mirrors the store (`?view=` still read). Never set camera / mode from a component's mount.
+  Above it the WORKSPACE menu (`WORKSPACE` in `data/nav.ts`) keeps the original pages `executive · twin · ioc ·
+  energy` plus `ai` (same view as scene 5). Executive overview shows the Overview charts (incl. AQI); IOC uses the Alarm panel
+  and keeps an injected alarm on the page instead of switching scene. Keys and ← / → step through scenes only.
+  The folded sidebar (icon rail) shows only the workspace; the scenes appear when it is open.
 - **Camera requests** are `{ shot, n }` in the store (`flyTo`, `selectFloor`, `pickAsset`…); `n` increments so the same
   shot can fly twice. Shots: `{preset}` · `{floor}` · `{focus, distance}` · `{azimuth}` (compass).
 - **Derived values live in `store/selectors.ts`** (KPIs, energy, asset card). Components subscribe narrowly
   (`useShallow`, `store/hooks.ts`) — never select a fresh object without `useShallow` (infinite re-render).
 - **Floor schedule** (`data/property.ts`) drives everything 3D and 2D: H01–07, H10–15, H18–23 = 28 rooms; H08–09,
   H16–17, H24–25 = sky courts; H26–29 = 17 rooms (narrow, centred at x 19 / z −7); H30 roof; podium G, L1–L4.
-  600 keys total. Room ids `H12-07`. Seeded generator → t0 is 504 occupied / 62 ready / 28 cleaning / 6 maintenance.
+  600 keys total. Room ids `H12-07`. Room status is three-way: **occupied (red) · reserved (yellow) · available
+  (green)**, the same colours in 3D (`ROOM_COLOR`, `three/RoomTint.tsx`) and 2D. Seeded generator → t0 is
+  504 / 34 / 62. Stays (guests, check-in / out), room kW (`roomPowers`, sums exactly to the energy model's hotel load)
+  and GRMS state are derived from the room id in `data/rooms.ts`.
 - **t0 KPIs must stay 84 % · 2,616 kW · 27,840 · 3 (1 high)** — tested. `footfallFactor = footfall / 27,840`.
+  Air quality (`data/airQuality.ts`) and lobby counts (`data/publicZones.ts`) are pure functions of the clock, so
+  t0 is fixed too: outdoor AQI 92 / indoor 44, 202 people on G. Every number comes from one selector so KPI cards,
+  panels and the assistant agree (`selectAir`, `selectPublic`, `selectCases`, `floorPower`, `selectGuests`).
 - **Geometry:** `GeometryBuilder` (port of the prototype helpers) merges everything into one mesh per material.
   Display meshes never raycast; picking uses invisible proxies in `three/picking/`. Building (exterior or schematic
   for X-ray / Slice / Explode) uses a second material set clipped by `REVEAL_PLANE` for the rise-up transition.
@@ -77,6 +95,11 @@ src/types        shared domain types
   car-following with stops at red lights and at the avenue zebra while people cross; traffic lights cycle; people
   with swinging limbs walk into the arrival hall, along the plaza, over the zebra and the skywalk, some stand in pairs.
   Lamps glow at dusk. It invalidates every frame, so it is off on Low quality and with reduced motion.
+  **Lobby (Public Area, G sliced):** walls / glazed street front with three doors (`LOBBY_DOORS`) and decor in
+  `podiumG`; `geometry/lobbyLife.ts` draws one figure per 4 people of each zone count (reception queue and staff,
+  rows at the lifts, luggage by the doors, lounge pairs, walkers) through the shared `Crowd` (`AmbientLife.tsx`);
+  `three/LobbyZones.tsx` heats the floor from the figures' positions twice a second, clipped to the zone rectangles
+  (indoors only). Reduced motion freezes the figures and the heatmap.
   Look: Khronos Neutral tone mapping, Lightformer environment (no HDR / CDN), N8AO + Bloom on High.
 
 ## Conventions and gotchas
@@ -92,24 +115,45 @@ src/types        shared domain types
 - **No sparkle (✨ `Sparkles`) icons** — removed at the owner's request. KPI cards keep the prototype layout
   (label + icon, big value, note + `SOURCE · DEMO`, corner sparkline). Ask before broad visual restyles.
 - **No placeholder buttons in the demo** — hide a control until its feature exists.
-- **Demo showcase** ("ชมเดโม" menu, `data/showcase.ts`): two paths — **Executive** (6 chapters, business outcomes with
-  assumed figures from `data/value.ts`) and **Technical deep-dive** (16 chapters, one per feature). Each chapter is a
-  list of timed beats that drive the real store actions; beat 0 always sets its own view so any chapter can be jumped
-  to. Plays on its own (`useShowcasePlayer`); a click or wheel outside the card pauses it; ending it restores the sim
-  data it changed. Attract mode loops the executive path. **Wording rule:** say only what the demo does now, then
+- **No guided tour:** the "ชมเดโม" showcase and attract mode were removed at the owner's request; the presenter
+  drives the five scenes (`docs/DEMO_SCRIPT.md`). **Wording rule:** say only what the demo does now, then
   "ระบบจริงจะ…" — never claim more than the disclaimers (real-time, real building, auto-notify, live AI).
-- **Sales pages:** Value / ROI and Roadmap 3 เฟส are modals (`modals/ProposalModals.tsx`) opened by the demo's closing chapters
+- **Header:** the clock is the real time in Thailand (`Asia/Bangkok`, date like "28 Oct 26"); the simulation clock is
+  the footer slider. Export, Model notes and the `?` help button are commented out at the owner's request, so the
+  help modal (quality setting) and the sales pages below are not reachable from the UI right now.
+- **Sales pages:** Value / ROI and Roadmap 3 เฟส are modals (`modals/ProposalModals.tsx`) opened from the Help modal
   and from each other — no menu entry (removed at the owner's request). Every
   figure there is labelled ค่าสมมติ; the energy figure comes from the energy model at 25 °C, not a hand-typed number.
 - **Naming:** page title = menu label; the assistant is "AI Assistant" everywhere. 3D pins are filtered per view
   (`VIEW_SPOTS` in `three/HotspotSet.tsx`). KPI labels say what they cover (Hotel / Mall / whole building) and show
   ▲▼ vs. yesterday (`KPI_YESTERDAY`, assumed) from 1440 px.
-- **Incoming alert:** `simulateIncident` → `raiseAlert` (alert card `viewport/IncomingAlert.tsx`, viewport edge flash,
-  camera flies to it, the 3D marker shows in any view). Auto-response steps come from `autoResponse()` in
-  `data/events.ts`. The card goes when the incident is opened / verified or dismissed.
-- Keyboard: `→/←/PageUp/PageDown` showcase chapters, `P` presentation, `R` reset, `[ ]` floors, `Home`, `Esc` (closes
-  innermost: modal → showcase → floor plan → picked floor → slice → presentation; works even from inside inputs for modals).
-- Reset Demo restores the seeded state but keeps presenter preferences (sidebar, quality, attract) and never replays
+- **Alarms = incidents:** one list feeds Case Management (Open = New, Pending = Acknowledged + In progress), Alarm &
+  Events and the assistant. Severity Critical / Major / Minor (= high / medium / low), status New → Acknowledged →
+  In progress → Closed (0–3; In progress creates the work order). Equipment alarms carry `device`, `reading`
+  (value vs. limit) and `sop` (`data/sop.ts`, checklist ticks in `sopChecks`). Rooftop units are assets `CT-*`, `P-*`,
+  `T-*`, `EF-*` (`ROOF_EQUIPMENT`, pickable when H30 is sliced); the chiller CH-01 is on the ground plant.
+- **Incoming alert:** `simulateIncident(scenario?)` (Shift+1–5 or the injector menu; `SCENARIOS` in `data/events.ts`)
+  → opens the scene that shows it (roof → Back of House, crowd → Public Area) → `raiseAlert` (alert card, edge flash,
+  camera flies to it). Open alarms blink by severity in Back of House (`three/EquipmentAlarms.tsx`).
+  Back of House opens over the central plant (`chillers` preset; picking H30 shows the roof north up, tilted
+  `ROOF_TILT`), focused on `plantAlarm()` (the focused or most urgent open alarm on a rooftop unit or CH-01, the
+  southern chiller): `three/AlarmCallout.tsx` turns that unit red (a pulsing red copy of its shape) and pins a card with the reading, the SOP's
+  `cause`, its steps and "ถาม AI: ทำอะไรต่อ" (asks about that INC id; `alarmAsked` in `aiScript.ts`).
+  **Central plant** (`three/ChillerPlant.tsx`, `CHILLERS` in `data/assets.ts`): three centrifugal chillers as their own
+  meshes (shells, compressor, panel, CHW / CW headers, pumps); CH-01 turns red for its alarm. Double-click a chiller
+  (pick proxy) → `openChiller(i)`: shells go see-through to show tube bundles, impeller, refrigerant loop and labels;
+  the camera may come to `insideDistance`; Esc or the banner closes it. No trees over the plant pad.
+  A plant house (`PlantHouse`) encloses them: closed with a roof and louvres elsewhere, cut open as a section (no roof,
+  2.4 m walls) in Back of House, which opens framed on it (`chillers` preset) with the CH-01 alarm card. A dismissed
+  alarm card comes back on the next camera shot (Home, reopening the scene).
+- **AI Assistant** (`data/aiScript.ts`, offline rules engine): `routeIntent` sends a question to one of six topics
+  (building · energy · rooms · public · alarms · recommend; a generic question takes the scene's topic); every answer
+  is `{data, analysis, recommendation, source, period, sopFor?}`, shown as three coloured parts. Answers are stamped
+  with the scene and clock; ones from another scene are dimmed. Chips per scene (`QUICK_CHIPS`).
+- Keyboard: `1`–`5` scenes, `→/←/PageUp/PageDown` next / previous scene, `Shift+1`–`5` inject a scenario, `P`
+  presentation, `R` reset, `[ ]` floors, `Home`, `Esc` (closes innermost: modal → floor plan → picked floor → slice →
+  presentation; works even from inside inputs for modals).
+- Reset Demo restores the seeded state but keeps presenter preferences (sidebar, quality) and never replays
   the intro.
 - Windows dev machine: Bash is Git Bash; `TaskStop` leaves the `next start` node process holding the port — free it
   with PowerShell `Get-NetTCPConnection -LocalPort <p> | Stop-Process` before restarting, or a stale build is served.
@@ -118,8 +162,9 @@ src/types        shared domain types
 
 ## Testing
 
-- Unit (`src/**/*.test.ts`): energy model, rooms, floor schedule, data validation, assistant rules, store actions
-  (views, showcase, incidents, picking, floor plan), schematic / layer geometry.
+- Unit (`src/**/*.test.ts`): energy model, rooms / stays / room kW, air quality, lobby zones, floor schedule, data
+  validation, assistant router and answers, store actions (scenes, alarms, SOP, incidents, picking, floor plan),
+  schematic / layer geometry.
 - E2E (`e2e/smoke.spec.ts`): fails on any console error or **any request leaving localhost** (offline guarantee).
   The WebGL canvas is `canvas:not([role=img])` (CCTV feeds are canvases too). Press a key first to skip the intro.
   CI runs it on Chromium with SwiftShader (`CI=1` switches the launch flags in `playwright.config.ts`).

@@ -4,8 +4,10 @@ import { CameraControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Box3, PerspectiveCamera, Vector3 } from "three";
+import { useAppStore } from "@/store/useAppStore";
 import type { CameraShot } from "@/types";
-import { CAMERA_LIMITS, type CameraPose, nearestAngle, shotPose } from "./presets";
+import { FLOORS, isHotelFloor } from "@/data/property";
+import { CAMERA_LIMITS, type CameraPose, nearestAngle, PLAN_MARGIN, planDistance, shotPose } from "./presets";
 
 /** Fly to a pose along an orbit, taking the shortest way round (3D_PLAN 6.2) */
 export async function flyTo(controls: CameraControls, pose: CameraPose, animate = true) {
@@ -37,8 +39,15 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
   const getState = useThree((s) => s.get);
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
+  // A chiller's inside view needs the camera much closer than the building views allow
+  const inside = useAppStore((s) => s.chillerView !== null);
   const dragging = useRef(false);
   const first = useRef(true);
+  // Read by the flight effect without re-flying when the strip comes or goes
+  const inset = useRef(topInset);
+  useEffect(() => {
+    inset.current = topInset;
+  }, [topInset]);
 
   useEffect(() => {
     const c = ref.current;
@@ -57,10 +66,24 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
       void c.rotateTo(nearestAngle(c.azimuthAngle, shot.azimuth), c.polarAngle, true);
       return;
     }
+    const pose = { ...shotPose(shot) };
+    // Plan view: as close as the floor plate still fits this viewport
+    const fitted = "floor" in shot && (shot.top || shot.tilt !== undefined) ? shot.floor : undefined;
+    const plate = fitted && FLOORS.find((f) => f.id === fitted)?.footprint;
+    const { camera, size: view } = getState();
+    if (fitted && plate && camera instanceof PerspectiveCamera) {
+      // A tilted view sees the plate foreshortened north to south
+      const tilted = "tilt" in shot && shot.tilt !== undefined;
+      pose.distance = planDistance(
+        tilted ? { w: plate.w, d: plate.d * Math.cos(pose.polar) } : plate,
+        { ...view, inset: inset.current, fov: camera.fov },
+        tilted ? PLAN_MARGIN.tilted : isHotelFloor(fitted) ? PLAN_MARGIN.hotel : PLAN_MARGIN.podium,
+      );
+    }
     // First pose is applied instantly; later requests fly
-    void flyTo(c, shotPose(shot), !first.current);
+    void flyTo(c, pose, !first.current);
     first.current = false;
-  }, [request]);
+  }, [request, getState]);
 
   useEffect(() => {
     const c = ref.current;
@@ -97,7 +120,7 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
     <CameraControls
       ref={ref}
       makeDefault
-      minDistance={CAMERA_LIMITS.minDistance}
+      minDistance={inside ? CAMERA_LIMITS.insideDistance : CAMERA_LIMITS.minDistance}
       maxDistance={CAMERA_LIMITS.maxDistance}
       minPolarAngle={CAMERA_LIMITS.minPolarAngle}
       maxPolarAngle={CAMERA_LIMITS.maxPolarAngle}

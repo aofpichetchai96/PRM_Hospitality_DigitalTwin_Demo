@@ -1,12 +1,16 @@
-// Hero shot and default state of each view (PLAN 5). setView() reads these;
-// nothing else sets the camera or mode when a view opens (PLAN R2).
+// Hero shot and default state of each workspace page and scene (PLAN 5).
+// setView() reads these; nothing else sets the camera or mode when one opens
+// (PLAN R2). The sidebar lists them (data/nav.ts); keys 1–5 open the scenes.
 import type { Layers, ViewConfig, ViewId } from "@/types";
+
+/** Back of House looks at the roof plant north up, tilted this much from straight down (rad) */
+export const ROOF_TILT = 0.35;
 
 export const DEFAULT_LAYERS: Layers = { energy: false, security: true, people: false, assets: true };
 
 export const VIEWS: Record<ViewId, ViewConfig> = {
-  overview: {
-    id: "overview",
+  executive: {
+    id: "executive",
     title: "Executive overview",
     subtitle: "ภาพรวมธุรกิจและปฏิบัติการ · ทุกตัวเลขเป็นข้อมูลจำลอง",
     camera: { preset: "all" },
@@ -35,13 +39,13 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
   ioc: {
     id: "ioc",
     title: "IOC operations",
-    subtitle: "ตรวจพบ → ตรวจสอบ → มอบหมาย → ปิดเหตุการณ์",
+    subtitle: "ตรวจพบ → รับทราบ → แก้ไข → ปิดเหตุการณ์",
     camera: { preset: "mall" },
     timeOfDay: "day",
     mode: "exterior",
     floor: "all",
     zone: "mall",
-    layers: { ...DEFAULT_LAYERS, security: true },
+    layers: DEFAULT_LAYERS,
     asset: "mall",
     panel: "details",
   },
@@ -58,11 +62,25 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
     asset: "plant",
     panel: "details",
   },
-  hotel: {
-    id: "hotel",
-    title: "Hotel · 600 keys",
-    subtitle: "สถานะห้องพัก งานบริการ และพลังงาน · ไม่ใช้ข้อมูลแขกจริง",
-    camera: { floor: "H12" },
+  overview: {
+    id: "overview",
+    title: "Overview",
+    subtitle: "ภาพรวมอาคาร พลังงาน คุณภาพอากาศ และเคสที่ค้าง · ทุกตัวเลขเป็นข้อมูลจำลอง",
+    camera: { preset: "all" },
+    timeOfDay: "day",
+    mode: "exterior",
+    floor: "all",
+    zone: "all",
+    layers: DEFAULT_LAYERS,
+    asset: "site",
+    panel: "details",
+    autoRotate: true,
+  },
+  rooms: {
+    id: "rooms",
+    title: "Guest Room",
+    subtitle: "สถานะห้องพัก ผู้เข้าพัก และพลังงานรายห้อง · ไม่ใช้ข้อมูลแขกจริง",
+    camera: { floor: "H12", top: true },
     timeOfDay: "day",
     mode: "slice",
     floor: "H12",
@@ -71,10 +89,37 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
     asset: "hotel",
     panel: "details",
   },
+  public: {
+    id: "public",
+    title: "Public Area",
+    subtitle: "ชั้น Lobby · จำนวนคนเข้า-ออก ความหนาแน่น และคุณภาพอากาศราย Zone",
+    camera: { floor: "G", top: true },
+    timeOfDay: "day",
+    mode: "slice",
+    floor: "G",
+    zone: "arrival",
+    layers: DEFAULT_LAYERS,
+    asset: "arrival",
+    panel: "details",
+  },
+  boh: {
+    id: "boh",
+    title: "Back of House",
+    subtitle: "Central plant · Alarm ของงานระบบ พร้อม SOP การตรวจสอบและแก้ไข",
+    camera: { preset: "chillers" },
+    timeOfDay: "day",
+    // The central plant is on the ground: no floor is cut (rooftop alarms slice H30 while focused, twinSlice)
+    mode: "exterior",
+    floor: "all",
+    zone: "plant",
+    layers: { ...DEFAULT_LAYERS, assets: true },
+    asset: "plant",
+    panel: "details",
+  },
   ai: {
     id: "ai",
     title: "AI Assistant",
-    subtitle: "ผู้ช่วยตอบคำถามจากสถานการณ์จำลอง · ยังไม่เชื่อมต่อ LLM จริง",
+    subtitle: "ถามข้อมูลและวิเคราะห์สถานะอาคารจากสถานการณ์จำลอง · ยังไม่เชื่อมต่อ LLM จริง",
     camera: { preset: "all" },
     timeOfDay: "day",
     mode: "exterior",

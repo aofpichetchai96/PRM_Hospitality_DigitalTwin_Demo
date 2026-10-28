@@ -73,7 +73,9 @@ export function buildLayers({
     });
   }
 
-  if (layers.energy || xray) {
+  // A sliced podium floor (e.g. the Lobby plan) leaves the tower's chilled-water pipes out
+  const podiumCut = cutFloor !== undefined && !isHotelFloor(cutFloor);
+  if ((layers.energy || xray) && !podiumCut) {
     // Chilled-water riser from the central plant up the core, with ceiling branches every third floor
     const path = riserPath(explode, cutFloor);
     for (let i = 0; i < path.length - 1; i++) g.line(path[i], path[i + 1], 0.7, "blue");

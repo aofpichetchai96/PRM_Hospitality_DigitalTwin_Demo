@@ -22,7 +22,8 @@ export function Hotspot({
 }: {
   position: [number, number, number];
   title: string;
-  detail: string;
+  /** Second line; zone labels leave it out to stay compact */
+  detail?: string;
   tone?: HotspotTone;
   onClick?: () => void;
   /** Fixed DOM container. Without it drei picks one that changes right after the
@@ -41,7 +42,7 @@ export function Hotspot({
         <span className={`size-3 shrink-0 rounded-full border-2 border-white/90 ${PIN[tone]}`} />
         <span className="rounded-[var(--radius-button)] border border-line bg-bg/85 px-2.5 transition-colors group-hover:border-accent/70 py-1.5 leading-tight backdrop-blur">
           <strong className="block text-[11px] font-semibold tracking-wide">{title}</strong>
-          <small className="text-[11px] text-muted">{detail}</small>
+          {detail && <small className="text-[11px] text-muted">{detail}</small>}
         </span>
       </button>
     </Html>

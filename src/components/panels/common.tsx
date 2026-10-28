@@ -2,6 +2,7 @@
 
 import { ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
+import { SEVERITY } from "@/data/events";
 import { useOpenIncidents } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -26,8 +27,7 @@ export function SectionTitle({
   );
 }
 
-const TONE = { high: "bg-red", medium: "bg-gold", low: "bg-blue" };
-const LEVEL = { high: "สูง", medium: "กลาง", low: "ต่ำ" };
+const TONE = { high: "bg-red", medium: "bg-orange", low: "bg-gold" };
 
 /** Open incidents, newest first; each opens the event modal */
 export function EventList({ limit = 3 }: { limit?: number }) {
@@ -46,7 +46,7 @@ export function EventList({ limit = 3 }: { limit?: number }) {
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13px] font-medium">{e.title.th}</span>
               <span className="block text-[11px] text-muted">
-                {e.location} · ความสำคัญ{LEVEL[e.priority]}
+                {e.location} · {SEVERITY[e.priority].label}
               </span>
             </span>
             <span className="font-mono text-[11px] text-muted">{e.time}</span>

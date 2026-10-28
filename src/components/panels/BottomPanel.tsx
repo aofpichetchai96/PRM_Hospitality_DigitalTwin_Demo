@@ -2,16 +2,17 @@
 
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { CHARTS_ON_DEMAND } from "@/components/layout/Header";
-import { DEMAND_PROFILE_SHAPE, FOOTFALL_BY_ZONE, REFERENCE_FOOTFALL } from "@/data/energy";
+import { type AirBand, aqiBand, co2Band } from "@/data/airQuality";
+import { DEMAND_PROFILE_SHAPE } from "@/data/energy";
 import { OCCUPANCY_WEEK } from "@/data/kpis";
 import { fmt, timeStr } from "@/lib/format";
 import { SHORT_SCREEN, useMediaQuery } from "@/lib/useMediaQuery";
-import { useEnergy, useRoomCounts } from "@/store/hooks";
+import { useAir, useEnergy, useRoomCounts } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
 import { ScenarioLab } from "./EnergyPanel";
 import { HotelInventory } from "./HotelPanel";
-import { DataLineage, IncidentWorkflow } from "./IocPanel";
+import { AlarmWorkflow } from "./AlarmPanel";
+import { PeopleCounting } from "./PublicPanel";
 
 function ChartCard({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
   return (
@@ -89,51 +90,107 @@ function OccupancyChart() {
   );
 }
 
-function FootfallChart() {
-  const scale = useAppStore((s) => s.footfall) / REFERENCE_FOOTFALL;
-  const max = FOOTFALL_BY_ZONE[0][1];
+/** Air-quality level as colour + words, never colour alone */
+function BandChip({ band }: { band: AirBand }) {
   return (
-    <div className="absolute inset-0 top-2 flex flex-col justify-between">
-      {FOOTFALL_BY_ZONE.map(([zone, v]) => (
-        <div key={zone} className="grid grid-cols-[88px_1fr_48px] items-center gap-2 text-[11px]">
-          <span className="truncate text-muted">{zone}</span>
-          <div className="h-2 rounded-full bg-line/60">
-            <div className="h-full rounded-full bg-blue" style={{ width: `${(v / max) * 100}%` }} />
-          </div>
-          <span className="text-right tabular-nums">{fmt(v * scale)}</span>
-        </div>
-      ))}
+    <span
+      className="inline-flex items-center gap-1 rounded-full border px-1.5 text-[10px] leading-4 whitespace-nowrap"
+      style={{ color: band.color, borderColor: band.color }}
+    >
+      <span className="size-1.5 rounded-full" style={{ background: band.color }} />
+      {band.label}
+    </span>
+  );
+}
+
+const AIR_SIDES = [
+  ["indoor", "Indoor", "var(--accent)"],
+  ["outdoor", "Outdoor", "var(--gold)"],
+] as const;
+
+/** Indoor vs. outdoor AQI, PM2.5 and CO₂, with both AQI lines over the last 24 h */
+function AirComparison() {
+  const air = useAir();
+  const all = [...air.trend.indoor, ...air.trend.outdoor];
+  const max = Math.max(...all) + 5;
+  const line = (values: readonly number[]) =>
+    values.map((v, i) => `${(i / (values.length - 1)) * 100},${100 - (v / max) * 100}`).join(" ");
+  return (
+    <div className="absolute inset-0 top-2 flex flex-col gap-1 text-[11px]">
+      <div className="grid grid-cols-[48px_1fr_1fr] items-center gap-x-2 gap-y-0.5">
+        <span />
+        {AIR_SIDES.map(([id, label, color]) => (
+          <span key={id} className="flex items-center gap-1.5 font-semibold">
+            <span className="h-0.5 w-3 rounded-full" style={{ background: color }} />
+            {label}
+          </span>
+        ))}
+        <span className="text-muted">AQI</span>
+        {AIR_SIDES.map(([id]) => (
+          <span key={id} className="flex items-center gap-1.5">
+            <b className="text-[13px] tabular-nums">{air[id].aqi}</b>
+            <BandChip band={aqiBand(air[id].aqi)} />
+          </span>
+        ))}
+        <span className="text-muted">PM2.5</span>
+        {AIR_SIDES.map(([id]) => (
+          <span key={id} className="tabular-nums">
+            {fmt(air[id].pm25, 1)} <span className="text-muted">µg/m³</span>
+          </span>
+        ))}
+        <span className="text-muted">CO₂</span>
+        {AIR_SIDES.map(([id]) => (
+          <span key={id} className="flex items-center gap-1.5 tabular-nums">
+            {fmt(air[id].co2)} <span className="text-muted">ppm</span>
+            {id === "indoor" && co2Band(air[id].co2).id !== "good" && <BandChip band={co2Band(air[id].co2)} />}
+          </span>
+        ))}
+      </div>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="min-h-0 w-full flex-1" aria-hidden>
+        {AIR_SIDES.map(([id, , color]) => (
+          <polyline
+            key={id}
+            points={line(air.trend[id])}
+            fill="none"
+            stroke={color}
+            strokeWidth={1.5}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+      </svg>
+      <div className="flex justify-between font-mono text-[10px] text-muted">
+        <span>−24 h</span>
+        <span>AQI · US EPA (PM2.5)</span>
+        <span>now</span>
+      </div>
     </div>
   );
 }
 
 /**
- * Bottom panel: overview charts. Shown by default on Overview on tall screens;
- * on screens under 900px tall (and on Twin / AI) it opens on demand.
+ * Bottom panel: each page's and scene's working panel. Executive overview and the Overview scene show the same
+ * charts on tall screens; on screens under 900px tall they open on demand.
  */
 export function BottomPanel() {
   const view = useAppStore((s) => s.view);
   const open = useAppStore((s) => s.chartsOpen);
   const setOpen = useAppStore((s) => s.setChartsOpen);
   const short = useMediaQuery(SHORT_SCREEN);
-  // Hotel and Energy always show their working panel (PLAN 5)
-  if (view === "hotel") return <HotelInventory />;
-  if (view === "energy") return <ScenarioLab />;
-  if (view === "ioc") return <IncidentWorkflow />;
-  if (view === "ai") return <DataLineage />;
-  const available = view === "overview" || CHARTS_ON_DEMAND.has(view);
-  if (!available) return null;
+  if (view === "rooms") return <HotelInventory />;
+  if (view === "public") return <PeopleCounting />;
+  if (view === "boh" || view === "ioc") return <AlarmWorkflow />;
+  if (view === "ai" || view === "energy") return <ScenarioLab />;
+  if (view !== "overview" && view !== "executive") return null;
 
-  const shown = open || (view === "overview" && !short);
-  if (!shown)
-    return view === "overview" ? (
+  if (!open && short)
+    return (
       <button
         onClick={() => setOpen(true)}
         className="flex h-9 shrink-0 items-center gap-2 rounded-[var(--radius-card)] border border-line bg-panel px-4 text-[13px] text-muted hover:text-text"
       >
-        <ChevronDown size={14} className="rotate-180" /> กราฟภาพรวม · Energy · Occupancy · Footfall
+        <ChevronDown size={14} className="rotate-180" /> กราฟภาพรวม · Energy · Occupancy · Air quality
       </button>
-    ) : null;
+    );
 
   return (
     <div className="grid h-[180px] shrink-0 grid-cols-[1.4fr_1fr_1fr] gap-2">
@@ -143,8 +200,8 @@ export function BottomPanel() {
       <ChartCard title="Occupancy trend" meta="% · 7 วัน">
         <OccupancyChart />
       </ChartCard>
-      <ChartCard title="Footfall by zone" meta="entries · วันนี้">
-        <FootfallChart />
+      <ChartCard title="AQI comparison" meta="Indoor vs Outdoor · SIM">
+        <AirComparison />
       </ChartCard>
     </div>
   );

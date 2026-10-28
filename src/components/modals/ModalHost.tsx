@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence } from "motion/react";
-import { CAMERAS } from "@/components/cctv/SyntheticFeed";
+import { CAMERAS } from "@/components/cctv/CctvFeed";
 import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/store/useAppStore";
 import type { ModalState } from "@/store/twinSlice";
@@ -31,7 +31,7 @@ function content(m: ModalState): { title: string; body: React.ReactNode; wide?: 
       return { title: "Energy Lab · Illustrative calculation", body: <MethodologyModal /> };
     case "cctv":
       return {
-        title: `Synthetic CCTV · ${CAMERAS[Number(m.id ?? 0)].name}`,
+        title: `CCTV analytics · ${CAMERAS[Number(m.id ?? 0)].name}`,
         body: <CctvModal camera={Number(m.id ?? 0)} />,
         wide: true,
       };

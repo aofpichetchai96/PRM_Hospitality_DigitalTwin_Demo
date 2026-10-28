@@ -1,19 +1,87 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { ChartLine, Database, Lightbulb, ListChecks, type LucideIcon, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { RichText } from "@/components/ui/RichText";
-import { GREETING, QUICK_CHIPS } from "@/data/aiScript";
-import { timeStr } from "@/lib/format";
-import { selectionLabel } from "@/store/selectors";
+import { GREETING, INTENT_LABEL, QUICK_CHIPS } from "@/data/aiScript";
+import { VIEWS } from "@/data/views";
+import { askContextLabel } from "@/store/selectors";
 import { useAppStore } from "@/store/useAppStore";
+import type { ChatMessage } from "@/types";
 
-/** Rule-based assistant chat (prototype ask / renderChat, L394–405) */
+type AssistantMessage = Extract<ChatMessage, { role: "assistant" }>;
+
+/** One part of an answer, told apart by colour, icon and heading */
+function Part({
+  icon: Icon,
+  title,
+  tone,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  tone: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="border-l-2 pl-2.5" style={{ borderColor: tone }}>
+      <p className="mb-0.5 flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: tone }}>
+        <Icon size={13} strokeWidth={2} /> {title}
+      </p>
+      {children}
+    </section>
+  );
+}
+
+/** Data (with source and time window) · analysis · AI recommendation, kept visibly apart */
+function AnswerCard({ m, current }: { m: AssistantMessage; current: boolean }) {
+  const openModal = useAppStore((s) => s.openModal);
+  return (
+    // Answers from another scene stay readable but step back, so they never pass for the current state
+    <div
+      className={`flex flex-col gap-2.5 rounded-[var(--radius-card)] border border-line bg-panel-2 p-3 ${current ? "" : "opacity-60"}`}
+    >
+      <p className="font-mono text-[11px] text-accent/80">
+        {VIEWS[m.view].title} · {m.time}
+        {m.intent && <> · {INTENT_LABEL[m.intent]}</>}
+      </p>
+      <Part icon={Database} title="ข้อมูล" tone="var(--blue)">
+        <RichText text={m.data} />
+        <p className="mt-1 text-[13px] text-muted">
+          แหล่งข้อมูล: {m.source}
+          <br />
+          ช่วงเวลา: {m.period}
+        </p>
+      </Part>
+      {m.analysis && (
+        <Part icon={ChartLine} title="การวิเคราะห์" tone="var(--gold)">
+          <RichText text={m.analysis} />
+        </Part>
+      )}
+      {m.recommendation && (
+        <Part icon={Lightbulb} title="ข้อเสนอแนะ AI" tone="var(--accent)">
+          <RichText text={m.recommendation} />
+          {m.sopFor && (
+            <button
+              onClick={() => openModal({ kind: "event", id: m.sopFor })}
+              className="mt-1.5 flex items-center gap-1.5 text-[13px] text-accent hover:underline"
+            >
+              <ListChecks size={14} /> เปิด Checklist SOP · {m.sopFor} →
+            </button>
+          )}
+        </Part>
+      )}
+    </div>
+  );
+}
+
+/** Rule-based AI Assistant (prototype ask / renderChat, L394–405) */
 export function AgentPanel() {
   const chat = useAppStore((s) => s.chat);
   const ask = useAppStore((s) => s.ask);
   const presentation = useAppStore((s) => s.presentation);
-  const context = useAppStore((s) => `${selectionLabel(s)} · ${timeStr(s.time)}`);
+  const view = useAppStore((s) => s.view);
+  const context = useAppStore(askContextLabel);
   const [draft, setDraft] = useState("");
   const [chipsOpen, setChipsOpen] = useState(false);
   // Suggested questions fold away after the first one, so the answers get the room
@@ -25,11 +93,12 @@ export function AgentPanel() {
   }, [chat.length]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Blue-tinted frame with a running light, so the assistant reads as its own space (globals.css .ai-frame)
+    <div className="ai-frame m-1.5 flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex items-start justify-between gap-2 border-b border-line px-4 py-3">
         <div>
           <p className="flex items-center gap-2 font-semibold text-accent">AI Assistant</p>
-          <p className="text-[13px] text-muted">ผู้ช่วยประจำอาคาร · ถามข้อมูลและสำรวจพื้นที่</p>
+          <p className="text-[13px] text-muted">ถามข้อมูล วิเคราะห์ และขอข้อเสนอแนะจากสถานะอาคาร</p>
         </div>
         <span className="shrink-0 rounded border border-gold/50 px-1.5 text-[10px] tracking-wider whitespace-nowrap text-gold">
           LOCAL DEMO
@@ -54,10 +123,7 @@ export function AgentPanel() {
               {m.text}
             </p>
           ) : (
-            <div key={i} className="rounded-[var(--radius-card)] border border-line bg-panel-2 p-3 text-muted">
-              <RichText text={m.text} />
-              <p className="mt-2 border-t border-line pt-1.5 text-[11px]">{m.source}</p>
-            </div>
+            <AnswerCard key={i} m={m} current={m.view === view} />
           ),
         )}
       </div>
@@ -73,7 +139,7 @@ export function AgentPanel() {
           </button>
         )}
         <div className={`mb-2.5 flex-wrap gap-1.5 ${showChips ? "flex" : "hidden"}`}>
-          {QUICK_CHIPS.map((c) => (
+          {QUICK_CHIPS[view].map((c) => (
             <button
               key={c.label}
               onClick={() => {
@@ -112,7 +178,9 @@ export function AgentPanel() {
             </button>
           </form>
         )}
-        <p className="mt-2 text-[13px] text-muted">ตอบจากข้อมูลจำลองในหน้านี้ · ยังไม่เชื่อมต่อ LLM</p>
+        <p className="mt-2 text-[13px] text-muted">
+          Rules engine ทำงานในเครื่อง · ตอบจากข้อมูลจำลองในหน้านี้ · ยังไม่เชื่อมต่อ LLM
+        </p>
       </div>
     </div>
   );

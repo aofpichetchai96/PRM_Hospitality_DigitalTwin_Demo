@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { vehicleModels } from "./ambientModels";
 import { SITE, X_ROADS, Z_ROADS } from "./city";
+import { LOBBY_DOORS } from "./interiors";
 import {
   CROSSWALK_CYCLE,
   CROSSWALK_HOLD,
   crosswalkOpen,
+  LOBBY_FLOOR_Y,
   people,
   personAt,
   roadY,
@@ -72,7 +74,13 @@ describe("pedestrians", () => {
 
   it("walks people to the arrival doors, along the plaza, over the zebra and the skywalk, and some stand", () => {
     expect(crowd.length).toBeGreaterThanOrEqual(60);
-    expect(crowd.filter((p) => p.route.some((q) => q[2] === 19)).length).toBeGreaterThan(20);
+    // Through one of the G doors, one step onto the lobby floor
+    const inside = crowd.filter((p) => p.route.some((q) => q[2] === 23.2 && q[1] === LOBBY_FLOOR_Y));
+    expect(inside.length).toBeGreaterThan(20);
+    for (const p of inside) {
+      const x = p.route.at(-1)![0];
+      expect(LOBBY_DOORS.some((d) => x > d.x0 && x < d.x1)).toBe(true);
+    }
     expect(crowd.filter((p) => p.crossing).length).toBeGreaterThan(5);
     expect(crowd.filter((p) => p.route.length === 1).length).toBeGreaterThan(4);
   });

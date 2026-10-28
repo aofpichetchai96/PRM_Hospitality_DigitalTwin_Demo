@@ -57,8 +57,8 @@ export function OverviewPanel() {
         <SectionTitle>สรุปธุรกิจ · สองธุรกิจในอาคารเดียว</SectionTitle>
         <BusinessCard icon={<BedDouble size={15} className="text-green" />} title="Hotel" tag="600 KEYS">
           <Stat label="Occupancy" value={fmt(c.occupied / 6)} unit="%" tone="var(--green)" />
-          <Stat label="ห้องพร้อมขาย" value={fmt(c.ready)} unit="ห้อง" />
-          <Stat label="ทำความสะอาด" value={fmt(c.cleaning)} unit="ห้อง" tone="var(--gold)" />
+          <Stat label="จองแล้ว" value={fmt(c.reserved)} unit="ห้อง" tone="var(--status-reserved)" />
+          <Stat label="ว่าง พร้อมขาย" value={fmt(c.available)} unit="ห้อง" />
         </BusinessCard>
         <BusinessCard icon={<Store size={15} className="text-blue" />} title="Retail podium" tag="MALL">
           <Stat label="Footfall" value={fmt(footfall)} tone="var(--blue)" />
@@ -73,7 +73,7 @@ export function OverviewPanel() {
       </section>
 
       <section className="flex flex-col gap-1">
-        <SectionTitle action="ดูทั้งหมด" onAction={() => setView("ioc")}>
+        <SectionTitle action="ดูทั้งหมด" onAction={() => setView("boh")}>
           Priority events
         </SectionTitle>
         <EventList limit={3} />
@@ -84,7 +84,7 @@ export function OverviewPanel() {
           INTELLIGENCE BRIEF
         </p>
         <p>
-          {open.length} เหตุการณ์ต้องติดตาม · {c.cleaning} ห้องกำลังทำความสะอาด · ทดลองลดภาระ Cooling ได้ใน Energy Lab
+          {open.length} เหตุการณ์ต้องติดตาม · {c.reserved} ห้องรอแขกเข้าพักวันนี้ · ทดลองลดภาระ Cooling ได้ในฉาก AI
         </p>
         <button onClick={() => ask("สรุปสถานการณ์อาคารวันนี้")} className="mt-1.5 text-[12px] text-accent">
           ถามผู้ช่วยต่อ →

@@ -4,24 +4,29 @@ import { AnimatePresence, motion } from "motion/react";
 import { fade } from "@/lib/motion";
 import { useAppStore } from "@/store/useAppStore";
 import type { ViewId } from "@/types";
+import { AssistantIcon } from "@/components/ui/AssistantIcon";
 import { AgentPanel } from "./AgentPanel";
+import { AlarmPanel } from "./AlarmPanel";
 import { PlanDetails } from "@/components/floorplan/PlanDetails";
 import { DetailsPanel } from "./DetailsPanel";
 import { EnergyPanel } from "./EnergyPanel";
 import { HotelPanel } from "./HotelPanel";
-import { IocPanel } from "./IocPanel";
 import { OverviewPanel } from "./OverviewPanel";
+import { PublicPanel } from "./PublicPanel";
 
 const DETAILS_TAB: Record<ViewId, string> = {
-  overview: "Overview",
+  executive: "Overview",
   twin: "Layers & Asset",
   ioc: "Operations",
   energy: "Energy",
-  hotel: "Hotel",
-  ai: "Layers & Asset",
+  overview: "Overview",
+  rooms: "Guest Room",
+  public: "Zones",
+  boh: "Alarm & Events",
+  ai: "Energy",
 };
 
-/** 320 / 340px panel with an AI Assistant tab and a view-specific details tab */
+/** 320 / 340px panel with an AI Assistant tab and a scene-specific details tab */
 export function RightPanel() {
   const view = useAppStore((s) => s.view);
   const panel = useAppStore((s) => s.panel);
@@ -50,7 +55,10 @@ export function RightPanel() {
               panel === id ? "bg-accent/12 text-accent" : "text-muted hover:text-text"
             }`}
           >
-            {label}
+            <span className="flex items-center justify-center gap-1.5">
+              {id === "agent" && <AssistantIcon size={18} />}
+              {label}
+            </span>
           </button>
         ))}
       </div>
@@ -60,13 +68,15 @@ export function RightPanel() {
             <AgentPanel />
           ) : plan ? (
             <PlanDetails />
-          ) : view === "hotel" ? (
+          ) : view === "rooms" ? (
             <HotelPanel />
-          ) : view === "ioc" ? (
-            <IocPanel />
-          ) : view === "energy" ? (
+          ) : view === "public" ? (
+            <PublicPanel />
+          ) : view === "boh" || view === "ioc" ? (
+            <AlarmPanel />
+          ) : view === "ai" || view === "energy" ? (
             <EnergyPanel />
-          ) : view === "overview" && !picked ? (
+          ) : (view === "overview" || view === "executive") && !picked ? (
             <OverviewPanel />
           ) : (
             <DetailsPanel />

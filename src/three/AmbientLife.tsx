@@ -27,6 +27,7 @@ import {
   along,
   crosswalkOpen,
   type Light,
+  type Person,
   people,
   personAt,
   roadY,
@@ -265,9 +266,21 @@ const PARTS: [Part, BoxGeometry | SphereGeometry, number][] = [
   ["bag", PERSON.bag, 0.6],
 ];
 
-function Pedestrians() {
-  const crowd = useMemo(() => people().map((p) => ({ ...p, length: routeLength(p.route) })), []);
+/** Where a figure is at time t: position and heading (shared with the lobby heatmap) */
+export function figureAt(p: Person & { length: number }, t: number) {
+  const { d, walking, back } = personAt(p, p.length, t);
+  const at = along(p.route, d);
+  return { p: at.p, d, walking, yaw: p.length === 0 ? (p.yaw ?? 0) : at.yaw + (back ? Math.PI : 0) };
+}
+
+/**
+ * Walking and standing people, instanced per body part. `still`: drawn once
+ * where they stand at t = 0 (reduced motion) instead of every frame.
+ */
+export function Crowd({ people: list, still = false }: { people: readonly Person[]; still?: boolean }) {
+  const crowd = useMemo(() => list.map((p) => ({ ...p, length: routeLength(p.route) })), [list]);
   const refs = useRef(new Map<Part, InstancedMesh>());
+  const drawn = useRef<unknown>(null);
 
   useLayoutEffect(() => {
     const paint = (part: Part, pick: (i: number) => readonly number[]) => {
@@ -291,19 +304,19 @@ function Pedestrians() {
   }, [crowd]);
 
   useFrame(({ clock, invalidate }) => {
-    const t = clock.elapsedTime;
+    if (still && drawn.current === crowd) return;
+    drawn.current = crowd;
+    const t = still ? 0 : clock.elapsedTime;
     const r = refs.current;
     crowd.forEach((p, i) => {
-      const { d, walking, back } = personAt(p, p.length, t);
-      const at = along(p.route, d);
-      const yaw = p.length === 0 ? (p.yaw ?? 0) : at.yaw + (back ? Math.PI : 0);
+      const { p: at, d, walking, yaw } = figureAt(p, t);
       const phase = (d / STRIDE) * Math.PI * 2 + i;
       const swing = walking ? Math.sin(phase) * 0.5 : 0;
       // Standing people shift their weight and gesture a little
       const idle = walking ? 0 : Math.sin(t * 1.3 + i * 1.7) * 0.06;
       const bob = walking ? Math.abs(Math.cos(phase)) * 0.035 : 0;
       base.compose(
-        pos.set(at.p[0], at.p[1] + bob, at.p[2]),
+        pos.set(at[0], at[1] + bob, at[2]),
         quat.setFromAxisAngle(Y, yaw),
         scl.setScalar(p.height * PERSON_SCALE),
       );
@@ -340,6 +353,11 @@ function Pedestrians() {
       ))}
     </>
   );
+}
+
+function Pedestrians() {
+  const crowd = useMemo(() => people(), []);
+  return <Crowd people={crowd} />;
 }
 
 export function AmbientLife({ time }: { time: TimeOfDay }) {

@@ -28,7 +28,8 @@ export function buildSite() {
   }
   for (let z = -27; z < 31; z += 14) {
     g.tree(-53, z, 0.4, 1.05);
-    g.tree(54, z, 0.4, 1.08);
+    // None over the central plant (x 48–66, z −31.5…−8.5)
+    if (z > -8) g.tree(54, z, 0.4, 1.08);
   }
 
   // Plaza survey grid, just above the plaza top (0.13 m) — below it, the lines flicker through
@@ -47,13 +48,8 @@ export function buildSite() {
   // Canopy downlight strip — part of the dusk lighting
   g.box(-12, 5.6, 32.4, 30, 0.07, 0.11, "windowLight");
 
-  // Exposed central plant: three chillers with fan discs
+  // Central plant pad; the chillers on it are three/ChillerPlant.tsx (their own meshes, so one can open up)
   g.box(57, 0.6, -20, 18, 0.8, 23, "base");
-  for (let i = 0; i < 3; i++) {
-    g.box(56, 2.7, -26 + i * 6, 10, 3.5, 4.5, "metal", [0.59, 0.68, 0.71, 1]);
-    g.box(56, 4.55, -26 + i * 6, 6, 0.25, 3, "base", [0.24, 0.34, 0.4, 1]);
-    for (const x of [54, 57.7]) g.sphere(x, 4.68, -26 + i * 6, 1.3, 0.12, 1.3, "metal", [0.32, 0.43, 0.48, 1], 9, 3);
-  }
 
   // Site boundary corner markers
   for (const x of [-63, 64])

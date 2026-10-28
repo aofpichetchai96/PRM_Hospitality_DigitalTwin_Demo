@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Thai, Inter, JetBrains_Mono } from "next/font/google";
+import { asset } from "@/lib/asset";
 import "./globals.css";
 
 // next/font downloads these at build time and serves them from this app —
@@ -23,6 +24,8 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "PRM Hospitality · Digital Twin",
   description: "Simulated digital twin demo — PRM Hospitality mixed-use project",
+  // Piramid logo in the browser tab (the file convention takes no .webp)
+  icons: { icon: { url: asset("/images/Logo-Piramid.webp"), type: "image/webp" } },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

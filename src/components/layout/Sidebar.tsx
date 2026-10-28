@@ -2,46 +2,42 @@
 
 import {
   BedDouble,
+  Bot,
   Box,
-  Building,
-  Car,
   Factory,
+  LayoutDashboard,
   LayoutGrid,
   type LucideIcon,
-  MessageSquareText,
   MonitorDot,
   PanelLeftClose,
   PanelLeftOpen,
-  Store,
+  Users,
   Zap,
 } from "lucide-react";
 import { useEffect } from "react";
-import { NAV, ZONES } from "@/data/nav";
+import { SCENES, WORKSPACE } from "@/data/nav";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useOpenIncidents } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
-import type { ViewId, ZoneId } from "@/types";
+import type { ViewId } from "@/types";
 
 const VIEW_ICON: Record<ViewId, LucideIcon> = {
-  overview: LayoutGrid,
+  executive: LayoutGrid,
   twin: Box,
   ioc: MonitorDot,
   energy: Zap,
-  hotel: BedDouble,
-  ai: MessageSquareText,
-};
-const ZONE_ICON: Record<ZoneId, LucideIcon> = {
-  all: Building,
-  mall: Store,
-  hotel: BedDouble,
-  plant: Factory,
-  arrival: Car,
+  overview: LayoutDashboard,
+  rooms: BedDouble,
+  public: Users,
+  boh: Factory,
+  ai: Bot,
 };
 
 const STORAGE_KEY = "prm.sidebarExpanded";
 
 /**
- * 72px icon rail or 220px with labels and the property explorer. Full from
+ * 72px icon rail with the workspace pages, or 220px with labels and the property explorer's five scenes that open
+ * at once (keys 1–5). Full from
  * 1440px wide by default; the toggle overrides it and is remembered per browser.
  */
 export function Sidebar() {
@@ -66,15 +62,42 @@ export function Sidebar() {
   }
 
   const view = useAppStore((s) => s.view);
-  const zone = useAppStore((s) => s.zone);
-  const floor = useAppStore((s) => s.floor);
   const setView = useAppStore((s) => s.setView);
-  const selectZone = useAppStore((s) => s.selectZone);
   const open = useOpenIncidents().length;
+
+  const item = (id: ViewId, label: string, key?: number) => {
+    const Icon = VIEW_ICON[id];
+    const active = id === view;
+    return (
+      <button
+        key={id}
+        title={key ? `${label} (${key})` : label}
+        aria-label={label}
+        aria-keyshortcuts={key ? String(key) : undefined}
+        aria-current={active ? "page" : undefined}
+        onClick={() => setView(id)}
+        className={`relative flex h-10 shrink-0 items-center justify-center gap-3 rounded-[var(--radius-card)] border text-[13px] whitespace-nowrap transition-colors ${expanded ? "justify-start px-3" : ""} ${
+          active ? "border-accent/40 bg-accent/10 text-accent" : "border-transparent text-muted hover:text-text"
+        }`}
+      >
+        <Icon size={20} strokeWidth={1.6} />
+        {expanded && <span className="truncate">{label}</span>}
+        {(id === "ioc" || id === "boh") && open > 0 && (
+          <b
+            className={`grid size-4 place-items-center rounded-full bg-red text-[10px] text-bg ${
+              expanded ? "ml-auto" : "absolute top-1 right-1"
+            }`}
+          >
+            {open}
+          </b>
+        )}
+      </button>
+    );
+  };
 
   return (
     <aside
-      className={`flex shrink-0 flex-col gap-1 overflow-hidden border-r border-line px-3 py-3 transition-[width] duration-200 motion-reduce:transition-none ${
+      className={`flex shrink-0 flex-col gap-1 overflow-x-hidden overflow-y-auto border-r border-line px-3 py-3 transition-[width] duration-200 motion-reduce:transition-none ${
         expanded ? "w-[220px]" : "w-[72px]"
       }`}
     >
@@ -91,57 +114,18 @@ export function Sidebar() {
         </button>
       </div>
       <nav className="flex flex-col gap-1" aria-label="Workspace">
-        {NAV.map(({ id, label }) => {
-          const Icon = VIEW_ICON[id];
-          const active = id === view;
-          return (
-            <button
-              key={id}
-              title={label}
-              aria-label={label}
-              aria-current={active ? "page" : undefined}
-              onClick={() => setView(id)}
-              className={`relative flex h-11 items-center justify-center gap-3 rounded-[var(--radius-card)] border text-[13px] whitespace-nowrap transition-colors ${expanded ? "justify-start px-3" : ""} ${
-                active ? "border-accent/40 bg-accent/10 text-accent" : "border-transparent text-muted hover:text-text"
-              }`}
-            >
-              <Icon size={20} strokeWidth={1.6} />
-              {expanded && <span>{label}</span>}
-              {id === "ioc" && open > 0 && (
-                <b
-                  className={`grid size-4 place-items-center rounded-full bg-red text-[10px] text-bg ${
-                    expanded ? "ml-auto" : "absolute top-1 right-1"
-                  }`}
-                >
-                  {open}
-                </b>
-              )}
-            </button>
-          );
-        })}
+        {WORKSPACE.map(({ id, label }) => item(id, label))}
       </nav>
 
-      <div className={`mt-5 flex-col gap-0.5 whitespace-nowrap ${expanded ? "flex" : "hidden"}`}>
-        <p className="px-2 pb-1 text-[11px] tracking-[0.18em] text-muted">PROPERTY EXPLORER</p>
-        {ZONES.map(({ id, label, tag }) => {
-          const Icon = ZONE_ICON[id];
-          const active = id === zone && floor === "all";
-          return (
-            <button
-              key={id}
-              aria-pressed={active}
-              onClick={() => selectZone(id)}
-              className={`flex h-9 items-center gap-3 rounded-[var(--radius-button)] px-3 text-[13px] transition-colors ${
-                active ? "bg-panel-2 text-text" : "text-muted hover:text-text"
-              }`}
-            >
-              <Icon size={16} strokeWidth={1.6} />
-              {label}
-              <span className="ml-auto font-mono text-[10px] text-muted">{tag}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* The scenes only show with the menu open; keys 1–5 still open them from the rail */}
+      {expanded && (
+        <>
+          <p className="mt-4 px-2 pb-1 text-[11px] tracking-[0.18em] whitespace-nowrap text-muted">PROPERTY EXPLORER</p>
+          <nav className="flex flex-col gap-1" aria-label="Property explorer">
+            {SCENES.map(({ id, label }, i) => item(id, label, i + 1))}
+          </nav>
+        </>
+      )}
 
       <div
         className={`mt-auto border-t border-line px-2 pt-3 text-[11px] whitespace-nowrap text-muted ${expanded ? "block" : "hidden"}`}

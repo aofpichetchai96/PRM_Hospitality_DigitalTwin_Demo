@@ -1,11 +1,14 @@
-// View, scene and UI state. setView() is the only way a view applies its hero
-// shot, so showcase, URL and buttons never fight over the camera (PLAN R2).
+// View, scene and UI state. setView() is the only way a scene applies its hero
+// shot, so the menu, keys 1–5 and the URL never fight over the camera (PLAN R2).
 import type { StateCreator } from "zustand";
 import { FLOOR_PLANS } from "@/data/floorPlans";
-import { ASSETS } from "@/data/assets";
+import { ASSETS, CHILLERS, isRoofEquipment, PLANT_PAD_Y } from "@/data/assets";
+
+/** How close the camera comes for a chiller's inside view (CameraRig lets it closer than usual meanwhile) */
+export const CHILLER_VIEW_DISTANCE = 21;
+import { plantAlarm } from "@/data/events";
 import { FLOORS, isHotelFloor } from "@/data/property";
-import { SHOWCASES, type ShowcaseAction, type ShowcasePath } from "@/data/showcase";
-import { VIEWS } from "@/data/views";
+import { ROOF_TILT, VIEWS } from "@/data/views";
 import type {
   AssetId,
   CameraShot,
@@ -59,18 +62,11 @@ export interface TwinState {
   chartsOpen: boolean;
   spatial: "building" | "plan";
   plan: { type: FloorPlanId; zone: string };
-  /** Demo showcase ("ชมเดโม") on one of its paths; `n` restarts the beat timer on a jump */
-  showcase: {
-    path: ShowcasePath;
-    chapter: number;
-    beat: number;
-    playing: boolean;
-    loop: boolean;
-    n: number;
-  } | null;
   modal: ModalState | null;
   /** Incident the IOC workflow and the 3D marker follow (last opened or located) */
   incidentFocus: string | null;
+  /** Chiller opened up in 3D (index into CHILLERS, double-click on the plant); null = none */
+  chillerView: number | null;
   /** Incoming-alert card for a just-arrived incident; `n` replays its entrance */
   alert: { id: string; n: number } | null;
   toast: { text: string; n: number } | null;
@@ -79,17 +75,12 @@ export interface TwinState {
   sidebarExpanded: boolean | null;
   /** Opening "constructing" sweep; true only until it finishes or is skipped */
   intro: boolean;
-  /** Booth setting: play the showcase on its own after a period without input */
-  attractEnabled: boolean;
-  /** Attract mode is currently playing */
-  attractActive: boolean;
   /** Zoom button requests for the camera rig */
   zoom: { dir: 1 | -1; n: number };
 }
 
 export interface TwinActions {
   setView: (id: ViewId, overrides?: Partial<Omit<ViewConfig, "id" | "title" | "subtitle">>) => void;
-  selectZone: (zone: ZoneId) => void;
   selectFloor: (floor: FloorSelection) => void;
   pickFloor: (floor: FloorId | null) => void;
   /** Step the sliced floor up (+1) or down (−1) through the whole schedule */
@@ -114,20 +105,16 @@ export interface TwinActions {
   setQuality: (quality: Quality) => void;
   setSidebarExpanded: (expanded: boolean | null) => void;
   finishIntro: () => void;
-  setAttractEnabled: (on: boolean) => void;
-  setAttractActive: (on: boolean) => void;
   zoomCamera: (dir: 1 | -1) => void;
   activateHotspot: (id: HotspotId) => void;
   locateIncident: (id: string) => void;
+  /** Alarm list click: follow the alarm and frame its unit (or where it is) */
+  focusIncident: (id: string) => void;
+  /** Open a chiller's inside view and fly close to it; null closes it and returns to the scene's shot */
+  openChiller: (index: number | null) => void;
   /** A new incident arrives: alert card, red edge flash and a flight to where it is */
   raiseAlert: (id: string) => void;
   dismissAlert: () => void;
-  startShowcase: (opts?: { path?: ShowcasePath; loop?: boolean }) => void;
-  goToChapter: (chapter: number) => void;
-  nextBeat: () => void;
-  setShowcasePlaying: (playing: boolean) => void;
-  /** Stops the showcase and puts back the sim data it changed (incidents, scenario, chat) */
-  endShowcase: () => void;
 }
 
 export function initialTwin(): TwinState {
@@ -149,130 +136,28 @@ export function initialTwin(): TwinState {
     chartsOpen: false,
     spatial: "building",
     plan: { type: "residence", zone: FLOOR_PLANS.residence.zones[0].id },
-    showcase: null,
     modal: null,
     incidentFocus: null,
+    chillerView: null,
     alert: null,
     toast: null,
     quality: "high",
     sidebarExpanded: null,
     intro: true,
-    attractEnabled: false,
-    attractActive: false,
     zoom: { dir: 1, n: 0 },
   };
 }
 
-/** Sim data a showcase run changes and gives back when it ends */
-const SAVED_KEYS = [
-  "incidents",
-  "workOrders",
-  "incidentFocus",
-  "setpoint",
-  "outdoor",
-  "occupancy",
-  "tariff",
-  "rooms",
-  "chat",
-  "time",
-  "footfall",
-] as const satisfies readonly (keyof AppState)[];
-type ShowcaseSaved = Pick<AppState, (typeof SAVED_KEYS)[number]>;
-
 export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinActions> = (set, get) => {
-  let saved: ShowcaseSaved | null = null;
-  const save = () => {
-    const s = get();
-    return Object.fromEntries(SAVED_KEYS.map((k) => [k, s[k]])) as ShowcaseSaved;
+  /**
+   * Back of House shows the unit of the alarm in focus: a rooftop unit needs the roof sliced open (H30), the chiller
+   * plant the whole building again. The camera is left to the caller, which flies to the unit.
+   */
+  const showAlarmUnit = (device: AssetId | undefined) => {
+    if (get().view !== "boh" || !device) return;
+    if (isRoofEquipment(device)) set({ mode: "slice", floor: "H30", selectedFloor: null, explode: false });
+    else if (device === "plant") set({ mode: "exterior", floor: "all", selectedFloor: null, explode: false });
   };
-  const incident = (ref: string) => (ref === "focus" ? (get().incidentFocus ?? "") : ref);
-
-  function run(action: ShowcaseAction) {
-    const g = get();
-    switch (action.do) {
-      case "view":
-        return g.setView(action.view, action.autoRotate === undefined ? {} : { autoRotate: action.autoRotate });
-      case "zone":
-        return g.selectZone(action.zone);
-      case "mode":
-        return g.setMode(action.mode);
-      case "explode":
-        if (g.explode !== action.on) g.toggleExplode();
-        return;
-      case "floor":
-        return g.selectFloor(action.floor);
-      case "pickFloor":
-        return g.pickFloor(action.floor);
-      case "stepFloor":
-        return g.stepFloor(action.dir);
-      case "layers":
-        return set((s) => ({ layers: { ...s.layers, ...action.layers } }));
-      case "time":
-        return g.setTimeOfDay(action.time);
-      case "azimuth":
-        return g.flyTo({ azimuth: action.azimuth });
-      case "zoom":
-        return g.zoomCamera(action.dir);
-      case "rotate":
-        return g.setAutoRotate(action.on);
-      case "presentation":
-        if (g.presentation !== action.on) g.togglePresentation();
-        return;
-      case "plan":
-        if (!action.type) return g.setSpatial("building");
-        g.setPlanType(action.type);
-        return g.setSpatial("plan");
-      case "planZone":
-        return g.selectPlanZone(action.zone);
-      case "hotspot":
-        return g.activateHotspot(action.id);
-      case "asset":
-        return g.pickAsset(action.asset);
-      case "workOrder":
-        g.createWorkOrder(ASSETS[g.asset].code);
-        return;
-      case "panel":
-        return g.setPanel(action.panel);
-      case "modal":
-        return g.openModal(
-          action.kind === "event"
-            ? { kind: "event", id: incident(action.id) }
-            : { kind: action.kind, id: "id" in action ? action.id : undefined },
-        );
-      case "roomModal": {
-        const pick = (r: { id: string; status: string }) => r.status === action.status;
-        const room = g.rooms.find((r) => pick(r) && r.id.startsWith("H12-")) ?? g.rooms.find(pick);
-        if (room) g.openModal({ kind: "room", id: room.id });
-        return;
-      }
-      case "roomStatus":
-        if (g.modal?.kind === "room" && g.modal.id) g.setRoomStatus(g.modal.id, action.status);
-        return;
-      case "closeModal":
-        return g.closeModal();
-      case "simulateIncident":
-        g.simulateIncident();
-        return;
-      case "incident":
-        return g.advanceIncident(incident(action.id));
-      case "locate":
-        return g.locateIncident(incident(action.id));
-      case "scenario":
-        return g.setScenario({
-          setpoint: action.setpoint,
-          outdoor: action.outdoor,
-          occupancy: action.occupancy,
-          tariff: action.tariff,
-        });
-      case "clock":
-        return g.setTime(action.hour);
-      case "ask":
-        return g.ask(action.question);
-    }
-  }
-  const chapters = () => SHOWCASES[get().showcase?.path ?? "executive"];
-  const runBeat = (chapter: number, beat: number) => chapters()[chapter].beats[beat].run.forEach(run);
-
   return {
     ...initialTwin(),
 
@@ -291,22 +176,12 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
         panel: v.panel,
         autoRotate: v.autoRotate ?? false,
         spatial: "building",
+        chillerView: null,
         camera: { shot: v.camera, n: s.camera.n + 1 },
+        // Back of House opens on its plant alarm, so the 3D card and the workflow panel show the same one
+        incidentFocus: id === "boh" ? (s.incidentFocus ?? plantAlarm(s.incidents, null)?.id ?? null) : s.incidentFocus,
       }));
     },
-
-    selectZone: (zone) =>
-      set((s) => ({
-        zone,
-        asset: zone === "all" ? "site" : zone,
-        floor: "all",
-        selectedFloor: null,
-        mode: "exterior",
-        explode: false,
-        spatial: "building",
-        autoRotate: false,
-        camera: { shot: { preset: zone }, n: s.camera.n + 1 },
-      })),
 
     selectFloor: (floor) =>
       set((s) => {
@@ -320,7 +195,19 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
           zone: hotel ? "hotel" : floor === "all" ? "all" : "mall",
           spatial: "building",
           autoRotate: false,
-          camera: { shot: floor === "all" ? { preset: "all" } : { floor }, n: s.camera.n + 1 },
+          // Guest Room looks straight down on a hotel floor (every room and its kW at once), Public Area on the Lobby
+          camera: {
+            shot:
+              floor === "all"
+                ? { preset: "all" }
+                : s.view === "boh" && floor === "H30"
+                  ? { floor, tilt: ROOF_TILT }
+                  : {
+                      floor,
+                      top: (s.view === "rooms" && hotel) || (s.view === "public" && floor === "G") || undefined,
+                    },
+            n: s.camera.n + 1,
+          },
         };
       }),
 
@@ -357,7 +244,16 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
 
     pickAsset: (asset) => {
       set({ asset, panel: "details", selectedFloor: null });
-      get().flyTo({ focus: ASSETS[asset].position });
+      get().flyTo({ focus: ASSETS[asset].position, distance: ASSETS[asset].focusDistance });
+    },
+    openChiller: (index) => {
+      if (index === null) {
+        set({ chillerView: null });
+        return get().flyTo(VIEWS[get().view].camera);
+      }
+      const c = CHILLERS[index];
+      set({ chillerView: index, asset: "plant", panel: "details", selectedFloor: null });
+      get().flyTo({ focus: [c.x, PLANT_PAD_Y + 1.6, c.z], distance: CHILLER_VIEW_DISTANCE });
     },
     toggleLayer: (layer) => set((s) => ({ layers: { ...s.layers, [layer]: !s.layers[layer] } })),
     setTimeOfDay: (timeOfDay) => set({ timeOfDay }),
@@ -388,8 +284,6 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
     setQuality: (quality) => set({ quality }),
     setSidebarExpanded: (sidebarExpanded) => set({ sidebarExpanded }),
     finishIntro: () => set({ intro: false }),
-    setAttractEnabled: (attractEnabled) => set({ attractEnabled }),
-    setAttractActive: (attractActive) => set({ attractActive }),
     zoomCamera: (dir) => set((s) => ({ zoom: { dir, n: s.zoom.n + 1 }, autoRotate: false })),
 
     // Hotspot clicks (prototype hotspot(), L413)
@@ -407,14 +301,14 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
           g.notify("AHU-H12 · ตำแหน่งและ Sensor เป็นข้อมูลจำลอง");
           return;
         case "hotel":
-          return g.setView("hotel");
+          return g.setView("rooms");
         case "plant":
-          return g.setView("energy");
+          return g.pickAsset("plant");
         case "mall":
-          return g.selectZone("mall");
+          set({ zone: "mall", asset: "mall", panel: "details" });
+          return g.flyTo({ preset: "mall" });
         case "people":
-          set((s) => ({ layers: { ...s.layers, people: true } }));
-          return g.selectZone("arrival");
+          return g.setView("public");
       }
     },
 
@@ -428,65 +322,26 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
       g.flyTo({ focus: e.position, distance: 85 });
     },
 
+    focusIncident: (id) => {
+      const e = get().incidents.find((x) => x.id === id);
+      if (!e) return;
+      showAlarmUnit(e.device);
+      if (!e.device) {
+        set({ incidentFocus: id });
+        return get().flyTo({ focus: e.position, distance: 85 });
+      }
+      const unit = ASSETS[e.device];
+      set({ incidentFocus: id, asset: e.device });
+      get().flyTo({ focus: unit.position, distance: unit.focusDistance ?? 85 });
+    },
+
     raiseAlert: (id) => {
       const e = get().incidents.find((x) => x.id === id);
       if (!e) return;
+      showAlarmUnit(e.device);
       set((s) => ({ alert: { id, n: (s.alert?.n ?? 0) + 1 }, incidentFocus: id }));
       get().flyTo({ focus: e.position, distance: 85 });
     },
     dismissAlert: () => set({ alert: null }),
-
-    startShowcase: ({ path = "executive", loop = false } = {}) => {
-      // Restarting from inside a run keeps the data saved when the first one began
-      if (!get().showcase) saved = save();
-      set({ showcase: { path, chapter: 0, beat: 0, playing: true, loop, n: 0 }, intro: false });
-      get().goToChapter(0);
-    },
-
-    goToChapter: (chapter) => {
-      const sc = get().showcase;
-      if (!sc || chapter < 0) return;
-      if (chapter >= chapters().length) {
-        if (sc.loop) {
-          if (saved) set(saved);
-          return get().goToChapter(0);
-        }
-        get().endShowcase();
-        get().notify("จบการสาธิต · ทดลองใช้งานแต่ละฟังก์ชันต่อได้");
-        return;
-      }
-      set({
-        showcase: { ...sc, chapter, beat: 0, n: sc.n + 1 },
-        modal: null,
-        spatial: "building",
-        chartsOpen: false,
-      });
-      runBeat(chapter, 0);
-    },
-
-    nextBeat: () => {
-      const sc = get().showcase;
-      if (!sc) return;
-      const beat = sc.beat + 1;
-      if (beat >= chapters()[sc.chapter].beats.length) return get().goToChapter(sc.chapter + 1);
-      set({ showcase: { ...sc, beat, n: sc.n + 1 } });
-      runBeat(sc.chapter, beat);
-    },
-
-    setShowcasePlaying: (playing) => set((s) => (s.showcase ? { showcase: { ...s.showcase, playing } } : {})),
-
-    endShowcase: () => {
-      if (!get().showcase) return;
-      set({
-        ...saved,
-        showcase: null,
-        modal: null,
-        spatial: "building",
-        autoRotate: false,
-        presentation: false,
-        alert: null,
-      });
-      saved = null;
-    },
   };
 };

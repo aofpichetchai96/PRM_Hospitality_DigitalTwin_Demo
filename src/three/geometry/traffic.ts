@@ -3,10 +3,11 @@
 // people along these every frame.
 import { createLcg } from "@/lib/random";
 import { CAR_COLORS, GROUND_Y, X_ROADS, Z_ROADS } from "./city";
+import { LOBBY_DOORS } from "./interiors";
 import type { RGBA } from "./builder";
 
 /** Seeded 0–1 random numbers (createLcg returns 32-bit integers) */
-const random = (seed: number) => {
+export const random = (seed: number) => {
   const next = createLcg(seed);
   return () => next() / 2 ** 32;
 };
@@ -211,7 +212,10 @@ const SKYWALK_Y = 9.53;
 const PLINTH_Y = -0.35;
 /** Arrival hall doors under the canopy (exterior.ts): podium front at z 24.5, canopy x −27…3 */
 const DOOR_Z = 25.2;
-const LOBBY_Z = 19;
+/** Just inside the G street front (z 24.45), on the lobby floor */
+const LOBBY_Z = 23.2;
+/** Lobby floor finish on G (interiors.ts) — where people stand and walk inside */
+export const LOBBY_FLOOR_Y = 0.555;
 
 const SHIRTS: RGBA[] = [
   [0.86, 0.86, 0.84, 1],
@@ -254,9 +258,21 @@ const BAGS: RGBA[] = [
  * strolling past, crossing the avenue at the zebra, crossing the skywalk, and
  * a few standing in pairs.
  */
+/** Seeded looks: height, clothes, skin, hair and sometimes a bag (`bag`: chance of one) */
+export function dressed(rand: () => number, bag = 0.3) {
+  const one = <T>(xs: T[]) => xs[Math.floor(rand() * xs.length)];
+  return {
+    height: 0.9 + rand() * 0.18,
+    shirt: one(SHIRTS),
+    trousers: one(TROUSERS),
+    skin: one(SKINS),
+    hair: one(HAIR),
+    bag: rand() < bag ? one(BAGS) : undefined,
+  };
+}
+
 export function people(): Person[] {
   const rand = random(80431);
-  const one = <T>(xs: T[]) => xs[Math.floor(rand() * xs.length)];
   const list: Person[] = [];
   const person = (route: Vec3[], extra: Partial<Person> = {}) =>
     list.push({
@@ -264,25 +280,21 @@ export function people(): Person[] {
       speed: 1.15 + rand() * 0.45,
       phase: rand(),
       pause: 2 + rand() * 6,
-      height: 0.9 + rand() * 0.18,
-      shirt: one(SHIRTS),
-      trousers: one(TROUSERS),
-      skin: one(SKINS),
-      hair: one(HAIR),
-      bag: rand() < 0.3 ? one(BAGS) : undefined,
+      ...dressed(rand),
       ...extra,
     });
 
   // To and from the arrival doors: from either end of the plaza, through the
-  // canopy, ending inside the lobby (the glass hides where they turn back)
+  // canopy and a door, one step into the lobby (its own crowd is in lobbyLife)
   for (let i = 0; i < 28; i++) {
     const side = i % 2 ? 1 : -1;
-    const doorX = -24 + rand() * 24;
+    const door = LOBBY_DOORS[i % LOBBY_DOORS.length];
+    const doorX = (door.x0 + door.x1) / 2 + (rand() - 0.5) * (door.x1 - door.x0 - 1.4);
     person([
       [side * (56 + rand() * 4), PLAZA_Y, 31 + rand() * 4],
       [doorX + side * (6 + rand() * 10), PLAZA_Y, 29 + rand() * 4],
       [doorX, PLAZA_Y, DOOR_Z + 1],
-      [doorX, PLAZA_Y, LOBBY_Z],
+      [doorX, LOBBY_FLOOR_Y, LOBBY_Z],
     ]);
   }
   // Passers-by along the plaza edge, end to end of the site

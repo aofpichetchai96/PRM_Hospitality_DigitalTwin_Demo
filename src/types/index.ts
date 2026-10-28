@@ -1,4 +1,5 @@
 // Domain types shared by data/, store/, three/ and components/ (PLAN 7).
+import type { Answer } from "@/data/aiScript";
 import type { CameraPresetId } from "@/three/presets";
 
 export type Vec3 = [number, number, number];
@@ -25,7 +26,8 @@ export interface FloorSpec {
   rooms: number;
 }
 
-export type RoomStatus = "occupied" | "ready" | "cleaning" | "maintenance";
+/** Red = guest in the room · yellow = booked, not yet arrived · green = vacant and ready to sell */
+export type RoomStatus = "occupied" | "reserved" | "available";
 export type RoomType = "Deluxe" | "Premier" | "Suite";
 export interface Room {
   /** e.g. "H12-07" */
@@ -38,9 +40,19 @@ export interface Room {
 }
 
 export type IncidentType = "security" | "ahu" | "plant" | "leak" | "people";
+/** Shown as severity: high = Critical, medium = Major, low = Minor */
 export type Priority = "high" | "medium" | "low";
-/** Detected → Verified → Dispatched → Resolved */
+/** New → Acknowledged → In progress → Closed */
 export type IncidentStatus = 0 | 1 | 2 | 3;
+/** Standard operating procedure per alarm type (data/sop.ts) */
+export type SopId = "security" | "ahu" | "chillerEfficiency" | "chwsHigh" | "ctTrip" | "vibration" | "leak" | "crowd";
+/** What tripped the alarm: the measured value against its limit */
+export interface AlarmReading {
+  metric: string;
+  value: string;
+  threshold: string;
+}
+/** An incident or equipment alarm; the same record feeds Case Management, Alarm & Events and the assistant */
 export interface Incident {
   id: string;
   title: L10n;
@@ -54,6 +66,10 @@ export interface Incident {
   time: string;
   owner: string;
   assetCode: string;
+  /** Equipment in 3D that blinks and gets the focus */
+  device?: AssetId;
+  reading?: AlarmReading;
+  sop: SopId;
 }
 
 export interface WorkOrder {
@@ -65,7 +81,10 @@ export interface WorkOrder {
   time: string;
 }
 
-export type AssetId = "site" | "hotel" | "mall" | "plant" | "ahu" | "arrival";
+/** Rooftop plant (Back of House): cooling towers, pumps, tanks, exhaust fans */
+export type RoofEquipmentId =
+  "CT-01" | "CT-02" | "CT-03" | "P-01" | "P-02" | "P-03" | "P-04" | "T-01" | "T-02" | "EF-01" | "EF-02" | "EF-03";
+export type AssetId = "site" | "hotel" | "mall" | "plant" | "ahu" | "arrival" | RoofEquipmentId;
 export type MetricStatus = "ok" | "warn" | "alert";
 export interface AssetMetric {
   label: string;
@@ -81,6 +100,8 @@ export interface AssetInfo {
   health: number;
   status: MetricStatus;
   position: Vec3;
+  /** Camera distance when the asset is picked (default 95) */
+  focusDistance?: number;
 }
 
 export interface EnergyInput {
@@ -106,7 +127,10 @@ export interface EnergyResult {
   dayCost: number;
 }
 
-export type ViewId = "overview" | "twin" | "ioc" | "energy" | "hotel" | "ai";
+/** The five scenes of the property explorer, in menu order (keys 1–5) */
+export type SceneId = "overview" | "rooms" | "public" | "boh" | "ai";
+/** Workspace pages (the AI Assistant is in both lists) and the scenes */
+export type ViewId = "executive" | "twin" | "ioc" | "energy" | SceneId;
 export type ZoneId = "all" | "mall" | "hotel" | "plant" | "arrival";
 export type SceneMode = "exterior" | "xray" | "slice";
 export type LayerId = "energy" | "security" | "people" | "assets";
@@ -117,7 +141,8 @@ export type RightPanelTab = "agent" | "details";
 /** What the camera should frame: a named preset or a floor (Slice mode) */
 export type CameraShot =
   | { preset: CameraPresetId }
-  | { floor: FloorId }
+  /** `top`: straight down on the plan (Guest Room, Public Area); `tilt`: north up at this polar angle (Back of House) */
+  | { floor: FloorId; top?: boolean; tilt?: number }
   | { focus: Vec3; distance?: number }
   /** Turn to a heading, keeping target, distance and tilt (compass) */
   | { azimuth: number };
@@ -166,4 +191,7 @@ export interface FloorPlan {
 }
 
 /** Rich text: paragraphs split by blank lines, **bold** spans */
-export type ChatMessage = { role: "user"; text: string } | { role: "assistant"; text: string; source: string };
+export type ChatMessage =
+  | { role: "user"; text: string }
+  /** `view` and `time` stamp the scene and clock the answer was built from */
+  | ({ role: "assistant"; view: ViewId; time: string } & Answer);

@@ -1,8 +1,8 @@
 "use client";
 
 // The 3D viewport with its 2D overlays: scene mode, time of day, camera
-// toolbar, floor selector, reference thumbnail, floating KPI strip and the
-// guided-demo card. The Floor Plan switch arrives in Phase 8.
+// toolbar, floor selector, floating KPI strip, CCTV feeds on Public Area and
+// the incoming-alert card.
 import {
   Box,
   Camera,
@@ -23,9 +23,9 @@ import dynamic from "next/dynamic";
 import { type RefObject, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { KpiStrip } from "@/components/layout/KpiStrip";
-import { CAMERAS, SyntheticFeed } from "@/components/cctv/SyntheticFeed";
+import { CAMERAS, CctvFeed } from "@/components/cctv/CctvFeed";
+import { ChillerBanner } from "./ChillerBanner";
 import { FloorPlanExplorer } from "@/components/floorplan/FloorPlanExplorer";
-import { ShowcaseCard } from "@/components/tour/ShowcaseCard";
 import { AlertFlash, IncomingAlert } from "./IncomingAlert";
 import { Segmented } from "@/components/ui/Segmented";
 import { FLOOR_PROGRAM, FLOORS } from "@/data/property";
@@ -36,7 +36,13 @@ import { capturePng } from "@/lib/capturePng";
 import { HotspotSet } from "@/three/HotspotSet";
 import { LayerEffects } from "@/three/effects/LayerEffects";
 import { COMPASS_NEEDLE_ID, CompassSync } from "@/three/Compass";
+import { EquipmentAlarms } from "@/three/EquipmentAlarms";
 import { IncidentMarker } from "@/three/IncidentMarker";
+import { AlarmCallout } from "@/three/AlarmCallout";
+import { ChillerPlant } from "@/three/ChillerPlant";
+import { LobbyZones } from "@/three/LobbyZones";
+import { RoomPower } from "@/three/RoomPower";
+import { RoomTint } from "@/three/RoomTint";
 import { FloorHighlight } from "@/three/picking/FloorHighlight";
 import { PickProxies } from "@/three/picking/PickProxies";
 import { SceneTooltip } from "./SceneTooltip";
@@ -103,6 +109,12 @@ function Scene({ topInset, hotspots }: { topInset: number; hotspots: RefObject<H
       <PickProxies />
       <FloorHighlight />
       <IncidentMarker />
+      <EquipmentAlarms />
+      <ChillerPlant portal={hotspots} />
+      <AlarmCallout portal={hotspots} />
+      <RoomTint />
+      <RoomPower />
+      <LobbyZones portal={hotspots} />
       <LayerEffects />
       <CompassSync />
     </Viewport>
@@ -291,24 +303,25 @@ export function ViewportPanel() {
         </span>
       </button>
 
-      {st.view === "ioc" && (
-        // Two synthetic camera feeds over the scene (prototype cctv-overlay)
-        <div className="absolute bottom-16 left-3 z-20 grid w-[min(440px,45%)] grid-cols-2 gap-2">
+      {(st.view === "public" || st.view === "ioc") && (
+        // Two sample analytics feeds over the scene (prototype cctv-overlay)
+        <div className="absolute bottom-16 left-3 z-20 grid w-[min(440px,45%)] grid-cols-2 gap-2 short:w-[min(260px,28%)]">
           {CAMERAS.map((c, i) => (
             <button
               key={c.id}
               onClick={() => a.openModal({ kind: "cctv", id: String(i) })}
               className="relative h-[110px] overflow-hidden rounded-[var(--radius-button)] border border-line bg-bg/80 hover:border-accent/60"
             >
-              <SyntheticFeed camera={i} />
-              <span className="absolute top-1.5 left-2 font-mono text-[10px] tracking-wider text-[#b2e4cf]">
-                {c.id} · SYNTHETIC
+              <CctvFeed camera={i} />
+              <span className="absolute bottom-1 left-1.5 rounded bg-bg/80 px-1.5 font-mono text-[10px] tracking-wider text-[#b2e4cf]">
+                {c.id} · SAMPLE
               </span>
             </button>
           ))}
         </div>
       )}
 
+      <ChillerBanner />
       {st.spatial === "plan" && <FloorPlanExplorer />}
 
       {st.intro && (
@@ -327,7 +340,6 @@ export function ViewportPanel() {
 
       <AlertFlash />
       <IncomingAlert />
-      <ShowcaseCard />
     </div>
   );
 }

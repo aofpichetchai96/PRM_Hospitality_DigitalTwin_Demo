@@ -1,19 +1,21 @@
-// Sidebar navigation and property explorer (prototype NAV L344, tree L356)
-import type { ViewId, ZoneId } from "@/types";
+// Sidebar: the workspace pages and the property explorer's five scenes
+import type { SceneId, ViewId } from "@/types";
 
-export const NAV: readonly { id: ViewId; label: string }[] = [
-  { id: "overview", label: "Executive overview" },
+export const WORKSPACE: readonly { id: ViewId; label: string }[] = [
+  { id: "executive", label: "Executive overview" },
   { id: "twin", label: "Digital Twin" },
   { id: "ioc", label: "IOC operations" },
   { id: "energy", label: "Energy Lab" },
-  { id: "hotel", label: "Hotel · 600 keys" },
   { id: "ai", label: "AI Assistant" },
 ];
 
-export const ZONES: readonly { id: ZoneId; label: string; tag: string }[] = [
-  { id: "all", label: "Entire property", tag: "SITE" },
-  { id: "mall", label: "Retail podium", tag: "MALL" },
-  { id: "hotel", label: "Hotel tower", tag: "600" },
-  { id: "plant", label: "Central plant", tag: "MEP" },
-  { id: "arrival", label: "Arrival & skywalk", tag: "G" },
+/** In the order keys 1–5 and ← / → open them */
+export const SCENES: readonly { id: SceneId; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "rooms", label: "Guest Room" },
+  { id: "public", label: "Public Area" },
+  { id: "boh", label: "Back of House" },
+  { id: "ai", label: "AI Assistant" },
 ];
+
+export const SCENE_IDS = SCENES.map((s) => s.id);

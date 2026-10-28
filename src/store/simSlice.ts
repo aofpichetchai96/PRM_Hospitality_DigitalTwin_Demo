@@ -3,7 +3,7 @@
 import type { StateCreator } from "zustand";
 import { answerQuestion } from "@/data/aiScript";
 import { footfallAt, REFERENCE_FOOTFALL, SCENARIO_LIMITS } from "@/data/energy";
-import { INCIDENT_STEPS, INITIAL_INCIDENTS, SIMULATED_INCIDENTS } from "@/data/events";
+import { INCIDENT_STEPS, INITIAL_INCIDENTS, SCENARIO_ORDER, SCENARIOS, type ScenarioId } from "@/data/events";
 import { adjustOccupancy, generateRooms } from "@/data/rooms";
 import { timeStr } from "@/lib/format";
 import type { ChatMessage, Incident, IncidentStatus, Room, RoomStatus, WorkOrder } from "@/types";
@@ -34,6 +34,8 @@ export interface SimState {
   rooms: Room[];
   incidents: Incident[];
   workOrders: WorkOrder[];
+  /** Ticked SOP steps per incident id */
+  sopChecks: Record<string, readonly number[]>;
   chat: ChatMessage[];
 }
 
@@ -47,7 +49,9 @@ export interface SimActions {
   setRoomStatus: (id: string, status: RoomStatus) => void;
   advanceIncident: (id: string) => void;
   createWorkOrder: (assetCode: string, owner?: string, incidentId?: string) => WorkOrder;
-  simulateIncident: () => string;
+  /** Injects an abnormal situation; without a choice the scenarios come in turn */
+  simulateIncident: (scenario?: ScenarioId) => string;
+  toggleSopStep: (incidentId: string, step: number) => void;
   ask: (question: string) => void;
   resetDemo: () => void;
 }
@@ -66,6 +70,7 @@ export function initialSim(): SimState {
     rooms: generateRooms(84),
     incidents: INITIAL_INCIDENTS.map((e) => ({ ...e })),
     workOrders: [],
+    sopChecks: {},
     chat: [],
   };
 }
@@ -135,9 +140,9 @@ export const createSimSlice: StateCreator<AppState, [], [], SimState & SimAction
     return w;
   },
 
-  simulateIncident: () => {
+  simulateIncident: (scenario) => {
     const idx = get().incidents.length + 1;
-    const template = SIMULATED_INCIDENTS[(idx - 4) % SIMULATED_INCIDENTS.length];
+    const template = SCENARIOS[scenario ?? SCENARIO_ORDER[(idx - 4) % SCENARIO_ORDER.length]];
     const e: Incident = {
       ...template,
       id: `INC-${String(idx).padStart(3, "0")}`,
@@ -145,19 +150,29 @@ export const createSimSlice: StateCreator<AppState, [], [], SimState & SimAction
       time: timeStr(get().time),
     };
     set((s) => ({ incidents: [e, ...s.incidents], incidentFocus: e.id }));
+    // Open the scene that shows it: the roof plant in Back of House, crowding on the Lobby floor (IOC stays put)
+    const scene = e.floor === "H30" ? "boh" : e.type === "people" ? "public" : null;
+    if (scene && get().view !== scene && get().view !== "ioc") get().setView(scene);
     get().raiseAlert(e.id);
     return e.id;
   },
+
+  toggleSopStep: (incidentId, step) =>
+    set((s) => {
+      const done = s.sopChecks[incidentId] ?? [];
+      const next = done.includes(step) ? done.filter((i) => i !== step) : [...done, step];
+      return { sopChecks: { ...s.sopChecks, [incidentId]: next } };
+    }),
 
   ask: (question) => {
     const q = question.trim();
     if (!q) return;
     const answer = answerQuestion(q, buildAskContext(get()));
+    // Each answer keeps the scene and clock it was built from, so an older one never reads as current
+    const reply: ChatMessage = { role: "assistant", ...answer, view: get().view, time: timeStr(get().time) };
     set((s) => ({
       panel: "agent",
-      chat: [...s.chat, { role: "user" as const, text: q }, { role: "assistant" as const, ...answer }].slice(
-        -CHAT_LIMIT,
-      ),
+      chat: [...s.chat, { role: "user" as const, text: q }, reply].slice(-CHAT_LIMIT),
     }));
   },
 
@@ -172,7 +187,6 @@ export const createSimSlice: StateCreator<AppState, [], [], SimState & SimAction
         // Presenter preferences survive a reset
         sidebarExpanded: s.sidebarExpanded,
         quality: s.quality,
-        attractEnabled: s.attractEnabled,
         // The opening sweep plays once per page load, not on every reset
         intro: false,
         toast: { text: "รีเซ็ต Demo แล้ว", n: (s.toast?.n ?? 0) + 1 },
