@@ -95,6 +95,12 @@ src/types        shared domain types
   car-following with stops at red lights and at the avenue zebra while people cross; traffic lights cycle; people
   with swinging limbs walk into the arrival hall, along the plaza, over the zebra and the skywalk, some stand in pairs.
   Lamps glow at dusk. It invalidates every frame, so it is off on Low quality and with reduced motion.
+  **Site landscape** (`geometry/landscape.ts`, called from `buildSite`): sidewalks with kerbs both sides of the avenue
+  (top 0.13, road −0.08; markings are thin boxes on the asphalt — double yellow centre, dashed lanes, zebra kerb to
+  kerb with stop lines), six gardens on the plinth (`GARDENS`: lawns, cross walkways, fountain or pavilion terrace,
+  hedges, flower beds, benches, trees) and lamp posts (`SITE_LAMPS`); bulbs are windowLight, ground pools at dusk are
+  `three/SiteLamps.tsx`. Trees (`builder.tree`) are round / rain-tree / columnar with smooth `blob` crowns and a
+  tapered `trunk`; city trees use one lighter blob. Crosswalk holds traffic 26 s of every 75 s.
   **Lobby (Public Area, G sliced):** walls / glazed street front with three doors (`LOBBY_DOORS`) and decor in
   `podiumG`; `geometry/lobbyLife.ts` draws one figure per 4 people of each zone count (reception queue and staff,
   rows at the lifts, luggage by the doors, lounge pairs, walkers) through the shared `Crowd` (`AmbientLife.tsx`);

@@ -87,20 +87,11 @@ function facadeBox(
   g.quad([a, t, f], [b, t, f], [b, t, k], [a, t, k], "stone", ROOF);
 }
 
+/** Light city tree: tapered trunk and one smooth crown (fewer vertices than the site's trees — there are thousands) */
 function cityTree(g: GeometryBuilder, x: number, z: number, s: number) {
-  g.box(x, 1.6 * s, z, 0.35 * s, 3.2 * s, 0.35 * s, "wood");
-  g.sphere(
-    x,
-    4.3 * s,
-    z,
-    2.0 * s,
-    2.3 * s,
-    2.0 * s,
-    "foliage",
-    [0.22 + g.rand() * 0.08, 0.37 + g.rand() * 0.12, 0.2, 1],
-    6,
-    4,
-  );
+  g.trunk(x, GROUND_Y + 0.25, z, 0.2 * s, 0.12 * s, 3.4 * s);
+  const w = 1.8 + g.rand() * 0.5;
+  g.blob(x, 4.3 * s, z, w * s, 2.0 * s, w * s, [0.21 + g.rand() * 0.08, 0.36 + g.rand() * 0.12, 0.18, 1], 6, 4);
 }
 
 /** Cells between the roads, minus the site */

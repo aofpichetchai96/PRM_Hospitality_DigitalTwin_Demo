@@ -162,26 +162,98 @@ export class GeometryBuilder {
     }
   }
 
+  /**
+   * Smooth, slightly lumpy ellipsoid for tree crowns: per-vertex normals (no facets) and a vertex colour that is
+   * darker underneath and lighter on top, like a sunlit canopy. The poles are single triangles, so no zero-area faces.
+   */
+  blob(cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, color: RGBA, segments = 7, rings = 5) {
+    const bk = this.bucket("foliage");
+    const pa = this.rand() * Math.PI * 2;
+    const pb = this.rand() * Math.PI * 2;
+    const vert = (i: number, j: number) => {
+      const p = (Math.PI * j) / rings;
+      const t = (Math.PI * 2 * i) / segments;
+      const d: Vec3 = [Math.sin(p) * Math.cos(t), Math.cos(p), Math.sin(p) * Math.sin(t)];
+      // Lumps away from the poles, so the pole triangles keep one shared tip
+      const k = j === 0 || j === rings ? 1 : 1 + 0.13 * Math.sin(3 * t + pa) * Math.sin(2 * p + pb);
+      const pos: Vec3 = [cx + rx * d[0] * k, cy + ry * d[1] * k, cz + rz * d[2] * k];
+      const shade = 0.66 + 0.46 * ((d[1] + 1) / 2);
+      const col: RGBA = [
+        Math.min(1, color[0] * shade),
+        Math.min(1, color[1] * shade),
+        Math.min(1, color[2] * shade),
+        1,
+      ];
+      return { pos, n: norm([d[0] / rx, d[1] / ry, d[2] / rz]), col };
+    };
+    const put = (...vs: ReturnType<typeof vert>[]) => {
+      for (const v of vs) this.push(bk, v.pos, v.n, [0, 0], v.col);
+    };
+    for (let j = 0; j < rings; j++)
+      for (let i = 0; i < segments; i++) {
+        const a = vert(i, j + 1);
+        const b = vert(i + 1, j + 1);
+        const c = vert(i + 1, j);
+        const d = vert(i, j);
+        // Same winding as sphere(): (a, b, c) and (a, c, d); one of them collapses at each pole
+        if (j < rings - 1) put(a, b, c);
+        if (j > 0) put(a, c, d);
+      }
+  }
+
+  /** Trunk tapering from r0 at y to r1 at y + h, 6 sides (no caps: the crown or the ground hides them) */
+  trunk(x: number, y: number, z: number, r0: number, r1: number, h: number, color: RGBA = [0.33, 0.25, 0.19, 1]) {
+    const n = 6;
+    for (let i = 0; i < n; i++) {
+      const t0 = (Math.PI * 2 * i) / n;
+      const t1 = (Math.PI * 2 * (i + 1)) / n;
+      const at = (t: number, r: number, yy: number): Vec3 => [x + r * Math.cos(t), yy, z + r * Math.sin(t)];
+      this.quad(at(t1, r0, y), at(t0, r0, y), at(t0, r1, y + h), at(t1, r1, y + h), "wood", color);
+    }
+  }
+
+  /**
+   * Tree of one of three kinds, picked with the seeded rng: a round-crowned shade tree, a wide spreading rain tree
+   * (common on Bangkok streets) or a narrow columnar tree. About 8 s m tall; `y` is the ground it stands on.
+   */
   tree(x: number, z: number, y = 0, s = 1) {
-    this.box(x, y + 2 * s, z, 0.38 * s, 4 * s, 0.4 * s, "wood");
-    this.sphere(x, y + 5.1 * s, z, 2.2 * s, 2.8 * s, 2.3 * s, "foliage", [
-      0.22 + this.rand() * 0.08,
-      0.39 + this.rand() * 0.12,
-      0.19 + this.rand() * 0.06,
-      1,
-    ]);
-    this.sphere(
-      x + 1.2 * s,
-      y + 4.2 * s,
-      z + 0.4 * s,
-      1.7 * s,
-      1.7 * s,
-      1.7 * s,
-      "foliage",
-      [0.3, 0.46, 0.22, 1],
-      6,
-      4,
-    );
+    const r = this.rand;
+    const pick = r();
+    const leaf: RGBA = [0.2 + r() * 0.08, 0.36 + r() * 0.12, 0.15 + r() * 0.06, 1];
+    const darker: RGBA = [leaf[0] * 0.82, leaf[1] * 0.86, leaf[2] * 0.82, 1];
+    const spin = r() * Math.PI * 2;
+    const around = (k: number, n: number, dist: number): [number, number] => [
+      x + Math.cos(spin + (k / n) * Math.PI * 2) * dist,
+      z + Math.sin(spin + (k / n) * Math.PI * 2) * dist,
+    ];
+    if (pick < 0.5) {
+      // Round shade tree: a main crown with three side lumps and a top
+      const h = 3.0 * s;
+      this.trunk(x, y, z, 0.22 * s, 0.13 * s, h + 1.0 * s);
+      this.blob(x, y + h + 1.6 * s, z, 2.2 * s, 1.9 * s, 2.2 * s, leaf);
+      for (let k = 0; k < 3; k++) {
+        const [bx, bz] = around(k, 3, 1.5 * s);
+        this.blob(bx, y + h + 1.1 * s, bz, 1.4 * s, 1.2 * s, 1.4 * s, k % 2 ? darker : leaf);
+      }
+      this.blob(x + 0.3 * s, y + h + 2.9 * s, z - 0.2 * s, 1.3 * s, 1.1 * s, 1.3 * s, leaf);
+    } else if (pick < 0.8) {
+      // Rain tree: short trunk, branches out to a wide, flat canopy
+      const h = 2.6 * s;
+      this.trunk(x, y, z, 0.26 * s, 0.16 * s, h + 0.6 * s);
+      for (let k = 0; k < 5; k++) {
+        const [bx, bz] = around(k, 5, 2.1 * s);
+        this.line([x, y + h, z], [bx, y + h + 1.0 * s, bz], 0.16 * s, "wood", [0.33, 0.25, 0.19, 1]);
+        this.blob(bx, y + h + 1.4 * s, bz, 1.7 * s, 0.95 * s, 1.7 * s, k % 2 ? darker : leaf, 7, 4);
+      }
+      this.blob(x, y + h + 1.9 * s, z, 2.2 * s, 1.1 * s, 2.2 * s, leaf, 8, 4);
+    } else {
+      // Columnar tree: tall trunk, three stacked crowns narrowing to the top
+      const h = 2.4 * s;
+      this.trunk(x, y, z, 0.18 * s, 0.1 * s, h + 3.6 * s);
+      this.blob(x, y + h + 1.2 * s, z, 1.5 * s, 1.6 * s, 1.5 * s, darker);
+      this.blob(x, y + h + 3.0 * s, z, 1.25 * s, 1.5 * s, 1.25 * s, leaf);
+      this.blob(x, y + h + 4.5 * s, z, 0.85 * s, 1.1 * s, 0.85 * s, leaf);
+    }
   }
 
   /** Outline of a rounded rectangle on the XZ plane: 4 corners × 9 points */

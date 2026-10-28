@@ -40,6 +40,7 @@ import { EquipmentAlarms } from "@/three/EquipmentAlarms";
 import { IncidentMarker } from "@/three/IncidentMarker";
 import { AlarmCallout } from "@/three/AlarmCallout";
 import { ChillerPlant } from "@/three/ChillerPlant";
+import { SiteLamps } from "@/three/SiteLamps";
 import { LobbyZones } from "@/three/LobbyZones";
 import { RoomPower } from "@/three/RoomPower";
 import { RoomTint } from "@/three/RoomTint";
@@ -111,6 +112,7 @@ function Scene({ topInset, hotspots }: { topInset: number; hotspots: RefObject<H
       <IncidentMarker />
       <EquipmentAlarms />
       <ChillerPlant portal={hotspots} />
+      <SiteLamps />
       <AlarmCallout portal={hotspots} />
       <RoomTint />
       <RoomPower />

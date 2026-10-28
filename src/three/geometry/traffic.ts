@@ -81,8 +81,8 @@ export interface Lane {
   stops: { at: number; half: number; signal: "x" | "z" | "crosswalk" }[];
 }
 
-/** The zebra crossing over the avenue in front of the site (site.ts): x −39…−29.5 */
-export const CROSSWALK = { x: -34.25, half: 4.75, z0: 37.6, z1: 71 };
+/** The zebra crossing over the avenue in front of the site (site.ts): x −39…−29.5, kerb to kerb (z 39…69) */
+export const CROSSWALK = { x: -34.25, half: 4.75, z0: 39, z1: 69 };
 
 /**
  * Two-way roads, left-hand traffic as in Thailand: driving +x keeps to −z,
@@ -155,11 +155,12 @@ export function signalFor(axis: "x" | "z", t: number): Light {
 }
 
 /**
- * Crosswalk cycle (s): the avenue holds for the first 32 s while people cross
- * (they start within 4 s and take under 28 s), then runs for 18 s.
+ * Crosswalk cycle (s): the avenue holds for the first 26 s while people cross
+ * (they start within 2 s and take under 24 s), then runs for 49 s — short
+ * enough holds that the queue in front of the hotel clears between them.
  */
-export const CROSSWALK_CYCLE = 50;
-export const CROSSWALK_HOLD = 32;
+export const CROSSWALK_CYCLE = 75;
+export const CROSSWALK_HOLD = 26;
 export const crosswalkOpen = (t: number) =>
   ((t % CROSSWALK_CYCLE) + CROSSWALK_CYCLE) % CROSSWALK_CYCLE < CROSSWALK_HOLD;
 
@@ -208,8 +209,8 @@ export interface Person {
 /** Plaza top (site.ts) and skywalk deck top — where people walk */
 const PLAZA_Y = 0.13;
 const SKYWALK_Y = 9.53;
-/** Plinth top beyond the plaza and the far kerb */
-const PLINTH_Y = -0.35;
+/** Sidewalks on both sides of the avenue, level with the plaza (site.ts) */
+const SIDEWALK_Y = 0.13;
 /** Arrival hall doors under the canopy (exterior.ts): podium front at z 24.5, canopy x −27…3 */
 const DOOR_Z = 25.2;
 /** Just inside the G street front (z 24.45), on the lobby floor */
@@ -301,10 +302,10 @@ export function people(): Person[] {
   for (let i = 0; i < 12; i++) {
     const z = 34 + rand() * 2;
     const route: Vec3[] = [
-      [-104, PLINTH_Y + 0.02, z + 3],
+      [-104, SIDEWALK_Y, z + 3],
       [-60, PLAZA_Y, z],
       [60, PLAZA_Y, z],
-      [104, PLINTH_Y + 0.02, z + 3],
+      [104, SIDEWALK_Y, z + 3],
     ];
     person(i % 2 ? route : route.reverse());
   }
@@ -312,12 +313,12 @@ export function people(): Person[] {
   for (let i = 0; i < 10; i++) {
     const x = CROSSWALK.x + (rand() - 0.5) * 7;
     const route: Vec3[] = [
-      [x, PLAZA_Y, CROSSWALK.z0 - rand() * 1.5],
-      [x, -0.08, CROSSWALK.z0 + 2],
-      [x, -0.08, CROSSWALK.z1 - 2],
-      [x, PLINTH_Y + 0.02, CROSSWALK.z1 + rand() * 1.5],
+      [x, SIDEWALK_Y, CROSSWALK.z0 - 0.4 - rand() * 1.2],
+      [x, -0.08, CROSSWALK.z0 + 0.6],
+      [x, -0.08, CROSSWALK.z1 - 0.6],
+      [x, SIDEWALK_Y, CROSSWALK.z1 + 0.4 + rand() * 1.2],
     ];
-    person(i % 2 ? route : route.reverse(), { crossing: { delay: rand() * 4 }, speed: 1.35 + rand() * 0.3 });
+    person(i % 2 ? route : route.reverse(), { crossing: { delay: rand() * 2 }, speed: 1.45 + rand() * 0.3 });
   }
   // Skywalk: inside the station (x −126) ↔ inside the podium (x −40)
   for (let i = 0; i < 14; i++) {

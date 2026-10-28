@@ -2,7 +2,8 @@
 // site section (L210–229) plus skywalk, central plant and site markers
 // (L301–308). The prototype's fake shadow quads (L220–222) are dropped in
 // favour of real shadow maps.
-import { GeometryBuilder } from "./builder";
+import { GeometryBuilder, type RGBA } from "./builder";
+import { buildLandscape } from "./landscape";
 
 export function buildSite() {
   const g = new GeometryBuilder(74021);
@@ -17,9 +18,25 @@ export function buildSite() {
     [220 / 24, 30 / 24],
     [0, 30 / 24],
   ]);
-  for (let x = -106; x < 110; x += 12) g.box(x, 0.04, 54, 5.5, 0.03, 0.22, "stone", [0.72, 0.76, 0.68, 1]);
-  for (const z of [40.4, 67.6]) g.box(0, 0.03, z, 220, 0.04, 0.24, "stone", [0.68, 0.73, 0.73, 1]);
-  for (let i = 0; i < 11; i++) g.box(-39 + i * 0.95, 0.09, 55, 0.4, 0.04, 24, "stone", [0.82, 0.84, 0.83, 1]);
+  // Markings painted on the asphalt (−0.08): a thin box just proud of it, never floating above
+  const WHITE: RGBA = [0.9, 0.91, 0.88, 1];
+  const YELLOW: RGBA = [0.93, 0.76, 0.26, 1];
+  const mark = (x0: number, x1: number, z0: number, z1: number, col: RGBA) =>
+    g.box((x0 + x1) / 2, -0.075, (z0 + z1) / 2, x1 - x0, 0.02, z1 - z0, "stone", col);
+  const ZEBRA = { x0: -39, x1: -29.5 };
+  for (const [x0, x1] of [
+    [-110, ZEBRA.x0 - 2.2],
+    [ZEBRA.x1 + 2.2, 110],
+  ]) {
+    // Double yellow centre line, white edge lines, dashed lane dividers (lanes at z 54 ± 4 and ± 10.5)
+    for (const z of [53.82, 54.18]) mark(x0, x1, z - 0.07, z + 0.07, YELLOW);
+    for (const z of [39.6, 68.4]) mark(x0, x1, z - 0.08, z + 0.08, WHITE);
+    for (const z of [46.9, 61.1]) for (let x = x0 + 1; x + 3 < x1; x += 9) mark(x, x + 3, z - 0.07, z + 0.07, WHITE);
+  }
+  // Zebra kerb to kerb, and stop lines for the lanes that drive into it (left-hand traffic: +x keeps to −z)
+  for (let x = ZEBRA.x0 + 0.25; x < ZEBRA.x1; x += 1) mark(x, x + 0.5, 39.4, 68.6, WHITE);
+  mark(ZEBRA.x0 - 2.2, ZEBRA.x0 - 1.8, 39.4, 54, WHITE);
+  mark(ZEBRA.x1 + 1.8, ZEBRA.x1 + 2.2, 54, 68.6, WHITE);
 
   // Street planters and trees
   for (let x = -105; x < 115; x += 15) {
@@ -27,10 +44,12 @@ export function buildSite() {
     g.tree(x, 33, 0.34, 0.9);
   }
   for (let z = -27; z < 31; z += 14) {
-    g.tree(-53, z, 0.4, 1.05);
+    g.tree(-53, z, 0.13, 1.05);
     // None over the central plant (x 48–66, z −31.5…−8.5)
-    if (z > -8) g.tree(54, z, 0.4, 1.08);
+    if (z > -8) g.tree(54, z, 0.13, 1.08);
   }
+
+  buildLandscape(g);
 
   // Plaza survey grid, just above the plaza top (0.13 m) — below it, the lines flicker through
   for (let x = -50; x <= 50; x += 5.5) g.line([x, 0.16, -34], [x, 0.16, 32], 0.035, "line");
