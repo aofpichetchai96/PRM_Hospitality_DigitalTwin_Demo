@@ -13,6 +13,7 @@ import { buildLayers } from "./geometry/layers";
 import { buildSchematic } from "./geometry/schematic";
 import { buildSite } from "./geometry/site";
 import { Atmosphere } from "./Atmosphere";
+import { AmbientLife } from "./AmbientLife";
 import type { Quality, TimeOfDay } from "./look";
 import { LOOK } from "./look";
 import { createFacadeMaterial, createMaterials } from "./materials";
@@ -119,6 +120,8 @@ export function SceneRoot({
         <SceneBatches geometries={exterior} materials={buildingMaterials} hidden={hidden} />
       )}
       {layerGeometry && <SceneBatches geometries={layerGeometry} materials={buildingMaterials} />}
+      {/* Moving cars and people keep the canvas rendering every frame: not on Low quality */}
+      {settings.quality !== "low" && <AmbientLife time={settings.time} />}
       <CameraRig
         request={settings.camera}
         zoom={settings.zoom}

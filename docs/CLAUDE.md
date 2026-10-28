@@ -72,6 +72,11 @@ src/types        shared domain types
   Detail "full" on the sliced / top floor, "lite" for the exploded stack (keeps it < 1.5 M vertices, tested).
 - **Rendering:** `frameloop="demand"` — anything animated must call `invalidate()` each frame *only while visible*
   (auto-rotate switches to `always`). Static shadow map, re-rendered when the building changes.
+  **Ambient life** (`three/AmbientLife.tsx`; lanes, signals and walking routes in `geometry/traffic.ts`, models in
+  `geometry/ambientModels.ts`): 8 vehicle kinds (sedan … bus, tuk-tuk, motorbike) on the city grid, left-hand traffic,
+  car-following with stops at red lights and at the avenue zebra while people cross; traffic lights cycle; people
+  with swinging limbs walk into the arrival hall, along the plaza, over the zebra and the skywalk, some stand in pairs.
+  Lamps glow at dusk. It invalidates every frame, so it is off on Low quality and with reduced motion.
   Look: Khronos Neutral tone mapping, Lightformer environment (no HDR / CDN), N8AO + Bloom on High.
 
 ## Conventions and gotchas

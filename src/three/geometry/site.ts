@@ -35,30 +35,7 @@ export function buildSite() {
   for (let x = -50; x <= 50; x += 5.5) g.line([x, 0.16, -34], [x, 0.16, 32], 0.035, "line");
   for (let z = -33; z <= 33; z += 5.5) g.line([-60, 0.16, z], [60, 0.16, z], 0.04, "line");
 
-  // Cars and pedestrians for human scale (static; ambient motion is Phase 9)
-  const carColors: [number, number, number, number][] = [
-    [0.79, 0.82, 0.84, 1],
-    [0.38, 0.46, 0.54, 1],
-    [0.65, 0.31, 0.31, 1],
-    [0.74, 0.74, 0.66, 1],
-  ];
-  for (let i = 0; i < 10; i++) {
-    const x = -100 + i * 21 + (i % 2) * 6,
-      z = i % 2 ? 47 : 61;
-    g.box(x, 1, z, 4.9, 1.05, 2.25, "metal", carColors[i % 4]);
-    g.box(x + 0.1, 1.85, z, 2.8, 0.8, 1.96, "glass");
-    for (const q of [-1.6, 1.6]) {
-      g.box(x + q, 0.63, z - 1.1, 0.85, 0.72, 0.25, "base", [0.07, 0.08, 0.09, 1]);
-      g.box(x + q, 0.63, z + 1.1, 0.85, 0.72, 0.25, "base", [0.07, 0.08, 0.09, 1]);
-    }
-    g.box(x + 2.46, 1, z, 0.05, 0.28, 1.64, "warm");
-  }
-  for (let i = 0; i < 35; i++) {
-    const x = -43 + g.rand() * 90,
-      z = 28 + g.rand() * 9;
-    g.box(x, 1.1, z, 0.42, 1.25, 0.37, "base", [0.2 + g.rand() * 0.5, 0.25 + g.rand() * 0.4, 0.35 + g.rand() * 0.3, 1]);
-    g.sphere(x, 1.96, z, 0.24, 0.25, 0.23, "stone", [0.67, 0.53, 0.41, 1], 5, 4);
-  }
+  // Cars and pedestrians move: three/AmbientLife.tsx (lanes and paths in geometry/traffic.ts)
 
   // Connected skywalk
   g.box(-83, 9.1, 13, 80, 0.85, 6, "stone", [0.51, 0.64, 0.72, 1]);

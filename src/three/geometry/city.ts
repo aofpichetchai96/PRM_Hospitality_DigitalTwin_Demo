@@ -14,9 +14,9 @@ const PITCH = 110;
 const outward = (from: number, step: number) =>
   Array.from({ length: Math.floor((EXTENT - 60 - Math.abs(from)) / PITCH) + 1 }, (_, i) => from + i * step);
 /** Roads running north–south, at these x (14 m wide) */
-const X_ROADS = [...outward(-150, -PITCH).reverse(), ...outward(150, PITCH)];
+export const X_ROADS = [...outward(-150, -PITCH).reverse(), ...outward(150, PITCH)];
 /** Roads running east–west; z 54 is the site's avenue (30 m) */
-const Z_ROADS: { z: number; w: number }[] = [
+export const Z_ROADS: { z: number; w: number }[] = [
   ...outward(-100, -PITCH)
     .reverse()
     .map((z) => ({ z, w: 14 })),
@@ -24,11 +24,11 @@ const Z_ROADS: { z: number; w: number }[] = [
   ...outward(164, PITCH).map((z) => ({ z, w: 14 })),
 ];
 /** The project site (plinth) — the city leaves it alone */
-const SITE = { x0: -111, x1: 111, z0: -77, z1: 75 };
+export const SITE = { x0: -111, x1: 111, z0: -77, z1: 75 };
 /** The site plinth box (site.ts): 220 × 150 m, top at −0.35 m */
 const PLINTH = { x0: -110, x1: 110, z0: -76, z1: 74 };
 /** City street level: 25 cm below the plinth top, so the plinth edge reads as a kerb */
-const GROUND_Y = -0.6;
+export const GROUND_Y = -0.6;
 /** The skywalk (site.ts) lands in a transit station west of the site */
 const STATION = { x: -131, z: 13, w: 22, d: 38, h: 15 };
 
@@ -48,7 +48,7 @@ const ROOF: RGBA = [0.5, 0.54, 0.56, 1];
 const SIDEWALK: RGBA = [0.66, 0.68, 0.67, 1];
 const GRASS: RGBA = [0.42, 0.54, 0.42, 1];
 const MARKING: RGBA = [0.72, 0.75, 0.7, 1];
-const CAR_COLORS: RGBA[] = [
+export const CAR_COLORS: RGBA[] = [
   [0.79, 0.82, 0.84, 1],
   [0.38, 0.46, 0.54, 1],
   [0.65, 0.31, 0.31, 1],
@@ -214,13 +214,6 @@ function streetTrees(g: GeometryBuilder, r: Rect) {
   for (let z = r.z0 + 14; z < r.z1 - 12; z += 16) for (const x of [r.x0 + edge, r.x1 - edge]) cityTree(g, x, z, 0.75);
 }
 
-/** Car on a road; `alongX` = driving east–west */
-function car(g: GeometryBuilder, x: number, z: number, alongX: boolean, col: RGBA) {
-  const [w, d] = alongX ? [4.9, 2.2] : [2.2, 4.9];
-  g.box(x, GROUND_Y + 0.72, z, w, 1.0, d, "metal", col);
-  g.box(x, GROUND_Y + 1.52, z, alongX ? 2.8 : 1.9, 0.7, alongX ? 1.9 : 2.8, "glass");
-}
-
 export function buildCity() {
   const g = new GeometryBuilder(61813);
 
@@ -266,7 +259,7 @@ export function buildCity() {
     if (dist < 430 && !small && !isStation) streetTrees(g, r);
   }
 
-  // Lane markings and traffic on the roads near the site
+  // Lane markings on the roads near the site (moving traffic: three/AmbientLife.tsx)
   const near = (x: number, z: number) => Math.hypot(x, z) < 480;
   const inSite = (x: number, z: number) => x > SITE.x0 - 4 && x < SITE.x1 + 4 && z > SITE.z0 - 4 && z < SITE.z1 + 4;
   const crossing = (v: number, roads: number[]) => roads.some((c) => Math.abs(v - c) < 12);
@@ -278,18 +271,6 @@ export function buildCity() {
     for (let x = -EXTENT; x < EXTENT; x += 12)
       if (near(x, z) && !inSite(x, z) && !crossing(x, X_ROADS))
         g.box(x, GROUND_Y + 0.03, z, 5.5, 0.03, 0.22, "stone", MARKING);
-  for (const x of X_ROADS)
-    for (let z = -EXTENT + 20; z < EXTENT; z += 26 + g.rand() * 30) {
-      const lane = g.rand() < 0.5 ? -3.5 : 3.5;
-      if (near(x, z) && !crossing(z, zs))
-        car(g, x + lane, z, false, CAR_COLORS[Math.floor(g.rand() * CAR_COLORS.length)]);
-    }
-  for (const { z, w } of Z_ROADS)
-    for (let x = -EXTENT + 20; x < EXTENT; x += 26 + g.rand() * 30) {
-      const lane = (g.rand() < 0.5 ? -1 : 1) * (w > 20 ? 7.5 : 3.5);
-      if (near(x, z) && !inSite(x, z) && !crossing(x, X_ROADS))
-        car(g, x, z + lane, true, CAR_COLORS[Math.floor(g.rand() * CAR_COLORS.length)]);
-    }
 
   return g.build();
 }
