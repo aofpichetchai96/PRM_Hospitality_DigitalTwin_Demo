@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lobbyCrowd, PEOPLE_PER_FIGURE } from "./lobbyLife";
+import { G_PLATE, lobbyCrowd, mallCrowd, PEOPLE_PER_FIGURE } from "./lobbyLife";
 import { LOBBY_FLOOR_Y, personAt, routeLength } from "./traffic";
 
 const counts = { entrance: 24, lounge: 73, reception: 41, liftHall: 40, retailLink: 24 };
@@ -39,5 +39,24 @@ describe("lobby crowd", () => {
         expect(inside(q[0], q[2]), String(q)).toBe(true);
       }
     }
+  });
+});
+
+describe("rest of the G floor", () => {
+  it("puts shoppers in all three shops, staff in the back rooms, and everyone inside the walls", () => {
+    const crowd = mallCrowd();
+    const at = (p: (typeof crowd)[number]) => p.route.at(-1)!;
+    for (const [x0, x1] of [
+      [1, 13],
+      [13, 25],
+      [25, 37],
+    ])
+      expect(crowd.filter((p) => at(p)[0] > x0 && at(p)[0] < x1 && at(p)[2] > 9.5).length).toBeGreaterThan(3);
+    expect(crowd.filter((p) => at(p)[2] < -16).length).toBeGreaterThanOrEqual(4);
+    for (const p of crowd)
+      for (const [x, y, z] of p.route) {
+        expect(y).toBe(LOBBY_FLOOR_Y);
+        expect(x > G_PLATE.x0 && x < G_PLATE.x1 && z > G_PLATE.z0 && z < G_PLATE.z1, `${x},${z}`).toBe(true);
+      }
   });
 });

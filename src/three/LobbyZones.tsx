@@ -1,20 +1,21 @@
 "use client";
 
-// Public Area on the sliced Lobby floor (G): people walking and waiting
-// (one figure per few people of each zone count), a heatmap of where they are
-// right now — drawn only inside the lobby zones, never outdoors — each zone's
+// Public Area on the sliced Lobby floor (G): people walking and waiting (one
+// figure per few people of each zone count, plus shoppers and staff on the
+// rest of the floor), a heatmap of where they all are right now — across the
+// whole floor inside its walls, never outdoors — each zone's
 // outline and a label with its people count and AQI. Same readings as the right
 // panel (selectPublic). The heatmap texture is redrawn twice a second.
 import { useFrame } from "@react-three/fiber";
 import { type RefObject, useEffect, useMemo, useRef } from "react";
 import { CanvasTexture, type MeshBasicMaterial, SRGBColorSpace } from "three";
 import { aqiBand } from "@/data/airQuality";
-import { type PublicZoneId, PUBLIC_ZONES, zoneCentre, type ZoneReading } from "@/data/publicZones";
+import { type PublicZoneId, zoneCentre, type ZoneReading } from "@/data/publicZones";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { usePublic } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
 import { Crowd, figureAt } from "./AmbientLife";
-import { lobbyCrowd } from "./geometry/lobbyLife";
+import { G_PLATE, lobbyCrowd, mallCrowd } from "./geometry/lobbyLife";
 import { type Person, routeLength } from "./geometry/traffic";
 import { Hotspot, type HotspotTone } from "./Hotspot";
 
@@ -32,8 +33,10 @@ const BORDER: Record<ZoneReading["level"], string> = {
 };
 
 /** Heat radius around each figure (m) and how much one figure adds */
-const HEAT_RADIUS = 3.2;
-const HEAT_PER_FIGURE = 0.22;
+const HEAT_RADIUS = 3.8;
+const HEAT_PER_FIGURE = 0.26;
+/** Floor wash: every pixel inside the walls gets this much, so the whole floor reads as mapped (cool where empty) */
+const FLOOR_WASH = 0.02;
 const REDRAW_S = 0.5;
 
 /** Figures as warm blobs, clipped to the lobby zones; summed density ramps green → amber → red */
@@ -44,11 +47,12 @@ function drawHeat(ctx: CanvasRenderingContext2D, points: readonly (readonly numb
   const pz = (z: number) => (z - PLATE.z0) * PX_PER_M;
   ctx.clearRect(0, 0, w, h);
   ctx.save();
-  // Indoors only: everything outside the zone rectangles stays clear
+  // Indoors only: the whole G floor inside its outer walls, never the plaza outside
   ctx.beginPath();
-  for (const { rect } of PUBLIC_ZONES)
-    ctx.rect(px(rect.x0), pz(rect.z0), (rect.x1 - rect.x0) * PX_PER_M, (rect.z1 - rect.z0) * PX_PER_M);
+  ctx.rect(px(G_PLATE.x0), pz(G_PLATE.z0), (G_PLATE.x1 - G_PLATE.x0) * PX_PER_M, (G_PLATE.z1 - G_PLATE.z0) * PX_PER_M);
   ctx.clip();
+  ctx.fillStyle = `rgba(255,255,255,${FLOOR_WASH})`;
+  ctx.fillRect(0, 0, w, h);
   ctx.globalCompositeOperation = "lighter";
   const r = HEAT_RADIUS * PX_PER_M;
   for (const [x, , z] of points) {
@@ -62,12 +66,14 @@ function drawHeat(ctx: CanvasRenderingContext2D, points: readonly (readonly numb
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
   for (let i = 0; i < d.length; i += 4) {
+    // Outside the walls nothing was drawn: leave it clear
+    if (d[i + 3] === 0) continue;
     // The blobs are white, so their summed alpha is the density
     const v = Math.min(1, d[i + 3] / 255);
     d[i] = Math.round(80 + 175 * Math.min(1, v * 1.6));
     d[i + 1] = Math.round(215 - 170 * Math.max(0, v - 0.45) * 2.2);
     d[i + 2] = Math.round(150 * (1 - v));
-    d[i + 3] = Math.round(200 * Math.min(1, v * 1.5));
+    d[i + 3] = Math.round(60 + 160 * Math.min(1, v * 1.7));
   }
   ctx.globalCompositeOperation = "source-over";
   ctx.putImageData(img, 0, 0);
@@ -149,14 +155,18 @@ export function LobbyZones({ portal }: { portal: RefObject<HTMLElement | null> }
   return <LobbyZoneLayer portal={portal} />;
 }
 
+const MALL = mallCrowd();
+
 function LobbyZoneLayer({ portal }: { portal: RefObject<HTMLElement | null> }) {
   const { zones } = usePublic();
   const still = useMediaQuery("(prefers-reduced-motion: reduce)");
   // "entrance:24,lounge:73,…": the crowd is rebuilt only when a zone count changes
   const key = zones.map((z) => `${z.zone.id}:${z.people}`).join(",");
+  // Lobby figures follow the zone counts; the rest of the floor (shops, concourse, back rooms) is fixed
   const people = useMemo(
-    () =>
-      lobbyCrowd(
+    () => [
+      ...MALL,
+      ...lobbyCrowd(
         Object.fromEntries(
           key
             .split(",")
@@ -164,6 +174,7 @@ function LobbyZoneLayer({ portal }: { portal: RefObject<HTMLElement | null> }) {
             .map(([id, n]) => [id, Number(n)]),
         ) as Record<PublicZoneId, number>,
       ),
+    ],
     [key],
   );
   return (

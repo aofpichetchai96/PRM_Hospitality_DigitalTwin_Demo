@@ -5,7 +5,7 @@
 // Demo model only: no sensor is read.
 
 export interface AirReading {
-  /** US EPA AQI from PM2.5 */
+  /** Thai AQI (Pollution Control Department) from PM2.5 */
   aqi: number;
   /** µg/m³ */
   pm25: number;
@@ -13,32 +13,50 @@ export interface AirReading {
   co2: number;
 }
 
-export type AirBandId = "good" | "moderate" | "sensitive" | "unhealthy";
+export type AirBandId = "excellent" | "satisfactory" | "moderate" | "unhealthy" | "veryUnhealthy";
 export interface AirBand {
   id: AirBandId;
   label: string;
   th: string;
   color: string;
+  /** Face icon under public/icon_AQI (the Thai AQI pictograms) */
+  icon: `/${string}`;
 }
 
+/** Thai AQI bands (กรมควบคุมมลพิษ): colours and faces as on air4thai */
 export const AIR_BANDS: Record<AirBandId, AirBand> = {
-  good: { id: "good", label: "Good", th: "ดี", color: "var(--green)" },
-  moderate: { id: "moderate", label: "Moderate", th: "ปานกลาง", color: "var(--gold)" },
-  sensitive: {
-    id: "sensitive",
-    label: "Unhealthy for sensitive",
-    th: "เริ่มมีผลต่อกลุ่มเสี่ยง",
-    color: "var(--orange)",
+  excellent: { id: "excellent", label: "Excellent", th: "ดีมาก", color: "#3bccff", icon: "/icon_AQI/excellent.png" },
+  satisfactory: {
+    id: "satisfactory",
+    label: "Satisfactory",
+    th: "ดี",
+    color: "#92d050",
+    icon: "/icon_AQI/satisfactory.png",
   },
-  unhealthy: { id: "unhealthy", label: "Unhealthy", th: "มีผลต่อสุขภาพ", color: "var(--red)" },
+  moderate: { id: "moderate", label: "Moderate", th: "ปานกลาง", color: "#ffdc3c", icon: "/icon_AQI/moderate.png" },
+  unhealthy: {
+    id: "unhealthy",
+    label: "Unhealthy",
+    th: "เริ่มมีผลกระทบต่อสุขภาพ",
+    color: "#ff9f30",
+    icon: "/icon_AQI/unhealthy.png",
+  },
+  veryUnhealthy: {
+    id: "veryUnhealthy",
+    label: "Very unhealthy",
+    th: "มีผลกระทบต่อสุขภาพ",
+    color: "#ff5050",
+    icon: "/icon_AQI/very_unhealthy.png",
+  },
 };
 
-/** PM2.5 → AQI breakpoints (US EPA, 2024) up to "Unhealthy" */
+/** PM2.5 (µg/m³) → Thai AQI breakpoints (Pollution Control Department, 2023): 0–25 · 26–50 · 51–100 · 101–200 · 201+ */
 const PM25_BREAKPOINTS: readonly [number, number, number, number][] = [
-  [0, 9, 0, 50],
-  [9.1, 35.4, 51, 100],
-  [35.5, 55.4, 101, 150],
-  [55.5, 125.4, 151, 200],
+  [0, 15, 0, 25],
+  [15.1, 25, 26, 50],
+  [25.1, 37.5, 51, 100],
+  [37.6, 75, 101, 200],
+  [75.1, 150, 201, 300],
 ];
 
 export function pm25ToAqi(pm25: number): number {
@@ -49,18 +67,24 @@ export function pm25ToAqi(pm25: number): number {
 }
 
 export function aqiBand(aqi: number): AirBand {
-  if (aqi <= 50) return AIR_BANDS.good;
+  if (aqi <= 25) return AIR_BANDS.excellent;
+  if (aqi <= 50) return AIR_BANDS.satisfactory;
   if (aqi <= 100) return AIR_BANDS.moderate;
-  if (aqi <= 150) return AIR_BANDS.sensitive;
-  return AIR_BANDS.unhealthy;
+  if (aqi <= 200) return AIR_BANDS.unhealthy;
+  return AIR_BANDS.veryUnhealthy;
 }
 
-/** Indoor CO₂ bands (ventilation rule of thumb, not a health limit) */
-export function co2Band(ppm: number): AirBand {
-  if (ppm <= 800) return AIR_BANDS.good;
-  if (ppm <= 1000) return AIR_BANDS.moderate;
-  if (ppm <= 1500) return AIR_BANDS.sensitive;
-  return AIR_BANDS.unhealthy;
+export type Co2BandId = "good" | "elevated" | "high";
+/** Indoor CO₂ levels (ventilation rule of thumb, not a health limit) */
+export const CO2_BANDS: Record<Co2BandId, { id: Co2BandId; label: string; color: string }> = {
+  good: { id: "good", label: "Fresh", color: "var(--green)" },
+  elevated: { id: "elevated", label: "Elevated", color: "var(--gold)" },
+  high: { id: "high", label: "Stuffy", color: "var(--orange)" },
+};
+export function co2Band(ppm: number) {
+  if (ppm <= 800) return CO2_BANDS.good;
+  if (ppm <= 1000) return CO2_BANDS.elevated;
+  return CO2_BANDS.high;
 }
 
 const peak = (time: number, at: number, width: number) => {

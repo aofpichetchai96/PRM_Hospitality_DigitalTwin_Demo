@@ -188,7 +188,7 @@ function sopSteps(e: Incident, limit = 3) {
 }
 
 const air = (r: AirReading) =>
-  `AQI ${r.aqi} (${aqiBand(r.aqi).label}) · PM2.5 ${fmt(r.pm25, 1)} µg/m³ · CO₂ ${fmt(r.co2)} ppm`;
+  `AQI ${r.aqi} (${aqiBand(r.aqi).th} · ${aqiBand(r.aqi).label}) · PM2.5 ${fmt(r.pm25, 1)} µg/m³ · CO₂ ${fmt(r.co2)} ppm`;
 
 // ------------------------------------------------------------- six topics
 
@@ -238,7 +238,7 @@ function energy(ctx: AskContext): Answer {
       s.setpoint < 25
         ? `ปรับ Setpoint เป็น 25 °C ลดได้ประมาณ **${fmt(save)} kW** (${fmt((save / e.current) * 100, 1)}%) ≈ ${fmt(
             save * s.operatingHours * s.tariff,
-          )} ฿/วัน · Comfort risk ${comfortRisk(25) === "low" ? "ต่ำ" : "กลาง"}\nห้องว่างคงโหมด Eco และ Pre-cool ห้องจองก่อนแขกมาถึง 2 ชม.\nทดลองได้ใน What-if lab ด้านล่าง · ระบบจริงจะส่งคำแนะนำให้ผู้ปฏิบัติงานอนุมัติก่อนสั่งงาน BMS`
+          )} ฿/วัน · Comfort risk ${comfortRisk(25) === "low" ? "ต่ำ" : "กลาง"}\nห้องว่างคงโหมด Eco และ Pre-cool ห้องจองก่อนแขกมาถึง 2 ชม.\nทดลองได้ที่ปุ่มจำลอง Setpoint 25°C ในแท็บ Energy · ระบบจริงจะส่งคำแนะนำให้ผู้ปฏิบัติงานอนุมัติก่อนสั่งงาน BMS`
         : `Setpoint ${s.setpoint} °C ประหยัดแล้ว · ติดตาม Comfort ของแขก (risk ${comfortRisk(s.setpoint)}) และ COP ของ Chiller ก่อนปรับเพิ่ม`,
     source: `${SIM} · EMS + BMS + PMS · แบบจำลองเชิงเส้น · ไม่มีคำสั่งไปยังอาคาร`,
     period: `${now(ctx)} · ค่าไฟต่อวันคิด ${s.operatingHours} ชม. × ${s.tariff} ฿/kWh`,

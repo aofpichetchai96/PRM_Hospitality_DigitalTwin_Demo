@@ -78,7 +78,8 @@ src/types        shared domain types
   and GRMS state are derived from the room id in `data/rooms.ts`.
 - **t0 KPIs must stay 84 % · 2,616 kW · 27,840 · 3 (1 high)** — tested. `footfallFactor = footfall / 27,840`.
   Air quality (`data/airQuality.ts`) and lobby counts (`data/publicZones.ts`) are pure functions of the clock, so
-  t0 is fixed too: outdoor AQI 92 / indoor 44, 202 people on G. Every number comes from one selector so KPI cards,
+  t0 is fixed too: Thai AQI (PCD bands 0–25 / 26–50 / 51–100 / 101–200 / 201+, faces in public/icon_AQI)
+  outdoor 74 Moderate / indoor 13 Excellent, 202 people on G. Every number comes from one selector so KPI cards,
   panels and the assistant agree (`selectAir`, `selectPublic`, `selectCases`, `floorPower`, `selectGuests`).
 - **Geometry:** `GeometryBuilder` (port of the prototype helpers) merges everything into one mesh per material.
   Display meshes never raycast; picking uses invisible proxies in `three/picking/`. Building (exterior or schematic
@@ -104,8 +105,9 @@ src/types        shared domain types
   **Lobby (Public Area, G sliced):** walls / glazed street front with three doors (`LOBBY_DOORS`) and decor in
   `podiumG`; `geometry/lobbyLife.ts` draws one figure per 4 people of each zone count (reception queue and staff,
   rows at the lifts, luggage by the doors, lounge pairs, walkers) through the shared `Crowd` (`AmbientLife.tsx`);
-  `three/LobbyZones.tsx` heats the floor from the figures' positions twice a second, clipped to the zone rectangles
-  (indoors only). Reduced motion freezes the figures and the heatmap.
+  `mallCrowd()` adds fixed shoppers / concourse walkers / back-room staff on the rest of G (mall footfall, not the lobby
+  counts); `three/LobbyZones.tsx` heats the whole floor inside its walls (`G_PLATE`, a faint wash plus a blob per
+  figure) from all figures' positions twice a second — indoors only. Reduced motion freezes the figures and the heatmap.
   Look: Khronos Neutral tone mapping, Lightformer environment (no HDR / CDN), N8AO + Bloom on High.
 
 ## Conventions and gotchas
@@ -143,7 +145,9 @@ src/types        shared domain types
   camera flies to it). Open alarms blink by severity in Back of House (`three/EquipmentAlarms.tsx`).
   Back of House opens over the central plant (`chillers` preset; picking H30 shows the roof north up, tilted
   `ROOF_TILT`), focused on `plantAlarm()` (the focused or most urgent open alarm on a rooftop unit or CH-01, the
-  southern chiller): `three/AlarmCallout.tsx` turns that unit red (a pulsing red copy of its shape) and pins a card with the reading, the SOP's
+  southern chiller): `three/AlarmCallout.tsx` turns that unit red (a pulsing red copy of its shape) and keeps a dashed
+  leader to it from the card (`components/viewport/AlarmCard.tsx`, top-left of the viewport, away from the unit; the
+  line is found by id and moved each frame). The card shows the reading, the SOP's
   `cause`, its steps and "ถาม AI: ทำอะไรต่อ" (asks about that INC id; `alarmAsked` in `aiScript.ts`).
   **Central plant** (`three/ChillerPlant.tsx`, `CHILLERS` in `data/assets.ts`): three centrifugal chillers as their own
   meshes (shells, compressor, panel, CHW / CW headers, pumps); CH-01 turns red for its alarm. Double-click a chiller

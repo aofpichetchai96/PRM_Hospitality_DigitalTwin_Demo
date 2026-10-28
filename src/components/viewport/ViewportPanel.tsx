@@ -24,6 +24,7 @@ import { type RefObject, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { KpiStrip } from "@/components/layout/KpiStrip";
 import { CAMERAS, CctvFeed } from "@/components/cctv/CctvFeed";
+import { AlarmCard } from "./AlarmCard";
 import { ChillerBanner } from "./ChillerBanner";
 import { FloorPlanExplorer } from "@/components/floorplan/FloorPlanExplorer";
 import { AlertFlash, IncomingAlert } from "./IncomingAlert";
@@ -113,7 +114,7 @@ function Scene({ topInset, hotspots }: { topInset: number; hotspots: RefObject<H
       <EquipmentAlarms />
       <ChillerPlant portal={hotspots} />
       <SiteLamps />
-      <AlarmCallout portal={hotspots} />
+      <AlarmCallout />
       <RoomTint />
       <RoomPower />
       <LobbyZones portal={hotspots} />
@@ -324,6 +325,7 @@ export function ViewportPanel() {
       )}
 
       <ChillerBanner />
+      <AlarmCard />
       {st.spatial === "plan" && <FloorPlanExplorer />}
 
       {st.intro && (

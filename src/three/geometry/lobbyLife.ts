@@ -136,3 +136,92 @@ export function lobbyCrowd(counts: Partial<Record<PublicZoneId, number>>): Perso
   }
   return list;
 }
+
+/** Inside the G floor's outer walls (interiors.ts lobbyWalls) — where the heatmap may draw */
+export const G_PLATE = { x0: -42.6, x1: 42.6, z0: -24.8, z1: 24.3 } as const;
+
+/** Street-front shops on G (interiors.ts podiumG): pharmacy, café, grocery; doors mid-front at z 9 */
+const SHOPS = [
+  { x0: 1, x1: 13 },
+  { x0: 13, x1: 25 },
+  { x0: 25, x1: 37 },
+];
+
+/**
+ * The rest of G, outside the lobby zones: shoppers walking into the shops and browsing, people along the mall
+ * concourse and round the atrium fountain, operators in the security room, staff at the loading dock. Part of the
+ * mall's footfall, not the lobby counts. Fixed and seeded, so the heatmap always has the whole floor's pattern.
+ */
+export function mallCrowd(): Person[] {
+  const list: Person[] = [];
+  const add = (k: number, f: Figure) => {
+    const r = random(9001 + k * 7919);
+    list.push({
+      route: f.route,
+      speed: f.speed ?? 1.1,
+      phase: r(),
+      pause: f.pause ?? 3,
+      yaw: f.yaw,
+      ...dressed(r, f.bag ?? 0.3),
+    });
+  };
+  let k = 0;
+  const r = random(4242);
+  SHOPS.forEach((s, i) => {
+    const door = (s.x0 + s.x1) / 2;
+    // Walk in from the concourse and back out
+    for (let j = 0; j < 3; j++)
+      add(k++, {
+        route: [
+          P(door + jitter(r, 6), 6.4),
+          P(door + jitter(r, 1.5), 9.6),
+          P(s.x0 + 2 + r() * (s.x1 - s.x0 - 4), 12 + r() * 8),
+        ],
+        speed: 0.9 + r() * 0.3,
+        pause: 4 + r() * 6,
+        bag: 0.6,
+      });
+    // Browsing or queueing at the till
+    for (let j = 0; j < 3 + i; j++)
+      add(k++, { route: [P(s.x0 + 1.5 + r() * (s.x1 - s.x0 - 3), 11 + r() * 10)], yaw: r() * Math.PI * 2, bag: 0.5 });
+  });
+  // Along the mall concourse (z −12) and the shop fronts (z 6.4), linked at x 18
+  for (let j = 0; j < 10; j++) {
+    const route =
+      j % 2
+        ? [P(-38, -12 + jitter(r, 1.5)), P(18, -12 + jitter(r, 1.5)), P(18, 6.4), P(40, 6.4)]
+        : [P(-38 + r() * 20, -11.5), P(40, -12.5)];
+    add(k++, {
+      route: j % 4 < 2 ? route : [...route].reverse(),
+      speed: 1.0 + r() * 0.35,
+      pause: 2 + r() * 4,
+      bag: 0.4,
+    });
+  }
+  // Round the atrium fountain (−15, 0), and sitting out on its benches
+  for (let j = 0; j < 8; j++) {
+    const a = (j / 8) * Math.PI * 2;
+    const b = a + Math.PI / 2;
+    add(k++, {
+      route: [P(-15 + Math.cos(a) * 6, Math.sin(a) * 6), P(-15 + Math.cos(b) * 6, Math.sin(b) * 6)],
+      speed: 0.8 + r() * 0.3,
+      pause: 3 + r() * 5,
+    });
+  }
+  for (const [x, z, yaw] of [
+    [-16, 3.9, TO_BACK],
+    [-14, 3.9, TO_BACK],
+    [-15.5, -3.9, TO_STREET],
+  ] as const)
+    add(k++, { route: [P(x, z)], yaw });
+  // Security control room: operators at the desks facing the video wall (−z)
+  for (let j = 0; j < 4; j++) add(k++, { route: [P(-18.6 + j * 2.4, -20.6)], yaw: TO_BACK, bag: 0 });
+  // Loading dock: staff by the pallets
+  for (const [x, z] of [
+    [20.5, -17.5],
+    [24, -18.5],
+    [28.5, -16.5],
+  ] as const)
+    add(k++, { route: [P(x, z)], yaw: r() * Math.PI * 2, bag: 0 });
+  return list;
+}

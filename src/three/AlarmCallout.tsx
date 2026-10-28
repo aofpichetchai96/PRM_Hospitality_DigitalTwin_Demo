@@ -1,36 +1,26 @@
 "use client";
 
 // Back of House: the unit of the alarm being worked on turns red (a pulsing red
-// copy of its shape over it) and gets a card pinned to it — what was measured,
-// the likely cause, the SOP steps for its stage, and a button that asks the AI
-// Assistant what to do next. Back of House opens over the central plant, where
-// CH-01 (one of the three chillers) turns red with the card beside it; rooftop
-// alarms fly to the roof. The card follows plantAlarm(): the focused alarm, else
-// the most urgent open one on a rooftop unit or the chiller plant.
-import { Html } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { X } from "lucide-react";
-import { type RefObject, useRef, useState } from "react";
-import type { Group, MeshBasicMaterial } from "three";
-import { useMediaQuery } from "@/lib/useMediaQuery";
-import { AssistantIcon } from "@/components/ui/AssistantIcon";
-import { AlarmStatusChip, ReadingLine, SeverityChip, SopChecklist } from "@/components/panels/alarm";
+// copy of its shape over it; ChillerPlant paints CH-01 itself) and the alarm
+// card (components/viewport/AlarmCard, top-left of the viewport) gets a leader
+// line to it. Back of House opens over the central plant; rooftop alarms fly to
+// the roof. Both follow plantAlarm(): the focused alarm, else the most urgent
+// open one on a rooftop unit or the chiller plant.
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { type Group, type MeshBasicMaterial, Vector3 } from "three";
+import { ALARM_CARD_ID, ALARM_LEADER_DOT_ID, ALARM_LEADER_ID } from "@/components/viewport/AlarmCard";
 import { isRoofEquipment, ROOF_Y, roofEquipment } from "@/data/assets";
 import { plantAlarm } from "@/data/events";
-import { SOPS } from "@/data/sop";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useAppStore } from "@/store/useAppStore";
-import type { AssetId, Incident, Vec3 } from "@/types";
+import type { AssetId, Vec3 } from "@/types";
 
-/** Tower centre line (x): units east of it get the card on their left */
-const TOWER_X = 9;
 const RED = "#ff4d5a";
 
 type Shape = { kind: "box" | "cylinder"; centre: Vec3; size: Vec3 };
-/**
- * The alarmed unit as red shapes over the real ones, the point the card pins to, whether it is seen through the
- * roof, and `beside`: the card sits level with the unit, off its edge (the close plant view), not above it
- */
-type Highlight = { shapes: Shape[]; pin: Vec3; through: boolean; beside?: boolean };
+/** The alarmed unit as red shapes over the real ones, the point the leader ends at, and whether it shows through the roof */
+type Highlight = { shapes: Shape[]; pin: Vec3; through: boolean };
 
 /** Red copy of a unit, or nothing for alarms the roof view can't point at (doors, AHU on H12) */
 function highlightFor(device: AssetId | undefined): Highlight | null {
@@ -41,9 +31,8 @@ function highlightFor(device: AssetId | undefined): Highlight | null {
     // ChillerPlant paints CH-01 itself, so no red copy here
     return {
       shapes: [],
-      pin: [56, 2.6, -27.6],
+      pin: [56, 4.5, -26],
       through: false,
-      beside: true,
     };
   }
   if (!isRoofEquipment(device)) return null;
@@ -99,87 +88,58 @@ function RedUnit({ h }: { h: Highlight }) {
   );
 }
 
-export function AlarmCallout({ portal }: { portal: RefObject<HTMLElement | null> }) {
-  // "INC-003", or "" — a string so the store subscription stays cheap
-  // Not over a chiller that is opened up
+export function AlarmCallout() {
   const id = useAppStore((s) =>
     s.view === "boh" && s.chillerView === null ? (plantAlarm(s.incidents, s.incidentFocus)?.id ?? "") : "",
   );
-  const incident = useAppStore((s) => s.incidents.find((e) => e.id === id));
-  // A dismissed card comes back with the next camera move to a shot (Home, opening the scene again)
-  const shot = useAppStore((s) => s.camera.n);
-  const [dismissed, setDismissed] = useState({ id: "", shot: -1 });
-  if (!incident || (dismissed.id === incident.id && dismissed.shot === shot)) return null;
-  return <Callout e={incident} portal={portal} onClose={() => setDismissed({ id: incident.id, shot })} />;
-}
-
-function Callout({ e, portal, onClose }: { e: Incident; portal: RefObject<HTMLElement | null>; onClose: () => void }) {
-  const h = highlightFor(e.device);
-  const ask = useAppStore((s) => s.ask);
-  const openModal = useAppStore((s) => s.openModal);
-  const sop = SOPS[e.sop];
+  const device = useAppStore((s) => s.incidents.find((e) => e.id === id)?.device);
+  const h = id ? highlightFor(device) : null;
   if (!h) return null;
-  const left = !h.beside && h.pin[0] > TOWER_X;
-  // Leader line end and the card's edge: up and to the side, or straight out to the side
-  const [dx, dy] = h.beside ? [64, 0] : [left ? -56 : 56, -56];
-
   return (
     <>
       <RedUnit h={h} />
-      {/* Stays below the viewport's 2D overlays (z-20 and up), above the hotspot labels */}
-      <Html position={h.pin} portal={portal as RefObject<HTMLElement>} zIndexRange={[15, 11]}>
-        <div className="relative">
-          <span className="absolute -top-1.5 -left-1.5 size-3 rounded-full border-2 border-white bg-red" />
-          <svg className="absolute top-0 left-0 overflow-visible" width="1" height="1" aria-hidden>
-            <line x1={0} y1={0} x2={dx} y2={dy} stroke="#ff5c66" strokeWidth={2} />
-          </svg>
-          <section
-            role="region"
-            aria-label={`Alarm callout ${e.id}`}
-            className={`pointer-events-auto absolute w-[310px] rounded-[var(--radius-card)] border border-red/60 bg-bg/92 p-3 text-[13px] shadow-[0_8px_30px_rgb(0_0_0/0.45)] backdrop-blur short:w-[270px] ${
-              h.beside
-                ? "top-0 left-[64px] -translate-y-1/2"
-                : left
-                  ? "right-[56px] bottom-[56px]"
-                  : "left-[56px] bottom-[56px]"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <SeverityChip priority={e.priority} />
-              <AlarmStatusChip status={e.status} />
-              <span className="ml-auto font-mono text-[11px] text-muted">
-                {e.id} · {e.time}
-              </span>
-              <button onClick={onClose} aria-label="ซ่อนการ์ด Alarm" className="text-muted hover:text-text">
-                <X size={14} />
-              </button>
-            </div>
-            <p className="mt-1.5 leading-snug font-semibold">{e.title.th}</p>
-            <p className="text-muted">{e.location}</p>
-            <ReadingLine e={e} className="mt-1 block" />
-            <p className="mt-2 font-semibold text-red">สาเหตุที่เป็นไปได้</p>
-            <p className="leading-[1.6]">{sop.cause}</p>
-            {/* Short screens leave the steps to the workflow panel below, which follows the same alarm */}
-            <div className="mt-2 max-h-[150px] overflow-auto short:hidden">
-              <SopChecklist e={e} compact />
-            </div>
-            <div className="mt-2.5 flex gap-2">
-              <button
-                onClick={() => ask(`${e.id} ${e.title.th} ต้อง Action อะไรต่อ ตาม SOP`)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius-button)] bg-accent px-2 py-1.5 font-semibold text-bg"
-              >
-                <AssistantIcon size={18} /> ถาม AI: ทำอะไรต่อ
-              </button>
-              <button
-                onClick={() => openModal({ kind: "event", id: e.id })}
-                className="rounded-[var(--radius-button)] border border-line px-2.5 py-1.5 hover:border-accent/60"
-              >
-                เปิด Alarm
-              </button>
-            </div>
-          </section>
-        </div>
-      </Html>
+      <Leader pin={h.pin} />
     </>
   );
+}
+
+const projected = new Vector3();
+
+/**
+ * Keeps the leader of the alarm card (components/viewport/AlarmCard) pointing at the unit: projects the pin to the
+ * canvas every frame and moves the line's end and dot. Found by id, so the card never re-renders with the camera.
+ */
+function Leader({ pin }: { pin: Vec3 }) {
+  const invalidate = useThree((s) => s.invalidate);
+  // A first frame once the card is in the DOM, also when nothing else is animating (reduced motion)
+  useEffect(() => {
+    const t = window.setTimeout(invalidate, 50);
+    return () => window.clearTimeout(t);
+  }, [invalidate, pin]);
+  useFrame(({ camera, size }) => {
+    const line = document.getElementById(ALARM_LEADER_ID) as SVGLineElement | null;
+    const dot = document.getElementById(ALARM_LEADER_DOT_ID);
+    const card = document.getElementById(ALARM_CARD_ID);
+    const svg = line?.ownerSVGElement;
+    if (!line || !dot || !card || !svg) return;
+    const v = projected.set(...pin).project(camera);
+    const visible = v.z < 1 && Math.abs(v.x) <= 1.05 && Math.abs(v.y) <= 1.05;
+    const x = ((v.x + 1) / 2) * size.width;
+    const y = ((1 - v.y) / 2) * size.height;
+    const box = svg.getBoundingClientRect();
+    const c = card.getBoundingClientRect();
+    // From the card's right edge, level with its title (or its bottom edge if the unit is below it)
+    const right = x > c.right - box.left;
+    const x1 = right ? c.right - box.left : c.left - box.left + c.width / 2;
+    const y1 = right ? c.top - box.top + 46 : c.bottom - box.top;
+    line.setAttribute("x1", String(x1));
+    line.setAttribute("y1", String(y1));
+    line.setAttribute("x2", String(x));
+    line.setAttribute("y2", String(y));
+    dot.setAttribute("cx", String(x));
+    dot.setAttribute("cy", String(y));
+    line.setAttribute("visibility", visible ? "visible" : "hidden");
+    dot.setAttribute("visibility", visible ? "visible" : "hidden");
+  });
+  return null;
 }

@@ -71,7 +71,8 @@ export function SopChecklist({ e, compact = false }: { e: Incident; compact?: bo
           {ticked.length}/{sop.steps.length} · {sop.team}
         </span>
       </p>
-      <ol className={`flex flex-col ${compact ? "gap-0.5" : "gap-1"} overflow-auto`}>
+      {/* Compact (the 3D alarm card): every step shows in full, no scrolling, no stage column — the current stage is highlighted */}
+      <ol className={`flex flex-col ${compact ? "gap-px" : "gap-1 overflow-auto"}`}>
         {sop.steps.map((step, i) => {
           const checked = ticked.includes(i);
           const current = step.stage === stage && e.status < 3;
@@ -92,7 +93,9 @@ export function SopChecklist({ e, compact = false }: { e: Incident; compact?: bo
                   {checked && <Check size={11} strokeWidth={3} />}
                 </span>
                 <span className="min-w-0 flex-1">{step.text}</span>
-                <span className="shrink-0 text-[13px] text-muted no-underline">{SOP_STAGE_LABEL[step.stage]}</span>
+                {!compact && (
+                  <span className="shrink-0 text-[13px] text-muted no-underline">{SOP_STAGE_LABEL[step.stage]}</span>
+                )}
               </label>
             </li>
           );

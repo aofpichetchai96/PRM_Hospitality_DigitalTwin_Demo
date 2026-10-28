@@ -51,7 +51,7 @@ describe("Overview widgets", () => {
 
   it("compares indoor and outdoor air from the same clock", () => {
     const air = selectAir(s());
-    expect(air).toMatchObject({ outdoor: { aqi: 92 }, indoor: { aqi: 44 }, ahuOk: true });
+    expect(air).toMatchObject({ outdoor: { aqi: 74 }, indoor: { aqi: 13 }, ahuOk: true });
     expect(air.trend.indoor.at(-1)).toBe(air.indoor.aqi);
   });
 });

@@ -2,19 +2,19 @@
 
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { type AirBand, aqiBand, co2Band } from "@/data/airQuality";
-import { DEMAND_PROFILE_SHAPE } from "@/data/energy";
+import { aqiBand, co2Band } from "@/data/airQuality";
+import { asset } from "@/lib/asset";
+import { DEMAND_BASELINE_30D, DEMAND_PROFILE_SHAPE } from "@/data/energy";
 import { OCCUPANCY_WEEK } from "@/data/kpis";
 import { fmt, timeStr } from "@/lib/format";
 import { SHORT_SCREEN, useMediaQuery } from "@/lib/useMediaQuery";
 import { useAir, useEnergy, useRoomCounts } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
-import { ScenarioLab } from "./EnergyPanel";
 import { HotelInventory } from "./HotelPanel";
 import { AlarmWorkflow } from "./AlarmPanel";
 import { PeopleCounting } from "./PublicPanel";
 
-function ChartCard({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
+function ChartCard({ title, meta, children }: { title: string; meta: ReactNode; children: ReactNode }) {
   return (
     <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[var(--radius-card)] border border-line bg-panel px-4 py-3">
       <p className="flex items-baseline justify-between text-[13px] font-semibold">
@@ -26,14 +26,34 @@ function ChartCard({ title, meta, children }: { title: string; meta: string; chi
 }
 
 /** Building demand 06:00–23:00, scaled so the "now" marker equals the KPI */
+function EnergyLegend() {
+  return (
+    <span className="flex items-center gap-3">
+      <span className="flex items-center gap-1">
+        <i className="h-0.5 w-3 rounded-full bg-accent" /> Today
+      </span>
+      <span className="flex items-center gap-1">
+        <i className="w-3 border-t-[1.5px] border-dashed border-gold" /> Baseline · 30-day avg
+      </span>
+      <span>kW</span>
+    </span>
+  );
+}
+
 function DemandChart() {
   const current = useEnergy().current;
   const time = useAppStore((s) => s.time);
   const values = DEMAND_PROFILE_SHAPE.map((f) => f * current);
   const max = 3200;
   const x = (i: number) => (i / (values.length - 1)) * 100;
-  const line = values.map((v, i) => `${x(i)},${100 - (v / max) * 100}`).join(" ");
+  const points = (vs: readonly number[]) => vs.map((v, i) => `${x(i)},${100 - (v / max) * 100}`).join(" ");
+  const line = points(values);
   const now = x(Math.min(17, Math.max(0, time - 6)));
+  // Baseline at the clock: between the two hours around it
+  const h = Math.min(16.999, Math.max(0, time - 6));
+  const i0 = Math.floor(h);
+  const base = DEMAND_BASELINE_30D[i0] + (DEMAND_BASELINE_30D[i0 + 1] - DEMAND_BASELINE_30D[i0]) * (h - i0);
+  const vsBase = ((current - base) / base) * 100;
   return (
     <div className="absolute inset-0 top-2 flex flex-col">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="min-h-0 w-full flex-1" aria-hidden>
@@ -41,6 +61,15 @@ function DemandChart() {
           <line key={g} x1={0} x2={100} y1={g} y2={g} stroke="var(--line)" vectorEffect="non-scaling-stroke" />
         ))}
         <polygon points={`0,100 ${line} 100,100`} fill="var(--accent)" opacity={0.14} />
+        <polyline
+          points={points(DEMAND_BASELINE_30D)}
+          fill="none"
+          stroke="var(--gold)"
+          strokeWidth={1.5}
+          strokeDasharray="5 4"
+          opacity={0.85}
+          vectorEffect="non-scaling-stroke"
+        />
         <polyline
           points={line}
           fill="none"
@@ -53,15 +82,20 @@ function DemandChart() {
           x2={now}
           y1={0}
           y2={100}
-          stroke="var(--gold)"
+          stroke="var(--text)"
+          strokeOpacity={0.5}
           strokeDasharray="3 3"
           vectorEffect="non-scaling-stroke"
         />
       </svg>
       <div className="flex justify-between pt-1 font-mono text-[10px] text-muted">
         <span>06:00</span>
-        <span className="text-gold">
-          {timeStr(time)} · {fmt(current)} kW
+        <span className="text-accent">
+          {timeStr(time)} · {fmt(current)} kW{" "}
+          <span className={vsBase > 0 ? "text-orange" : "text-green"}>
+            ({vsBase > 0 ? "+" : ""}
+            {fmt(vsBase, 1)}% vs baseline)
+          </span>
         </span>
         <span>23:00</span>
       </div>
@@ -91,7 +125,7 @@ function OccupancyChart() {
 }
 
 /** Air-quality level as colour + words, never colour alone */
-function BandChip({ band }: { band: AirBand }) {
+function BandChip({ band }: { band: { label: string; color: string } }) {
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full border px-1.5 text-[10px] leading-4 whitespace-nowrap"
@@ -126,12 +160,17 @@ function AirComparison() {
           </span>
         ))}
         <span className="text-muted">AQI</span>
-        {AIR_SIDES.map(([id]) => (
-          <span key={id} className="flex items-center gap-1.5">
-            <b className="text-[13px] tabular-nums">{air[id].aqi}</b>
-            <BandChip band={aqiBand(air[id].aqi)} />
-          </span>
-        ))}
+        {AIR_SIDES.map(([id]) => {
+          const band = aqiBand(air[id].aqi);
+          return (
+            <span key={id} className="flex items-center gap-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element -- Thai AQI face pictogram from public/icon_AQI */}
+              <img src={asset(band.icon)} alt="" aria-hidden className="size-6 shrink-0 rounded" />
+              <b className="text-[13px] tabular-nums">{air[id].aqi}</b>
+              <BandChip band={band} />
+            </span>
+          );
+        })}
         <span className="text-muted">PM2.5</span>
         {AIR_SIDES.map(([id]) => (
           <span key={id} className="tabular-nums">
@@ -160,7 +199,7 @@ function AirComparison() {
       </svg>
       <div className="flex justify-between font-mono text-[10px] text-muted">
         <span>−24 h</span>
-        <span>AQI · US EPA (PM2.5)</span>
+        <span>Thai AQI (PCD) · PM2.5</span>
         <span>now</span>
       </div>
     </div>
@@ -179,7 +218,9 @@ export function BottomPanel() {
   if (view === "rooms") return <HotelInventory />;
   if (view === "public") return <PeopleCounting />;
   if (view === "boh" || view === "ioc") return <AlarmWorkflow />;
-  if (view === "ai" || view === "energy") return <ScenarioLab />;
+  // The What-if scenario lab (EnergyPanel ScenarioLab) is hidden on Energy Lab and AI Assistant at the owner's request;
+  // the setpoint what-if is still in the Energy tab of the right panel
+  if (view === "ai" || view === "energy") return null;
   if (view !== "overview" && view !== "executive") return null;
 
   if (!open && short)
@@ -194,7 +235,7 @@ export function BottomPanel() {
 
   return (
     <div className="grid h-[180px] shrink-0 grid-cols-[1.4fr_1fr_1fr] gap-2">
-      <ChartCard title="Energy profile · 24 ชม." meta="kW · วันนี้">
+      <ChartCard title="Energy profile · 24 ชม." meta={<EnergyLegend />}>
         <DemandChart />
       </ChartCard>
       <ChartCard title="Occupancy trend" meta="% · 7 วัน">

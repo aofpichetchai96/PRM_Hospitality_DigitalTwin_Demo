@@ -89,52 +89,17 @@ body {
   }
 }
 
-/* AI Assistant panel: a blue tint and a light that runs round its frame */
-@property --ai-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-@keyframes ai-run {
-  to {
-    --ai-angle: 360deg;
-  }
-}
+/* AI Assistant panel: a blue tint and a solid blue frame */
 .ai-frame {
   position: relative;
   border-radius: var(--radius-card);
   background:
-    radial-gradient(120% 60% at 50% 0%, color-mix(in oklab, var(--blue) 24%, transparent), transparent 70%),
+    radial-gradient(120% 60% at 50% 0%, color-mix(in oklab, var(--blue) 40%, transparent), transparent 75%),
     linear-gradient(
       180deg,
-      color-mix(in oklab, var(--blue) 20%, var(--panel)),
-      color-mix(in oklab, var(--accent) 10%, var(--panel))
+      color-mix(in oklab, var(--blue) 34%, var(--panel)),
+      color-mix(in oklab, var(--blue) 22%, var(--panel))
     );
-}
-.ai-frame::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  padding: 1.5px;
-  border-radius: inherit;
-  background: conic-gradient(
-    from var(--ai-angle),
-    color-mix(in oklab, var(--blue) 25%, transparent) 0 62%,
-    var(--blue) 76%,
-    var(--accent) 88%,
-    color-mix(in oklab, var(--blue) 25%, transparent) 100%
-  );
-  /* Only the 1.5 px ring shows */
-  mask:
-    linear-gradient(#000 0 0) content-box exclude,
-    linear-gradient(#000 0 0);
-  pointer-events: none;
-  animation: ai-run 4s linear infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ai-frame::before {
-    animation: none;
-    background: color-mix(in oklab, var(--blue) 55%, transparent);
-  }
+  border: 1.5px solid var(--blue);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--blue) 25%, transparent);
 }

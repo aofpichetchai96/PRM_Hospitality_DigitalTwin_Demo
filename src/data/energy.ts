@@ -65,3 +65,12 @@ export const FOOTFALL_BY_ZONE: readonly [string, number][] = [
 export const DEMAND_PROFILE_SHAPE: readonly number[] = [
   0.58, 0.65, 0.73, 0.82, 0.88, 0.91, 0.94, 0.96, 1.0, 1.0, 1.02, 1.03, 1.01, 0.98, 0.93, 0.86, 0.76, 0.67,
 ];
+
+/**
+ * Energy baseline: the average hourly demand of the last 30 days, 06:00 … 23:00 (kW). Assumed for the demo — a real
+ * system would take it from the metering history. Fixed, so the what-if setpoint moves today's line, not this one.
+ * About 2,540 kW at 14:30, so today (2,616 kW at t0) runs ~3 % above it.
+ */
+export const DEMAND_BASELINE_30D: readonly number[] = [
+  1510, 1690, 1880, 2100, 2250, 2330, 2400, 2450, 2530, 2550, 2580, 2600, 2570, 2500, 2380, 2210, 1980, 1760,
+];
