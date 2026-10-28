@@ -161,9 +161,9 @@ export function selectionLabel(s: Pick<AppState, "selectedFloor" | "floor" | "as
   return s.asset === "site" ? "อาคารทั้งหมด" : ASSETS[s.asset].name;
 }
 
-/** Context line of the assistant: scene › selection · clock (always the current state) */
-export function askContextLabel(s: Pick<AppState, "view" | "selectedFloor" | "floor" | "asset" | "time">) {
-  return `${VIEWS[s.view].title} › ${selectionLabel(s)} · ${timeStr(s.time)}`;
+/** Context line of the assistant: scene › selection (always the current state); the panel adds the real time */
+export function askContextLabel(s: Pick<AppState, "view" | "selectedFloor" | "floor" | "asset">) {
+  return `${VIEWS[s.view].title} › ${selectionLabel(s)}`;
 }
 
 /** Asset card for the current selection (prototype assetHtml L363) */

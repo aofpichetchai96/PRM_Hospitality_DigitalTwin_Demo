@@ -89,17 +89,18 @@ body {
   }
 }
 
-/* AI Assistant panel: a blue tint and a solid blue frame */
+/* AI Assistant panel: a deep blue tint (top glow #253954, the owner's pick), framed in the accent of its send button */
 .ai-frame {
   position: relative;
   border-radius: var(--radius-card);
   background:
-    radial-gradient(120% 60% at 50% 0%, color-mix(in oklab, var(--blue) 40%, transparent), transparent 75%),
+    radial-gradient(120% 60% at 50% 0%, color-mix(in oklab, #253954 40%, transparent), transparent 75%),
     linear-gradient(
       180deg,
       color-mix(in oklab, var(--blue) 34%, var(--panel)),
       color-mix(in oklab, var(--blue) 22%, var(--panel))
     );
-  border: 1.5px solid var(--blue);
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--blue) 25%, transparent);
+  /* Frame line in the send button's accent */
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--accent) 35%, transparent);
 }

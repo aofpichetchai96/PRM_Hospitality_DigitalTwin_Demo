@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { RichText } from "@/components/ui/RichText";
 import { GREETING, INTENT_LABEL, QUICK_CHIPS } from "@/data/aiScript";
 import { VIEWS } from "@/data/views";
+import { useBangkokClock } from "@/lib/useBangkokClock";
 import { askContextLabel } from "@/store/selectors";
 import { useAppStore } from "@/store/useAppStore";
 import type { ChatMessage } from "@/types";
@@ -82,6 +83,8 @@ export function AgentPanel() {
   const presentation = useAppStore((s) => s.presentation);
   const view = useAppStore((s) => s.view);
   const context = useAppStore(askContextLabel);
+  // Real time in Thailand, as in the header (answers keep the simulation clock they were built at)
+  const clock = useBangkokClock();
   const [draft, setDraft] = useState("");
   const [chipsOpen, setChipsOpen] = useState(false);
   // Suggested questions fold away after the first one, so the answers get the room
@@ -105,7 +108,7 @@ export function AgentPanel() {
         </span>
       </div>
       <p className="border-b border-line bg-panel-2 px-4 py-1.5 text-[13px] text-muted">
-        บริบท: {context} · ข้อมูลจำลอง
+        บริบท: {context} · {clock.time} · ข้อมูลจำลอง
       </p>
 
       <div ref={log} className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4 text-[13px]" aria-live="polite">

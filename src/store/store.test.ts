@@ -281,12 +281,12 @@ describe("assistant", () => {
     expect(s().chat[1]).toMatchObject({ role: "assistant", view: "boh", time: "14:30" });
     s().setView("rooms");
     // The context line follows the scene now open, not the old answer
-    expect(askContextLabel(s())).toBe("Guest Room › ชั้น H12 · 14:30");
+    expect(askContextLabel(s())).toBe("Guest Room › ชั้น H12");
   });
 
   it("names the picked asset in the context line", () => {
     s().pickAsset("plant");
-    expect(askContextLabel(s())).toBe("Overview › CH-01 · Central plant · 14:30");
+    expect(askContextLabel(s())).toBe("Overview › CH-01 · Central plant");
   });
 
   it("locates an incident without changing the scene mode", () => {
