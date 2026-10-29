@@ -88,14 +88,47 @@ describe("setView", () => {
     expect(s().chillerView).toBeNull();
   });
 
+  it("opens the ICT server room, flies square on to a rack front and back out", () => {
+    s().setView("ict");
+    expect(s().camera.shot).toEqual({ preset: "serverRoom" });
+    s().openRack("B05");
+    expect(s().rackFocus).toBe("B05");
+    // B05 faces −z: the camera looks at it from the −z side
+    expect(s().camera.shot).toMatchObject({ focus: [expect.any(Number), 1.0, 1.6], azimuth: Math.PI, polar: 1.42 });
+    s().openRack(null);
+    expect(s().rackFocus).toBeNull();
+    expect(s().camera.shot).toEqual({ preset: "serverRoom" });
+    s().openRack("A01");
+    s().setView("overview");
+    expect(s().rackFocus).toBeNull();
+  });
+
+  it("flies to a numbered area of the server room from the presets and back to the whole room", () => {
+    s().setView("ict");
+    s().openArea(8);
+    expect(s().roomArea).toBe(8);
+    expect(s().camera.shot).toMatchObject({ focus: [-11.5, 0.8, 0] });
+    // A rack picked afterwards replaces the area; an area replaces the rack
+    s().openRack("A03");
+    expect(s().roomArea).toBeNull();
+    s().openArea(1);
+    expect(s().rackFocus).toBeNull();
+    s().openArea(null);
+    expect(s().roomArea).toBeNull();
+    expect(s().camera.shot).toEqual({ preset: "serverRoom" });
+    s().openArea(5);
+    s().setView("overview");
+    expect(s().roomArea).toBeNull();
+  });
+
   it("recognises rooftop units by id", () => {
     expect(["CT-02", "P-03", "T-01", "EF-03"].every((id) => isRoofEquipment(id as AssetId))).toBe(true);
     expect(["plant", "ahu", "hotel"].some((id) => isRoofEquipment(id as AssetId))).toBe(false);
   });
 
-  it("lists the workspace pages and the five scenes in menu order", () => {
+  it("lists the workspace pages and the seven scenes in menu order", () => {
     expect(WORKSPACE.map((n) => n.id)).toEqual(["executive", "twin", "ioc", "energy", "ai"]);
-    expect(SCENE_IDS).toEqual(["overview", "rooms", "public", "boh", "ai"]);
+    expect(SCENE_IDS).toEqual(["overview", "rooms", "public", "event", "boh", "ict", "ai"]);
     // Every menu entry is a view, and every view is in a menu
     expect(new Set([...WORKSPACE.map((n) => n.id), ...SCENE_IDS])).toEqual(new Set(VIEW_IDS));
   });
@@ -128,6 +161,14 @@ describe("setView", () => {
     expect(s()).toMatchObject({ mode: "slice", floor: "H30", incidentFocus: ct });
     s().focusIncident("INC-003");
     expect(s()).toMatchObject({ mode: "exterior", floor: "all" });
+
+    // Event Hall: L3 sliced, looked at from above like the lobby
+    s().setView("event");
+    expect(s()).toMatchObject({ mode: "slice", floor: "L3" });
+    expect(s().camera.shot).toEqual({ floor: "L3", top: true });
+    s().selectFloor("L2");
+    s().selectFloor("L3");
+    expect(s().camera.shot).toEqual({ floor: "L3", top: true });
 
     s().setView("ai");
     expect(s()).toMatchObject({ mode: "exterior", floor: "all", panel: "agent" });

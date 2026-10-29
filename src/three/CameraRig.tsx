@@ -41,6 +41,8 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
   const invalidate = useThree((s) => s.invalidate);
   // A chiller's inside view needs the camera much closer than the building views allow
   const inside = useAppStore((s) => s.chillerView !== null);
+  // The server room is small: the camera may come right up to a rack front
+  const ict = useAppStore((s) => s.view === "ict");
   const dragging = useRef(false);
   const first = useRef(true);
   // Read by the flight effect without re-flying when the strip comes or goes
@@ -60,7 +62,8 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
     const c = ref.current;
     if (!c) return;
     const shot = request.shot;
-    if ("azimuth" in shot) {
+    // A heading on its own is the compass; with a focus point it is part of a pose (a rack front)
+    if (!("focus" in shot) && !("preset" in shot) && !("floor" in shot)) {
       // Compass: turn in place, the short way round
       c.normalizeRotations();
       void c.rotateTo(nearestAngle(c.azimuthAngle, shot.azimuth), c.polarAngle, true);
@@ -77,7 +80,13 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
       pose.distance = planDistance(
         tilted ? { w: plate.w, d: plate.d * Math.cos(pose.polar) } : plate,
         { ...view, inset: inset.current, fov: camera.fov },
-        tilted ? PLAN_MARGIN.tilted : isHotelFloor(fitted) ? PLAN_MARGIN.hotel : PLAN_MARGIN.podium,
+        tilted
+          ? PLAN_MARGIN.tilted
+          : isHotelFloor(fitted)
+            ? PLAN_MARGIN.hotel
+            : fitted === "L3"
+              ? PLAN_MARGIN.event
+              : PLAN_MARGIN.podium,
       );
     }
     // First pose is applied instantly; later requests fly
@@ -120,7 +129,7 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
     <CameraControls
       ref={ref}
       makeDefault
-      minDistance={inside ? CAMERA_LIMITS.insideDistance : CAMERA_LIMITS.minDistance}
+      minDistance={ict ? CAMERA_LIMITS.rackDistance : inside ? CAMERA_LIMITS.insideDistance : CAMERA_LIMITS.minDistance}
       maxDistance={CAMERA_LIMITS.maxDistance}
       minPolarAngle={CAMERA_LIMITS.minPolarAngle}
       maxPolarAngle={CAMERA_LIMITS.maxPolarAngle}

@@ -83,3 +83,41 @@ export const LOOK: Record<
 
 /** Fog starts at 420 m so the hotel stays crisp even at full zoom-out (560 m), and is complete before the camera far plane (1,500 m) */
 export const FOG_RANGE: [number, number] = [420, 1400];
+
+export type Season = "summer" | "rainy" | "haze";
+type Look = (typeof LOOK)[TimeOfDay];
+
+/**
+ * A season on top of the time of day: the hot season is the reference look; the rainy season greys the sky out,
+ * dims the sun and pulls the fog in (with rain, three/Rain.tsx); the haze season tints everything dusty brown and
+ * brings the fog close, so the city disappears into PM2.5.
+ */
+export function seasonLook(time: TimeOfDay, season: Season): Look & { fogRange: [number, number] } {
+  const base = LOOK[time];
+  if (season === "summer") return { ...base, fogRange: FOG_RANGE };
+  const day = time === "day";
+  if (season === "rainy")
+    return {
+      ...base,
+      sky: day ? ["#c3cbd0", "#97a5ae", "#5f6e78"] : ["#1b2a38", "#111c27", "#0a121b"],
+      fog: day ? "#9eabb3" : "#152230",
+      hemi: { ...base.hemi, sky: day ? "#c9d3da" : base.hemi.sky, intensity: base.hemi.intensity * 1.15 },
+      sun: { color: day ? "#dfe6ee" : base.sun.color, intensity: base.sun.intensity * 0.32 },
+      envIntensity: base.envIntensity * 0.8,
+      fogRange: [160, 900],
+    };
+  return {
+    ...base,
+    sky: day ? ["#d8c7a4", "#bba57f", "#8a7a60"] : ["#3a3022", "#241d15", "#14100b"],
+    fog: day ? "#bfae8d" : "#2b2319",
+    hemi: { ...base.hemi, sky: day ? "#e6d6b6" : base.hemi.sky },
+    sun: { color: day ? "#ffd29a" : base.sun.color, intensity: base.sun.intensity * 0.6 },
+    fogRange: [110, 700],
+  };
+}
+
+export const SEASON_LABEL: Record<Season, { label: string; th: string }> = {
+  summer: { label: "Hot season", th: "หน้าร้อน" },
+  rainy: { label: "Rainy season", th: "หน้าฝน" },
+  haze: { label: "Haze season · PM2.5", th: "หน้าฝุ่น PM2.5" },
+};

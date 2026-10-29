@@ -11,17 +11,24 @@ import { buildCity } from "./geometry/city";
 import { buildExterior } from "./geometry/exterior";
 import { buildLayers } from "./geometry/layers";
 import { buildSchematic } from "./geometry/schematic";
+import { buildServerRoom } from "./geometry/serverRoom";
 import { buildSite } from "./geometry/site";
 import { Atmosphere } from "./Atmosphere";
 import { AmbientLife } from "./AmbientLife";
-import type { Quality, TimeOfDay } from "./look";
+import type { Quality, Season, TimeOfDay } from "./look";
+import { Rain } from "./Rain";
 import { LOOK } from "./look";
 import { createFacadeMaterial, createMaterials } from "./materials";
 import { SceneBatches } from "./SceneBatches";
 import { createFacadeTextures, createRoadTexture, createSignTexture } from "./textures";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 export type SceneSettings = {
   time: TimeOfDay;
+  /** Weather season: sky, fog and rain (look.ts seasonLook, Rain) */
+  season?: Season;
+  /** ICT scene: draw only the server room (geometry/serverRoom.ts), none of the building, site or city */
+  ict?: boolean;
   quality: Quality;
   camera: { shot: CameraShot; n: number };
   zoom?: { dir: 1 | -1; n: number };
@@ -45,6 +52,7 @@ export function SceneRoot({
   children?: ReactNode;
 }) {
   const invalidate = useThree((s) => s.invalidate);
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const site = useMemo(() => buildSite(), []);
   const city = useMemo(() => buildCity(), []);
   const exterior = useMemo(() => buildExterior(), []);
@@ -105,23 +113,36 @@ export function SceneRoot({
     [layers, schematicOn, explode, rooms, mode, floor],
   );
 
+  const serverRoom = useMemo(() => (settings.ict ? buildServerRoom() : null), [settings.ict]);
   const hidden = LOOK[settings.time].windows ? [] : (["windowLight"] as const);
   const buildingKey = schematicOn ? `${mode}-${floor}-${explode}` : "exterior";
 
   return (
     <>
-      <Atmosphere time={settings.time} shadows={settings.quality !== "low"} shadowKey={buildingKey} />
-      <BuildingReveal revealKey={buildingKey} />
-      <SceneBatches geometries={city} materials={cityMaterials} />
-      <SceneBatches geometries={site} materials={materials} hidden={hidden} />
-      {schematic ? (
-        <SceneBatches geometries={schematic} materials={buildingMaterials} />
+      <Atmosphere
+        time={settings.time}
+        season={settings.season}
+        shadows={settings.quality !== "low"}
+        shadowKey={serverRoom ? "ict" : buildingKey}
+      />
+      {serverRoom ? (
+        <SceneBatches geometries={serverRoom} materials={materials} />
       ) : (
-        <SceneBatches geometries={exterior} materials={buildingMaterials} hidden={hidden} />
+        <>
+          {settings.season === "rainy" && <Rain still={settings.quality === "low" || reduced} />}
+          <BuildingReveal revealKey={buildingKey} />
+          <SceneBatches geometries={city} materials={cityMaterials} />
+          <SceneBatches geometries={site} materials={materials} hidden={hidden} />
+          {schematic ? (
+            <SceneBatches geometries={schematic} materials={buildingMaterials} />
+          ) : (
+            <SceneBatches geometries={exterior} materials={buildingMaterials} hidden={hidden} />
+          )}
+          {layerGeometry && <SceneBatches geometries={layerGeometry} materials={buildingMaterials} />}
+          {/* Moving cars and people keep the canvas rendering every frame: not on Low quality */}
+          {settings.quality !== "low" && <AmbientLife time={settings.time} />}
+        </>
       )}
-      {layerGeometry && <SceneBatches geometries={layerGeometry} materials={buildingMaterials} />}
-      {/* Moving cars and people keep the canvas rendering every frame: not on Low quality */}
-      {settings.quality !== "low" && <AmbientLife time={settings.time} />}
       <CameraRig
         request={settings.camera}
         zoom={settings.zoom}

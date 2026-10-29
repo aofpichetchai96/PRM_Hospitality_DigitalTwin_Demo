@@ -1,6 +1,6 @@
 // Hero shot and default state of each workspace page and scene (PLAN 5).
 // setView() reads these; nothing else sets the camera or mode when one opens
-// (PLAN R2). The sidebar lists them (data/nav.ts); keys 1–5 open the scenes.
+// (PLAN R2). The sidebar lists them (data/nav.ts); keys 1–6 open the scenes.
 import type { Layers, ViewConfig, ViewId } from "@/types";
 
 /** Back of House looks at the roof plant north up, tilted this much from straight down (rad) */
@@ -102,6 +102,19 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
     asset: "arrival",
     panel: "details",
   },
+  event: {
+    id: "event",
+    title: "Event Hall",
+    subtitle: "ชั้น L3 · Ballroom และห้องประชุม · งานวันนี้ จำนวนแขก และพลังงาน",
+    camera: { floor: "L3", top: true },
+    timeOfDay: "day",
+    mode: "slice",
+    floor: "L3",
+    zone: "mall",
+    layers: DEFAULT_LAYERS,
+    asset: "mall",
+    panel: "details",
+  },
   boh: {
     id: "boh",
     title: "Back of House",
@@ -114,6 +127,20 @@ export const VIEWS: Record<ViewId, ViewConfig> = {
     zone: "plant",
     layers: { ...DEFAULT_LAYERS, assets: true },
     asset: "plant",
+    panel: "details",
+  },
+  ict: {
+    id: "ict",
+    title: "ICT",
+    subtitle: "Server room · อุณหภูมิ ไฟฟ้า อุปกรณ์ออนไลน์ และสถานะ Port ของ Switch",
+    camera: { preset: "serverRoom" },
+    timeOfDay: "day",
+    mode: "exterior",
+    floor: "all",
+    zone: "all",
+    // The building is not drawn in this scene: no layers on it
+    layers: { energy: false, security: false, people: false, assets: false },
+    asset: "site",
     panel: "details",
   },
   ai: {

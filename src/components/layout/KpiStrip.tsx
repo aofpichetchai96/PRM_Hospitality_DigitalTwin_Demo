@@ -5,8 +5,13 @@ import {
   CalendarClock,
   ClipboardList,
   DoorOpen,
+  EthernetPort,
+  Leaf,
   type LucideIcon,
+  PartyPopper,
   PlugZap,
+  Server,
+  Thermometer,
   Users,
   Wind,
   Zap,
@@ -16,7 +21,20 @@ import { aqiBand } from "@/data/airQuality";
 import { KPI_HISTORY, type KpiId, KPI_SETS, KPI_YESTERDAY } from "@/data/kpis";
 import { fmt } from "@/lib/format";
 import { DENSITY_LABEL } from "@/data/publicZones";
-import { useAir, useEnergy, useGuests, useKpis, usePublic, useRoomCounts } from "@/store/hooks";
+import { co2Band } from "@/data/airQuality";
+import { GRID_EF } from "@/data/carbon";
+import { hallPeopleTrend } from "@/data/eventHall";
+import {
+  useAir,
+  useCarbon,
+  useEnergy,
+  useEventHall,
+  useGuests,
+  useKpis,
+  usePublic,
+  useRoomCounts,
+  useServerRoom,
+} from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
 
 /** Change against the same time yesterday; `good` colours it green */
@@ -58,6 +76,13 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
   const guests = useGuests();
   const energy = useEnergy();
   const lobby = usePublic();
+  const hall = useEventHall();
+  const time = useAppStore((s) => s.time);
+  const carbon = useCarbon("month");
+  const ict = useServerRoom();
+  const portPct = (ict.portsUp / ict.ports) * 100;
+  const ballroom = hall.venues[0];
+  const live = hall.venues.filter((v) => v.booking).length;
   const indoorBand = aqiBand(air.indoor.aqi);
   const all: Record<KpiId, Card> = {
     occupancy: {
@@ -194,6 +219,113 @@ export function KpiStrip({ floating = false }: { floating?: boolean }) {
       color: DENSITY_LABEL[lobby.busiest.level].color,
       sparkColor: DENSITY_LABEL[lobby.busiest.level].color,
       trend: lobby.zones.map((z) => z.load),
+    },
+    hallPeople: {
+      label: "EVENT HALL · PEOPLE NOW",
+      shortLabel: "EVENT HALL NOW",
+      icon: Users,
+      value: fmt(hall.people),
+      unit: `/ ${fmt(hall.capacity)}`,
+      note: `Ballroom ${ballroom.people} / ${ballroom.venue.capacity} · ${live} of ${hall.venues.length} rooms in use`,
+      source: "AI",
+      color: "var(--accent)",
+      sparkColor: "var(--accent)",
+      trend: hallPeopleTrend(time),
+    },
+    hallEvents: {
+      label: "EVENTS · TODAY",
+      shortLabel: "EVENTS TODAY",
+      icon: PartyPopper,
+      value: String(hall.bookings),
+      unit: "events",
+      note: hall.next ? `Next: ${hall.next.title} · ${hall.next.pax} guests` : `${fmt(hall.guestsToday)} guests today`,
+      source: "BOOKING",
+      color: "var(--gold)",
+      sparkColor: "var(--gold)",
+      trend: [3, 4, 2, 5, 4, 6, hall.bookings],
+    },
+    hallPower: {
+      label: "EVENT HALL · POWER NOW",
+      shortLabel: "HALL POWER",
+      icon: Zap,
+      value: fmt(hall.kw),
+      unit: "kW",
+      note: "Cooling + lighting / AV of L3 · sub-meter",
+      source: "EMS",
+      color: "var(--accent)",
+      sparkColor: "var(--accent)",
+      trend: hallPeopleTrend(time).map((p) => 42 + 0.32 * p),
+    },
+    hallAir: {
+      label: "BALLROOM · CO₂ NOW",
+      shortLabel: "BALLROOM CO₂",
+      icon: Wind,
+      value: fmt(ballroom.co2),
+      unit: "ppm",
+      note: `${co2Band(ballroom.co2).label} · fresh air follows the guests`,
+      source: "IAQ",
+      color: co2Band(ballroom.co2).color,
+      sparkColor: "var(--accent)",
+      trend: hallPeopleTrend(time).map((p) => 430 + 520 * Math.min(1.2, p / 480)),
+    },
+    carbonMonth: {
+      label: "CARBON · THIS MONTH (SCOPE 1+2)",
+      shortLabel: "CARBON · MONTH",
+      icon: Leaf,
+      value: fmt(carbon.total),
+      unit: "tCO₂e",
+      note: `Today ${fmt(carbon.today, 1)} t · grid EF ${GRID_EF} kg/kWh`,
+      source: "ESG",
+      color: "var(--green)",
+      sparkColor: "var(--green)",
+      trend: carbon.hourly,
+    },
+    ictTemp: {
+      label: "SERVER ROOM · COLD AISLE NOW",
+      shortLabel: "SERVER ROOM TEMP",
+      icon: Thermometer,
+      value: fmt(ict.coldAisle, 1),
+      unit: "°C",
+      note: `Hot aisle ${fmt(ict.hotAisle, 1)} °C · RH ${ict.humidity}% · hottest ${ict.hottest.rack.id} ${fmt(ict.hottest.inlet, 1)} °C`,
+      source: "DCIM",
+      color: ict.hottest.inlet > 25 ? "var(--gold)" : "var(--accent)",
+      sparkColor: "var(--blue)",
+      trend: ict.racks.map((r) => r.inlet),
+    },
+    ictPower: {
+      label: "SERVER ROOM · IT LOAD NOW",
+      shortLabel: "IT LOAD",
+      icon: Zap,
+      value: fmt(ict.itKw, 1),
+      unit: "kW",
+      note: `Facility ${fmt(ict.facilityKw, 1)} kW incl. cooling · PUE 1.48`,
+      source: "DCIM",
+      color: "var(--accent)",
+      sparkColor: "var(--gold)",
+      trend: ict.racks.map((r) => r.kw),
+    },
+    ictOnline: {
+      label: "DEVICES ONLINE",
+      shortLabel: "DEVICES ONLINE",
+      icon: Server,
+      value: `${ict.online} / ${ict.devices}`,
+      note: `${ict.devices - ict.online} offline · ${ict.racks.length} racks`,
+      source: "SNMP",
+      color: ict.online < ict.devices ? "var(--gold)" : "var(--green)",
+      sparkColor: "var(--green)",
+      trend: ict.racks.map((r) => r.online),
+    },
+    ictPorts: {
+      label: "SWITCH PORTS UP",
+      shortLabel: "PORTS UP",
+      icon: EthernetPort,
+      value: `${ict.portsUp} / ${ict.ports}`,
+      unit: `${fmt(portPct)}%`,
+      note: `${ict.portErrors} ports in error · idle = no link`,
+      source: "SNMP",
+      color: ict.portErrors ? "var(--red)" : "var(--green)",
+      sparkColor: "var(--accent)",
+      trend: ict.racks.map((r) => r.portsUp),
     },
   };
   const cards = KPI_SETS[view].map((id) => all[id]);

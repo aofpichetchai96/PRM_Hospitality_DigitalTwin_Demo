@@ -1,8 +1,12 @@
 // View, scene and UI state. setView() is the only way a scene applies its hero
-// shot, so the menu, keys 1–5 and the URL never fight over the camera (PLAN R2).
+// shot, so the menu, keys 1–6 and the URL never fight over the camera (PLAN R2).
 import type { StateCreator } from "zustand";
 import { FLOOR_PLANS } from "@/data/floorPlans";
 import { ASSETS, CHILLERS, isRoofEquipment, PLANT_PAD_Y } from "@/data/assets";
+import { rack, type RackFace, ROOM_AREAS } from "@/data/serverRoom";
+
+/** Camera heading that looks straight at a rack front (camera-controls azimuth: 0 = from +z) */
+const RACK_FRONT_AZIMUTH: Record<RackFace, number> = { "+z": 0, "-z": Math.PI, "-x": -Math.PI / 2 };
 
 /** How close the camera comes for a chiller's inside view (CameraRig lets it closer than usual meanwhile) */
 export const CHILLER_VIEW_DISTANCE = 21;
@@ -19,6 +23,7 @@ import type {
   Layers,
   RightPanelTab,
   SceneMode,
+  Season,
   TimeOfDay,
   ViewConfig,
   ViewId,
@@ -52,6 +57,8 @@ export interface TwinState {
   selectedFloor: FloorId | null;
   explode: boolean;
   timeOfDay: TimeOfDay;
+  /** Weather season (3D sky / rain / haze and the outdoor air); a presenter choice, kept across scenes */
+  season: Season;
   layers: Layers;
   asset: AssetId;
   panel: RightPanelTab;
@@ -67,6 +74,10 @@ export interface TwinState {
   incidentFocus: string | null;
   /** Chiller opened up in 3D (index into CHILLERS, double-click on the plant); null = none */
   chillerView: number | null;
+  /** Rack looked at in the ICT server room (its front fills the view, its devices are in the panel); null = none */
+  rackFocus: string | null;
+  /** Numbered area of the server room the camera shows (the presets dropdown); null = the whole room */
+  roomArea: number | null;
   /** Incoming-alert card for a just-arrived incident; `n` replays its entrance */
   alert: { id: string; n: number } | null;
   toast: { text: string; n: number } | null;
@@ -90,6 +101,7 @@ export interface TwinActions {
   toggleExplode: () => void;
   toggleLayer: (layer: LayerId) => void;
   setTimeOfDay: (time: TimeOfDay) => void;
+  setSeason: (season: Season) => void;
   selectAsset: (asset: AssetId) => void;
   setPanel: (panel: RightPanelTab) => void;
   flyTo: (shot: CameraShot) => void;
@@ -112,6 +124,10 @@ export interface TwinActions {
   focusIncident: (id: string) => void;
   /** Open a chiller's inside view and fly close to it; null closes it and returns to the scene's shot */
   openChiller: (index: number | null) => void;
+  /** Fly to a rack's front in the server room; null goes back to the room's shot */
+  openRack: (id: string | null) => void;
+  /** Fly to a numbered area of the server room; null goes back to the whole room */
+  openArea: (n: number | null) => void;
   /** A new incident arrives: alert card, red edge flash and a flight to where it is */
   raiseAlert: (id: string) => void;
   dismissAlert: () => void;
@@ -127,6 +143,7 @@ export function initialTwin(): TwinState {
     selectedFloor: null,
     explode: false,
     timeOfDay: v.timeOfDay,
+    season: "summer",
     layers: { ...v.layers },
     asset: v.asset,
     panel: v.panel,
@@ -139,6 +156,8 @@ export function initialTwin(): TwinState {
     modal: null,
     incidentFocus: null,
     chillerView: null,
+    rackFocus: null,
+    roomArea: null,
     alert: null,
     toast: null,
     quality: "high",
@@ -177,6 +196,8 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
         autoRotate: v.autoRotate ?? false,
         spatial: "building",
         chillerView: null,
+        rackFocus: null,
+        roomArea: null,
         camera: { shot: v.camera, n: s.camera.n + 1 },
         // Back of House opens on its plant alarm, so the 3D card and the workflow panel show the same one
         incidentFocus: id === "boh" ? (s.incidentFocus ?? plantAlarm(s.incidents, null)?.id ?? null) : s.incidentFocus,
@@ -204,7 +225,11 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
                   ? { floor, tilt: ROOF_TILT }
                   : {
                       floor,
-                      top: (s.view === "rooms" && hotel) || (s.view === "public" && floor === "G") || undefined,
+                      top:
+                        (s.view === "rooms" && hotel) ||
+                        (s.view === "public" && floor === "G") ||
+                        (s.view === "event" && floor === "L3") ||
+                        undefined,
                     },
             n: s.camera.n + 1,
           },
@@ -246,6 +271,21 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
       set({ asset, panel: "details", selectedFloor: null });
       get().flyTo({ focus: ASSETS[asset].position, distance: ASSETS[asset].focusDistance });
     },
+    openRack: (id) => {
+      const r = id ? rack(id) : undefined;
+      if (!r) {
+        set({ rackFocus: null, roomArea: null });
+        return get().flyTo(VIEWS[get().view].camera);
+      }
+      set({ rackFocus: r.id, roomArea: null, panel: "details" });
+      // Square on to the rack front, a little above its middle
+      get().flyTo({ focus: [r.x, 1.0, r.z], distance: 4.4, azimuth: RACK_FRONT_AZIMUTH[r.face], polar: 1.42 });
+    },
+    openArea: (n) => {
+      const a = ROOM_AREAS.find((x) => x.n === n);
+      set({ roomArea: a ? a.n : null, rackFocus: null });
+      get().flyTo(a ? a.shot : VIEWS[get().view].camera);
+    },
     openChiller: (index) => {
       if (index === null) {
         set({ chillerView: null });
@@ -257,6 +297,7 @@ export const createTwinSlice: StateCreator<AppState, [], [], TwinState & TwinAct
     },
     toggleLayer: (layer) => set((s) => ({ layers: { ...s.layers, [layer]: !s.layers[layer] } })),
     setTimeOfDay: (timeOfDay) => set({ timeOfDay }),
+    setSeason: (season) => set({ season }),
     selectAsset: (asset) => set({ asset }),
     setPanel: (panel) => set({ panel }),
     flyTo: (shot) => set((s) => ({ camera: { shot, n: s.camera.n + 1 }, autoRotate: false })),

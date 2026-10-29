@@ -31,7 +31,16 @@ export type KpiId =
   | "arrivals"
   | "lobbyPeople"
   | "doorCount"
-  | "busiestZone";
+  | "busiestZone"
+  | "hallPeople"
+  | "hallEvents"
+  | "hallPower"
+  | "hallAir"
+  | "carbonMonth"
+  | "ictTemp"
+  | "ictPower"
+  | "ictOnline"
+  | "ictPorts";
 
 export const KPI_SETS: Record<ViewId, readonly [KpiId, KpiId, KpiId, KpiId]> = {
   executive: ["occupancy", "demand", "footfall", "cases"],
@@ -41,6 +50,8 @@ export const KPI_SETS: Record<ViewId, readonly [KpiId, KpiId, KpiId, KpiId]> = {
   overview: ["occupancy", "demand", "footfall", "cases"],
   rooms: ["occupancy", "roomMix", "hotelPower", "arrivals"],
   public: ["lobbyPeople", "doorCount", "busiestZone", "indoorAir"],
+  event: ["hallPeople", "hallEvents", "hallPower", "hallAir"],
   boh: ["demand", "cases", "indoorAir", "occupancy"],
-  ai: ["occupancy", "demand", "footfall", "cases"],
+  ict: ["ictTemp", "ictPower", "ictOnline", "ictPorts"],
+  ai: ["carbonMonth", "demand", "occupancy", "cases"],
 };

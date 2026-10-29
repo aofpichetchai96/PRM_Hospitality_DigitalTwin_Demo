@@ -7,6 +7,9 @@ import type { ViewId } from "@/types";
 import { AssistantIcon } from "@/components/ui/AssistantIcon";
 import { AgentPanel } from "./AgentPanel";
 import { AlarmPanel } from "./AlarmPanel";
+import { CarbonPanel } from "./CarbonPanel";
+import { EventHallPanel } from "./EventHallPanel";
+import { ServerRoomPanel } from "./ServerRoomPanel";
 import { PlanDetails } from "@/components/floorplan/PlanDetails";
 import { DetailsPanel } from "./DetailsPanel";
 import { EnergyPanel } from "./EnergyPanel";
@@ -22,8 +25,10 @@ const DETAILS_TAB: Record<ViewId, string> = {
   overview: "Overview",
   rooms: "Guest Room",
   public: "Zones",
+  event: "Events",
   boh: "Alarm & Events",
-  ai: "Energy",
+  ict: "Server room",
+  ai: "Carbon",
 };
 
 /** 320 / 340px panel with an AI Assistant tab and a scene-specific details tab */
@@ -74,7 +79,13 @@ export function RightPanel() {
             <PublicPanel />
           ) : view === "boh" || view === "ioc" ? (
             <AlarmPanel />
-          ) : view === "ai" || view === "energy" ? (
+          ) : view === "event" ? (
+            <EventHallPanel />
+          ) : view === "ict" ? (
+            <ServerRoomPanel />
+          ) : view === "ai" ? (
+            <CarbonPanel />
+          ) : view === "energy" ? (
             <EnergyPanel />
           ) : (view === "overview" || view === "executive") && !picked ? (
             <OverviewPanel />

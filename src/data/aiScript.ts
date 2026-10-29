@@ -7,11 +7,14 @@
 import { fmt } from "@/lib/format";
 import type { AssetMetric, EnergyResult, FloorPlanId, Incident, PlanZone, ViewId, WorkOrder } from "@/types";
 import { type AirReading, aqiBand } from "./airQuality";
+import { CARBON_LEVEL, type CarbonFootprint, GRID_EF } from "./carbon";
 import { comfortRisk, OTHER_LOADS_KW } from "./energy";
 import { INCIDENT_STEPS, SEVERITY } from "./events";
 import { FLOOR_PLANS } from "./floorPlans";
 import { KPI_YESTERDAY } from "./kpis";
+import { bookingStatus, type EventHallReading, BOOKINGS, venue } from "./eventHall";
 import { DENSITY_LABEL, type ZoneReading } from "./publicZones";
+import { inletBand, portStatus, type ServerRoomReading } from "./serverRoom";
 import { PRECOOL_KW, STANDBY_KW } from "./rooms";
 import { SOP_STAGE_LABEL, SOPS } from "./sop";
 
@@ -74,7 +77,18 @@ export const QUICK_CHIPS: Record<ViewId, readonly Chip[]> = {
     { label: "ทำตาม SOP", question: "ควรแก้ Alarm นี้ตาม SOP อย่างไร" },
     { label: "อุปกรณ์ที่ต้องดูแล", question: "อุปกรณ์ใดต้องซ่อมบำรุง" },
   ],
+  event: [
+    { label: "งานวันนี้", question: "วันนี้มีงานอะไรใน Event Hall บ้าง" },
+    { label: "Ballroom แน่นไหม", question: "Ballroom มีคนเท่าไร แน่นไหม" },
+    { label: "Carbon ของงาน", question: "Carbon footprint ของงานจัดเลี้ยงวันนี้" },
+  ],
+  ict: [
+    { label: "ห้อง Server", question: "ห้อง Server room ตอนนี้อุณหภูมิและไฟฟ้าเท่าไร" },
+    { label: "Port ผิดปกติ", question: "Switch port ไหน error หรือ down" },
+    { label: "Rack ร้อน", question: "Rack ไหนร้อนเกินเกณฑ์" },
+  ],
   ai: [
+    { label: "Carbon footprint", question: "Carbon footprint เดือนนี้เป็นอย่างไร" },
     { label: "สรุปอาคาร", question: "สรุปสถานะอาคารตอนนี้" },
     { label: "ลดการใช้พลังงาน", question: "แนะนำวิธีลดการใช้พลังงาน" },
     { label: "จัดการคุณภาพอากาศ", question: "แนะนำการจัดการคุณภาพอากาศ" },
@@ -110,6 +124,15 @@ export interface AskContext {
     busiest: ZoneReading;
     avgAqi: number;
   };
+  /** Event Hall (L3) now */
+  hall: EventHallReading;
+  /** Carbon footprint this month (Scope 1 + 2) and today's total (tCO₂e) */
+  carbon: CarbonFootprint & {
+    today: number;
+    intensity: readonly { label: string; unit: string; value: number; target: number }[];
+  };
+  /** ICT server room now */
+  ict: ServerRoomReading;
   /** What is selected in 3D */
   selection: { label: string; assetName: string; assetCode: string; metrics: AssetMetric[] };
   plan: { open: boolean; type: FloorPlanId; selectedZone: string };
@@ -238,12 +261,71 @@ function energy(ctx: AskContext): Answer {
       s.setpoint < 25
         ? `ปรับ Setpoint เป็น 25 °C ลดได้ประมาณ **${fmt(save)} kW** (${fmt((save / e.current) * 100, 1)}%) ≈ ${fmt(
             save * s.operatingHours * s.tariff,
-          )} ฿/วัน · Comfort risk ${comfortRisk(25) === "low" ? "ต่ำ" : "กลาง"}\nห้องว่างคงโหมด Eco และ Pre-cool ห้องจองก่อนแขกมาถึง 2 ชม.\nทดลองได้ที่ปุ่มจำลอง Setpoint 25°C ในแท็บ Energy · ระบบจริงจะส่งคำแนะนำให้ผู้ปฏิบัติงานอนุมัติก่อนสั่งงาน BMS`
+          )} ฿/วัน · Comfort risk ${comfortRisk(25) === "low" ? "ต่ำ" : "กลาง"}\nห้องว่างคงโหมด Eco และ Pre-cool ห้องจองก่อนแขกมาถึง 2 ชม.\nทดลองได้ที่ปุ่มจำลอง Setpoint 25°C ในหน้า Energy Lab · ระบบจริงจะส่งคำแนะนำให้ผู้ปฏิบัติงานอนุมัติก่อนสั่งงาน BMS`
         : `Setpoint ${s.setpoint} °C ประหยัดแล้ว · ติดตาม Comfort ของแขก (risk ${comfortRisk(s.setpoint)}) และ COP ของ Chiller ก่อนปรับเพิ่ม`,
     source: `${SIM} · EMS + BMS + PMS · แบบจำลองเชิงเส้น · ไม่มีคำสั่งไปยังอาคาร`,
     period: `${now(ctx)} · ค่าไฟต่อวันคิด ${s.operatingHours} ชม. × ${s.tariff} ฿/kWh`,
   };
 }
+
+const fmtT = (t: number) => fmt(t, t < 100 ? 1 : 0);
+
+/** Carbon footprint this month by source, against targets (energy topic) */
+function carbon(ctx: AskContext): Answer {
+  const c = ctx.carbon;
+  const over = c.sources.filter((x) => x.level !== "standard").sort((a, b) => b.gap - a.gap);
+  const top = [...c.sources].sort((a, b) => b.t - a.t)[0];
+  return {
+    intent: "energy",
+    data: `Carbon footprint เดือนนี้ **${fmtT(c.total)} tCO₂e** (Scope 2 ไฟฟ้า ${fmtT(c.scope2)} · Scope 1 เชื้อเพลิง ${fmtT(c.scope1)})
+วันนี้ ${fmtT(c.today)} tCO₂e
+${[...c.sources]
+  .sort((a, b) => b.t - a.t)
+  .map((x) => `${x.name} ${fmtT(x.t)} t (${fmt(x.pct)}%) · ${x.gap > 0 ? "+" : ""}${fmt(x.gap, 1)}% เทียบเป้า`)
+  .join("\n")}
+Intensity: ${c.intensity.map((i) => `${i.label} ${fmt(i.value, i.value < 1 ? 2 : 1)} ${i.unit} (เป้า ${i.target})`).join(" · ")}`,
+    analysis: `${top.name} ปล่อยมากที่สุด ${fmt(top.pct)}% ของทั้งหมด · ${
+      over.length
+        ? `เกินเป้า ${over.length} แหล่ง: ${over.map((x) => `${x.name} ${fmt(x.gap, 1)}% (${CARBON_LEVEL[x.level].th})`).join(" · ")}`
+        : "ทุกแหล่งอยู่ในเป้า"
+    }`,
+    recommendation: over.some((x) => x.id === "chilledWater")
+      ? `เริ่มที่ Chilled water: แก้ COP ของ CH-01 ตาม SOP (ล้าง Condenser tube) และปรับ Setpoint เป็น 25 °C ลดได้ราว ${fmt(
+          ((ctx.energy.current - ctx.energyAt25.current) * 19 * 30 * GRID_EF) / 1000,
+          1,
+        )} tCO₂e/เดือน · ระบบจริงจะรายงานตาม GHG Protocol จากมิเตอร์และใบเสร็จเชื้อเพลิง`
+      : "รักษาระดับปัจจุบัน และติดตามแหล่งที่เข้าใกล้เป้าเป็นรายสัปดาห์",
+    source: `${SIM} · คำนวณจากแบบจำลองพลังงาน × EF ไฟฟ้า ${GRID_EF} kgCO₂e/kWh (TGO, สมมติ) + เชื้อเพลิง`,
+    period: `เดือนนี้ (30 วัน) · ${now(ctx)}`,
+  };
+}
+
+/** Today's bookings on the Event Hall floor (side answer) */
+function eventHall(ctx: AskContext): Answer {
+  const h = ctx.hall;
+  const ballroom = h.venues.find((v) => v.venue.id === "ballroom")!;
+  const live = h.venues.filter((v) => v.booking);
+  const [hh, mm] = ctx.time.split(":").map(Number);
+  const t = hh + mm / 60;
+  return {
+    data: `งานวันนี้ **${h.bookings} งาน** · แขกรวม ${fmt(h.guestsToday)} คน
+${BOOKINGS.map((b) => {
+  const st = bookingStatus(b, t);
+  return `${b.id} ${b.title} · ${venue(b.venue).name} · ${fmtHour(b.start)}–${fmtHour(b.end)} · ${b.pax} คน · ${st === "live" ? "กำลังจัด" : st === "done" ? "จบแล้ว" : "รอเริ่ม"}`;
+}).join("\n")}
+ตอนนี้บนชั้น L3 ${fmt(h.people)} คน · ไฟฟ้า ${fmt(h.kw)} kW`,
+    analysis: `Grand Ballroom ${ballroom.people}/${ballroom.venue.capacity} คน (${fmt(ballroom.load * 100)}%) · CO₂ ${fmt(ballroom.co2)} ppm${
+      ballroom.co2 > 1000 ? " สูงกว่า 1,000 ppm" : ""
+    } · ห้องที่ใช้อยู่ ${live.length} ห้อง${h.next ? ` · งานถัดไป ${h.next.title} ${fmtHour(h.next.start)} (${h.next.pax} คน)` : ""}`,
+    recommendation: h.next
+      ? `Pre-cool ${venue(h.next.venue).name} 1 ชม. ก่อน ${fmtHour(h.next.start)} แทนการเปิดทั้งวัน และลด Fresh air ห้องที่ว่างระหว่างงาน · ระบบจริงจะดึงตารางงานจากระบบจองห้องจัดเลี้ยง`
+      : "ปิดแอร์และไฟห้องที่จบงานแล้วภายใน 30 นาทีหลังแขกออก",
+    source: `${SIM} · ตารางงานจำลอง + People counting + BMS`,
+    period: now(ctx),
+  };
+}
+const fmtHour = (h: number) =>
+  `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
 
 function rooms(ctx: AskContext): Answer {
   const { counts: c, guests: g, energy: e } = ctx;
@@ -397,7 +479,8 @@ type Rule = { match: (q: string, ctx: AskContext) => boolean; answer: (ctx: AskC
 const TOPIC: Record<Intent, RegExp> = {
   recommend: /แนะนำ|ควรทำ|ควรแก้|ทำอย่างไร|ทำยังไง|recommend|suggest|ลดการใช้|ปรับปรุง|improve/,
   alarms: /alarm|อลาร์ม|เหตุ|incident|แจ้งเตือน|ขัดข้อง|sop|เคส|case|ผิดปกติ|security|ปลอดภัย/,
-  energy: /พลังงาน|ค่าไฟ|ไฟฟ้า|energy|kw|chiller|hvac|setpoint|ประหยัด|cooling/,
+  energy:
+    /พลังงาน|ค่าไฟ|ไฟฟ้า|energy|kw|chiller|hvac|setpoint|ประหยัด|cooling|carbon|คาร์บอน|co2e|co₂e|ก๊าซเรือนกระจก|ghg|footprint/,
   rooms: /ห้อง|โรงแรม|room|hotel|occupancy|เข้าพัก|check.?in|check.?out|แขก|guest/,
   public: /lobby|ล็อบบี้|โถง|zone|คน|people|crowd|หนาแน่น|aqi|อากาศ|pm2|co2|co₂|ฝุ่น|footfall/,
   building: /สรุป|summary|overview|ภาพรวม|อาคาร|building|สถานะ|status/,
@@ -412,7 +495,9 @@ const SCENE_TOPIC: Record<ViewId, Intent> = {
   overview: "building",
   rooms: "rooms",
   public: "public",
+  event: "building",
   boh: "alarms",
+  ict: "building",
   ai: "recommend",
 };
 const GENERIC = /วิเคราะห์|analy[sz]e|ตอนนี้เป็น|เป็นยังไง|เป็นอย่างไร|how is|what.?s happening/;
@@ -422,7 +507,7 @@ function route(intent: Intent, ctx: AskContext, q: string): Answer {
     case "building":
       return building(ctx);
     case "energy":
-      return energy(ctx);
+      return CARBON.test(q) ? carbon(ctx) : energy(ctx);
     case "rooms":
       return rooms(ctx);
     case "public":
@@ -444,7 +529,48 @@ export function routeIntent(q: string, ctx: Pick<AskContext, "view">): Intent | 
 }
 
 // Side answers first (floor plan, selected area, facade, greeting), then the six topics
+const CARBON = /carbon|คาร์บอน|co2e|co₂e|ก๊าซเรือนกระจก|ghg|footprint|tco/;
+const EVENT_HALL = /event|งาน(วันนี้|จัด|เลี้ยง|อะไร)|ballroom|บอลรูม|จัดเลี้ยง|ห้องประชุม|meeting|สัมมนา|hall/;
+
+const ICT = /server|เซิร์ฟเวอร์|rack|แร็ค|switch|สวิตช์|port|พอร์ต|ict|network|เครือข่าย|data ?center/;
+
+/** Server room: temperature, power, what is online, ports in trouble (side answer) */
+function serverRoom(ctx: AskContext): Answer {
+  const r = ctx.ict;
+  const [hh, mm] = ctx.time.split(":").map(Number);
+  const t = hh + mm / 60;
+  const warm = r.racks.filter((x) => inletBand(x.inlet) !== "ok");
+  const trouble: string[] = [];
+  for (const x of r.racks)
+    for (const d of x.rack.devices)
+      for (let p = 1; p <= (d.ports ?? 0); p++) {
+        const st = portStatus(d.id, p, t);
+        if (st === "error" || (st === "down" && trouble.length < 6)) trouble.push(`${d.id} port ${p} ${st}`);
+      }
+  return {
+    data: `Server room MDF-01: Cold aisle **${fmt(r.coldAisle, 1)} °C** · Hot aisle ${fmt(r.hotAisle, 1)} °C · RH ${r.humidity}%
+IT load **${fmt(r.itKw, 1)} kW** · รวมระบบทำความเย็น ${fmt(r.facilityKw, 1)} kW (PUE 1.48)
+อุปกรณ์ออนไลน์ **${r.online}/${r.devices}** · Switch port up ${r.portsUp}/${r.ports} · error ${r.portErrors}
+Port ที่ต้องดู: ${trouble.slice(0, 6).join(" · ") || "ไม่มี"}`,
+    analysis: warm.length
+      ? `${warm.map((x) => `${x.rack.id} inlet ${fmt(x.inlet, 1)} °C`).join(" · ")} สูงกว่าช่วงแนะนำ (≤ 25 °C) · ${r.devices - r.online} อุปกรณ์ offline`
+      : `ทุก Rack อยู่ในช่วงอุณหภูมิแนะนำ · ${r.devices - r.online} อุปกรณ์ offline`,
+    recommendation: `ตรวจ Blanking panel และ Airflow ของ ${warm[0]?.rack.id ?? "Rack ที่ร้อน"} ก่อน แล้วเปิดดูหน้า Rack ที่มี Port error (คลิก Rack ในโมเดล) · ระบบจริงจะดึงจาก DCIM / SNMP ของ Switch และเปิดใบงานให้ทีม IT`,
+    source: `${SIM} · DCIM + SNMP จำลอง`,
+    period: now(ctx),
+  };
+}
+
 const RULES: Rule[] = [
+  {
+    match: (q) => ICT.test(q),
+    answer: (ctx) => serverRoom(ctx),
+  },
+  {
+    // Event questions (not about carbon) answer with today's bookings
+    match: (q, ctx) => (EVENT_HALL.test(q) || (ctx.view === "event" && GENERIC.test(q))) && !CARBON.test(q),
+    answer: (ctx) => eventHall(ctx),
+  },
   {
     match: (q, ctx) =>
       /แปลน|floor.?plan|เรสซิเดนซ์|residence|library|co.?working|social floor/.test(q) ||

@@ -5,7 +5,10 @@ import type { AskContext } from "@/data/aiScript";
 import { indoorAir, last24h, outdoorAir } from "@/data/airQuality";
 import { AHU_READINGS, ASSETS, CHILLER_COP, CONNECTED_FEEDS, isRoofEquipment, roofEquipment } from "@/data/assets";
 import { SEVERITY } from "@/data/events";
+import { type CarbonPeriod, carbonFootprint, GFA_M2, GRID_EF, hourlyCarbon, INTENSITY_TARGET } from "@/data/carbon";
 import { computeEnergy, REFERENCE_FOOTFALL } from "@/data/energy";
+import { eventHallAt } from "@/data/eventHall";
+import { serverRoomAt } from "@/data/serverRoom";
 import { KPI_HISTORY } from "@/data/kpis";
 import { floorSpec, isHotelFloor, TOTAL_KEYS } from "@/data/property";
 import { entranceCounts, zoneReadings } from "@/data/publicZones";
@@ -86,7 +89,7 @@ export function selectCases(incidents: readonly Incident[]) {
 export const ahuOk = (incidents: readonly Incident[]) =>
   !openIncidents(incidents).some((e) => e.type === "ahu" && e.priority === "high");
 
-export type AirInputs = Pick<AppState, "time" | "rooms" | "incidents">;
+export type AirInputs = Pick<AppState, "time" | "rooms" | "incidents"> & Partial<Pick<AppState, "season">>;
 
 /** An open crowd alarm on the Lobby floor packs the lounge */
 export const crowdOnLobby = (incidents: readonly Incident[]) =>
@@ -99,6 +102,7 @@ export function selectPublic(s: AirInputs) {
     roomCounts(s.rooms).occupied / TOTAL_KEYS,
     crowdOnLobby(s.incidents),
     ahuOk(s.incidents),
+    s.season,
   );
   const busiest = zones.reduce((a, b) => (b.load > a.load ? b : a));
   const people = zones.reduce((n, z) => n + z.people, 0);
@@ -111,12 +115,12 @@ export function selectAir(s: AirInputs) {
   const occupancy = roomCounts(s.rooms).occupied / TOTAL_KEYS;
   const ok = ahuOk(s.incidents);
   return {
-    outdoor: outdoorAir(s.time),
-    indoor: indoorAir(s.time, occupancy, ok),
+    outdoor: outdoorAir(s.time, s.season),
+    indoor: indoorAir(s.time, occupancy, ok, s.season),
     ahuOk: ok,
     trend: {
-      outdoor: last24h(s.time, (t) => outdoorAir(t).aqi),
-      indoor: last24h(s.time, (t) => indoorAir(t, occupancy, ok).aqi),
+      outdoor: last24h(s.time, (t) => outdoorAir(t, s.season).aqi),
+      indoor: last24h(s.time, (t) => indoorAir(t, occupancy, ok, s.season).aqi),
     },
   };
 }
@@ -160,6 +164,59 @@ export function selectionLabel(s: Pick<AppState, "selectedFloor" | "floor" | "as
   if (s.floor !== "all") return `ชั้น ${s.floor}`;
   return s.asset === "site" ? "อาคารทั้งหมด" : ASSETS[s.asset].name;
 }
+
+/** Event Hall (L3) now: who is in each venue, the floor's load, today's bookings */
+export const selectEventHall = (s: Pick<AppState, "time">) => eventHallAt(s.time);
+
+/**
+ * Carbon footprint over a period (Scope 1 + 2), from the energy model, plus the intensity figures and today's hourly
+ * load. Cooling sources scale with the cooling share of demand, so the setpoint what-if moves them.
+ */
+export function selectCarbon(s: EnergyInputs & Pick<AppState, "time">, period: CarbonPeriod) {
+  const e = selectEnergy(s);
+  const coolingT0 = 2616 - e.other;
+  const footprint = carbonFootprint(e.current, (e.current - e.other) / coolingT0, period);
+  const day = carbonFootprint(e.current, (e.current - e.other) / coolingT0, "day");
+  const occupied = Math.max(1, roomCounts(s.rooms).occupied);
+  // Hotel share of electricity: its cooling plus half the other loads; it also burns most of the scope 1 fuel
+  const hotelDayT = day.scope2 * ((e.hotel + 0.5 * e.other) / e.current) + day.scope1 * 0.7;
+  const mallDayT = day.scope2 * ((e.mall + 0.5 * e.other) / e.current) + day.scope1 * 0.3;
+  let hallKwh = 0;
+  for (let h = 6; h < 24; h++) hallKwh += eventHallAt(h).kw;
+  const hall = eventHallAt(s.time);
+  const intensity = [
+    {
+      id: "roomNight",
+      label: "Per room-night",
+      unit: "kg",
+      value: (hotelDayT * 1000) / occupied,
+      target: INTENSITY_TARGET.roomNight,
+    },
+    {
+      id: "m2Year",
+      label: "Per m² · year",
+      unit: "kg",
+      value: (day.total * 365 * 1000) / GFA_M2,
+      target: INTENSITY_TARGET.m2Year,
+    },
+    {
+      id: "visit",
+      label: "Per mall visit",
+      unit: "kg",
+      value: (mallDayT * 1000) / Math.max(1, s.footfall),
+      target: INTENSITY_TARGET.visit,
+    },
+    {
+      id: "eventGuest",
+      label: "Per event guest",
+      unit: "kg",
+      value: (hallKwh * GRID_EF) / hall.guestsToday,
+      target: INTENSITY_TARGET.eventGuest,
+    },
+  ] as const;
+  return { ...footprint, intensity, hourly: hourlyCarbon(e.current), today: day.total };
+}
+export type CarbonReading = ReturnType<typeof selectCarbon>;
 
 /** Context line of the assistant: scene › selection (always the current state); the panel adds the real time */
 export function askContextLabel(s: Pick<AppState, "view" | "selectedFloor" | "floor" | "asset">) {
@@ -265,6 +322,9 @@ export function buildAskContext(s: AppState): AskContext {
     cases: selectCases(s.incidents),
     workOrders: s.workOrders,
     air: { indoor: air.indoor, outdoor: air.outdoor },
+    hall: selectEventHall(s),
+    ict: serverRoomAt(s.time),
+    carbon: selectCarbon(s, "month"),
     lobby: {
       people: lobby.people,
       entrance: lobby.entrance,

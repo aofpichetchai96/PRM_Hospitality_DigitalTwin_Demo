@@ -1,4 +1,4 @@
-// Demo smoke test (PLAN 11): the workspace pages and five scenes at the three demo screen sizes and
+// Demo smoke test (PLAN 11): the workspace pages and seven scenes at the three demo screen sizes and
 // by keyboard, Reset Demo, the alarm workflow with its SOP, room check-in, the
 // lobby counts, the assistant's three-part answers, the main modals and the
 // floor plan — with no console errors and no request leaving localhost (the
@@ -9,7 +9,9 @@ const SCENES = [
   ["overview", "Overview"],
   ["rooms", "Guest Room"],
   ["public", "Public Area"],
+  ["event", "Event Hall"],
   ["boh", "Back of House"],
+  ["ict", "ICT"],
   ["ai", "AI Assistant"],
 ] as const;
 
@@ -59,7 +61,7 @@ const viewportShare = (page: Page) =>
   page.evaluate(() => document.querySelector("canvas:not([role=img])")!.getBoundingClientRect().height / innerHeight);
 
 for (const [w, h] of SIZES) {
-  test(`the workspace pages and five scenes at ${w}×${h} keep the 3D viewport ≥ 60 %`, async ({ page }) => {
+  test(`the workspace pages and seven scenes at ${w}×${h} keep the 3D viewport ≥ 60 %`, async ({ page }) => {
     const problems = watch(page);
     await page.setViewportSize({ width: w, height: h });
     await open(page);
@@ -83,7 +85,7 @@ for (const [w, h] of SIZES) {
   });
 }
 
-test("keys 1–5 open the scenes and ← / → step through them", async ({ page }) => {
+test("keys 1–7 open the scenes and ← / → step through them", async ({ page }) => {
   const problems = watch(page);
   await open(page);
   for (const [i, [id, title]] of SCENES.entries()) {
@@ -100,7 +102,7 @@ test("keys 1–5 open the scenes and ← / → step through them", async ({ page
 
 test("KPIs start at the prototype's t0 values and Reset restores them", async ({ page }) => {
   const problems = watch(page);
-  await open(page, "?scene=ai");
+  await open(page, "?scene=energy");
   for (const v of T0_KPIS) await expect(kpiStrip(page)).toContainText(v);
   await expect(kpiStrip(page)).toContainText("Open 3 · Pending 0");
   await page.getByRole("tab", { name: "Energy" }).click();
@@ -195,6 +197,50 @@ test("the assistant answers in three parts with chips for the open scene", async
   expect(problems).toEqual([]);
 });
 
+test("Event Hall lists today's bookings and the AI scene shows the carbon footprint", async ({ page }) => {
+  const problems = watch(page);
+  await open(page, "?scene=event");
+  const panel = page.getByRole("complementary", { name: "Operations and asset details" });
+  await expect(panel).toContainText("Hospitality Leaders Summit");
+  await expect(panel).toContainText("Grand Ballroom");
+  await expect(page.getByText("GRAND BALLROOM · 320/480", { exact: false })).toBeVisible();
+  await page.keyboard.press("7");
+  await expect(page.locator("h1")).toHaveText("AI Assistant");
+  await page.getByRole("tab", { name: "Carbon" }).click();
+  await expect(panel).toContainText("Chilled water");
+  await expect(panel).toContainText("tCO₂e");
+  await page.getByRole("tab", { name: "Year" }).click();
+  await expect(page.getByText("Carbon intensity")).toBeVisible();
+  expect(problems).toEqual([]);
+});
+
+test("ICT shows the server room alone, with each rack's devices and ports", async ({ page }) => {
+  const problems = watch(page);
+  await open(page, "?scene=ict");
+  await expect(page.locator("h1")).toHaveText("ICT");
+  await expect(kpiStrip(page)).toContainText("DEVICES ONLINE");
+  // No building controls in this scene
+  await expect(page.getByRole("button", { name: "เลือกชั้น" })).toHaveCount(0);
+  const panel = page.getByRole("complementary", { name: "Operations and asset details" });
+  await panel.getByRole("button", { name: /^A03/ }).click();
+  await expect(panel).toContainText("Rack A03");
+  await expect(panel).toContainText("Access switch · 48×1G");
+  await expect(panel.getByLabel(/ports$/).first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(panel).toContainText("Server room · MDF-01");
+  // Presets dropdown: every numbered area of the room
+  const areas = page.getByRole("button", { name: "จุดในห้อง Server" });
+  await areas.click();
+  await page
+    .getByRole("listbox", { name: "จุดในห้อง Server" })
+    .getByRole("button", { name: /Generator room/ })
+    .click();
+  await expect(areas).toContainText("Generator room");
+  await page.keyboard.press("Escape");
+  await expect(areas).toContainText("ทั้งห้อง Server");
+  expect(problems).toEqual([]);
+});
+
 test("floor plan opens, zooms and returns to 3D", async ({ page }) => {
   const problems = watch(page);
   await open(page, "?scene=ai");
@@ -213,7 +259,9 @@ test("floor plan opens, zooms and returns to 3D", async ({ page }) => {
 test("slice, x-ray and explode render without errors", async ({ page }) => {
   const problems = watch(page);
   await open(page, "?scene=ai");
-  await page.getByLabel("เลือกชั้น").selectOption("H12");
+  await page.getByRole("button", { name: "เลือกชั้น" }).click();
+  await page.getByRole("button", { name: /^H12 ·/ }).click();
+  await expect(page.getByRole("button", { name: "เลือกชั้น" })).toContainText("H12");
   await page.getByRole("button", { name: "X-ray" }).click();
   await page.getByRole("button", { name: /Explode/ }).click();
   await page.getByRole("button", { name: "Exterior" }).click();

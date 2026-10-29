@@ -10,6 +10,7 @@ import { fmt, timeStr } from "@/lib/format";
 import { SHORT_SCREEN, useMediaQuery } from "@/lib/useMediaQuery";
 import { useAir, useEnergy, useRoomCounts } from "@/store/hooks";
 import { useAppStore } from "@/store/useAppStore";
+import { CarbonCharts } from "./CarbonPanel";
 import { HotelInventory } from "./HotelPanel";
 import { AlarmWorkflow } from "./AlarmPanel";
 import { PeopleCounting } from "./PublicPanel";
@@ -218,9 +219,12 @@ export function BottomPanel() {
   if (view === "rooms") return <HotelInventory />;
   if (view === "public") return <PeopleCounting />;
   if (view === "boh" || view === "ioc") return <AlarmWorkflow />;
-  // The What-if scenario lab (EnergyPanel ScenarioLab) is hidden on Energy Lab and AI Assistant at the owner's request;
-  // the setpoint what-if is still in the Energy tab of the right panel
-  if (view === "ai" || view === "energy") return null;
+  // Event Hall: the day's bookings; AI Assistant: carbon. The What-if scenario lab (EnergyPanel ScenarioLab) is hidden
+  // on Energy Lab at the owner's request; its setpoint what-if is still in Energy Lab's right panel
+  // Event Hall: no bottom panel (removed at the owner's request) — the bookings are in the right panel
+  if (view === "event" || view === "ict") return null;
+  if (view === "ai") return <CarbonCharts />;
+  if (view === "energy") return null;
   if (view !== "overview" && view !== "executive") return null;
 
   if (!open && short)

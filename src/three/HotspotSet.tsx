@@ -26,7 +26,11 @@ const VIEW_SPOTS: Record<ViewId, readonly HotspotId[]> = {
   rooms: [],
   public: ["security"],
   // The alarm callout (AlarmCallout) labels the alarmed unit, so no CH-01 pin on top of it
+  // The venue labels (EventHallLayer) say what is on
+  event: [],
   boh: ["ahu"],
+  // The server room is drawn alone: no building pins
+  ict: [],
   ai: ["hotel", "mall", "plant"],
 };
 

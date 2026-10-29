@@ -6,7 +6,10 @@ import { SourceNotice } from "@/components/ui/Modal";
 import { useAppStore } from "@/store/useAppStore";
 
 const HELP_KEYS: [string, string][] = [
-  ["5 ฉากใน Property Explorer", "Overview · Guest Room · Public Area · Back of House · AI Assistant · กดแล้วแสดงทันที"],
+  [
+    "7 ฉากใน Property Explorer",
+    "Overview · Guest Room · Public Area · Event Hall · Back of House · ICT · AI Assistant · กดแล้วแสดงทันที",
+  ],
   ["หมุน / ซูมอาคาร", "ลากเมาส์หรือนิ้วเพื่อหมุน · เลื่อนล้อเมาส์หรือจีบนิ้วเพื่อซูม · คลิกขวาลากเพื่อ Pan"],
   ["สำรวจภายใน", "กด X-ray / Explode หรือเลือกชั้น G, L1–L4, H01–H30 จากเมนูใต้ภาพ"],
   ["Alarm & SOP", "Back of House → เลือก Alarm → Ack → In progress → Closed พร้อม Checklist ตาม SOP"],
@@ -15,7 +18,7 @@ const HELP_KEYS: [string, string][] = [
 ];
 
 const SHORTCUTS: [string, string][] = [
-  ["1 – 5", "เปิดฉาก Overview / Guest Room / Public Area / Back of House / AI"],
+  ["1 – 7", "เปิดฉาก Overview / Guest Room / Public Area / Event Hall / Back of House / ICT / AI"],
   ["← / →", "ฉากก่อนหน้า / ถัดไป (รองรับ clicker)"],
   ["⇧ 1 – 5", "จำลองเหตุการณ์: CT fan trip / CHWS สูง / Pump vibration / Water leak / Lobby หนาแน่น"],
   ["P", "Presentation mode"],

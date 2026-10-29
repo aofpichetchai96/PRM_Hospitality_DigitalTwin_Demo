@@ -3,7 +3,8 @@
 // camera-controls (azimuth / polar / distance), so they port 1:1.
 import { FLOOR_HEIGHT, TOWER_BASE_Y } from "./geometry/exterior";
 
-export type CameraPresetId = "all" | "hotel" | "mall" | "plant" | "arrival" | "roof" | "explode" | "chillers";
+export type CameraPresetId =
+  "all" | "hotel" | "mall" | "plant" | "arrival" | "roof" | "explode" | "chillers" | "serverRoom";
 
 export type CameraPose = {
   target: [number, number, number];
@@ -23,6 +24,9 @@ export const CAMERA_PRESETS: Record<CameraPresetId, CameraPose> = {
   explode: { target: [0, 96, 0], azimuth: 0.43, polar: 1.3, distance: 345 },
   // Back of House: the central plant house (cut open) from the east, a little towards CH-01 so its card has room on
   // the right
+  // ICT: the server room on its own (geometry/serverRoom.ts, origin at the hall centre), seen from the NOC side
+  // with every room in frame
+  serverRoom: { target: [-1, 0.3, 2.4], azimuth: 0, polar: 0.8, distance: 37 },
   chillers: { target: [57, 2, -22], azimuth: Math.PI / 2, polar: 0.62, distance: 60 },
 };
 
@@ -42,12 +46,13 @@ export function floorPose(floor: string, top = false, tilt?: number): CameraPose
   }
   const level = floor === "G" ? 0 : Number(floor.slice(1));
   // Plan view a little south of the plate centre, so the lobby sits clear of the camera feeds at the bottom
-  if (top) return { target: [0, level * 5.2, 6.5], azimuth: 0, polar: TOP_POLAR, distance: 148 };
+  // (the Event Hall on L3 has no feeds: centred)
+  if (top) return { target: [0, level * 5.2, floor === "G" ? 6.5 : 0], azimuth: 0, polar: TOP_POLAR, distance: 148 };
   return { target: [0, level * 5.2, 0], azimuth: 0.35, polar: 0.52, distance: 148 };
 }
 
 /** Room around the plate in the plan view: a hotel floor fills the view, the podium keeps its surroundings */
-export const PLAN_MARGIN = { hotel: 1.4, podium: 1.65, tilted: 1.75 };
+export const PLAN_MARGIN = { hotel: 1.4, podium: 1.65, tilted: 1.75, event: 1.24 };
 
 /**
  * Distance at which the plan view fits a floor plate (w × d m) into the visible viewport, with a margin for the
@@ -71,6 +76,8 @@ export const CAMERA_LIMITS = {
   minDistance: 40,
   /** Closest the camera may come while a chiller is opened up */
   insideDistance: 6,
+  /** Closest the camera may come in the server room (a rack front) */
+  rackDistance: 1.8,
   maxDistance: 560,
   minPolarAngle: TOP_POLAR,
   maxPolarAngle: 1.56,
@@ -87,8 +94,8 @@ export function nearestAngle(current: number, target: number) {
 }
 
 /** Close orbit around a point, used when an asset or incident is picked */
-export function focusPose(target: [number, number, number], distance = 95): CameraPose {
-  return { target, azimuth: 0.6, polar: 1.05, distance };
+export function focusPose(target: [number, number, number], distance = 95, azimuth = 0.6, polar = 1.05): CameraPose {
+  return { target, azimuth, polar, distance };
 }
 
 /** Pose for a store camera shot: a named preset, a floor or a point of focus */
@@ -96,9 +103,9 @@ export function shotPose(
   shot:
     | { preset: CameraPresetId }
     | { floor: string; top?: boolean; tilt?: number }
-    | { focus: [number, number, number]; distance?: number },
+    | { focus: [number, number, number]; distance?: number; azimuth?: number; polar?: number },
 ): CameraPose {
   if ("preset" in shot) return CAMERA_PRESETS[shot.preset];
   if ("floor" in shot) return floorPose(shot.floor, shot.top, shot.tilt);
-  return focusPose(shot.focus, shot.distance);
+  return focusPose(shot.focus, shot.distance, shot.azimuth, shot.polar);
 }

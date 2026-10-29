@@ -66,6 +66,16 @@ describe("AI Building Assistant", () => {
     expect(a.recommendation).toContain("Chiller efficiency low");
   });
 
+  it("answers carbon questions from the carbon model and event questions from today's bookings", () => {
+    const c = ask("Carbon footprint เดือนนี้เป็นอย่างไร");
+    expect(c.intent).toBe("energy");
+    expect(c.data).toContain("tCO₂e");
+    expect(c.analysis).toContain("Chilled water");
+    const e = ask("วันนี้มีงานอะไรใน Event Hall บ้าง");
+    expect(e.data).toContain("Hospitality Leaders Summit");
+    expect(e.analysis).toContain("Grand Ballroom 320/480");
+  });
+
   it("recommends the 25 °C setpoint with the energy model's saving", () => {
     expect(answerText(ask("แนะนำวิธีลดการใช้พลังงาน"))).toContain("ปรับ Setpoint เป็น 25 °C");
   });

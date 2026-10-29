@@ -3,6 +3,7 @@
 // filters plus CO₂ from the people inside. Pure functions of the clock, so the
 // 24 h sparklines are computed rather than stored and t0 is always the same.
 // Demo model only: no sensor is read.
+import type { Season } from "@/types";
 
 export interface AirReading {
   /** Thai AQI (Pollution Control Department) from PM2.5 */
@@ -94,9 +95,14 @@ const peak = (time: number, at: number, width: number) => {
 };
 const round1 = (v: number) => Math.round(v * 10) / 10;
 
-/** Outdoor air at a decimal hour */
-export function outdoorAir(time: number): AirReading {
-  const pm25 = round1(24 + 15 * peak(time, 8, 1.6) + 12 * peak(time, 18.5, 1.8) + 6 * peak(time, 14, 3));
+/** Outdoor PM2.5 by season: rain washes the dust out; the dry-season haze (burning, inversions) multiplies it */
+export const SEASON_PM: Record<Season, number> = { summer: 1, rainy: 0.5, haze: 2.6 };
+
+/** Outdoor air at a decimal hour, in a season (the hot season is the reference) */
+export function outdoorAir(time: number, season: Season = "summer"): AirReading {
+  const pm25 = round1(
+    (24 + 15 * peak(time, 8, 1.6) + 12 * peak(time, 18.5, 1.8) + 6 * peak(time, 14, 3)) * SEASON_PM[season],
+  );
   const co2 = Math.round(418 + 22 * peak(time, 8, 1.6) + 18 * peak(time, 18.5, 1.8));
   return { aqi: pm25ToAqi(pm25), pm25, co2 };
 }
@@ -116,8 +122,8 @@ export function activityAt(time: number) {
  * Indoor air of the whole building: filtered outdoor PM2.5 and CO₂ that rises
  * with occupancy (0–1) and the time of day. `ahuOk` false = an AHU filter fault.
  */
-export function indoorAir(time: number, occupancy: number, ahuOk = true): AirReading {
-  const out = outdoorAir(time);
+export function indoorAir(time: number, occupancy: number, ahuOk = true, season: Season = "summer"): AirReading {
+  const out = outdoorAir(time, season);
   const pm25 = round1(out.pm25 * (ahuOk ? FILTER_PASS.ok : FILTER_PASS.fault) + INDOOR_PM_BASE);
   const co2 = Math.round(out.co2 + 40 + CO2_PER_LOAD * occupancy * activityAt(time));
   return { aqi: pm25ToAqi(pm25), pm25, co2 };

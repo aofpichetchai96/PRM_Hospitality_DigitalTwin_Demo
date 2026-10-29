@@ -51,10 +51,26 @@ src/store        one Zustand store = twinSlice (view / scene / UI) + simSlice (c
 src/types        shared domain types
 ```
 
-- **One page, five scenes, store is the single source of truth.** The PROPERTY EXPLORER menu lists the scenes
-  `overview · rooms · public · boh · ai` (`ViewId`, `data/views.ts`, keys `1`–`5`). `setView(id)` applies a scene's
+- **One page, seven scenes, store is the single source of truth.** The PROPERTY EXPLORER menu lists the scenes
+  `overview · rooms · public · event · boh · ict · ai` (`ViewId`, `data/views.ts`, keys `1`–`7`). `setView(id)` applies a scene's
   hero shot (camera, mode, floor, layers) — Guest Room slices H12 in a plan view (`{floor, top}` shot, distance
   fitted to the viewport by `planDistance`; each room's kW from `roomPowers` on its window side, `three/RoomPower.tsx`),
+  Event Hall slices L3 in a plan view (`data/eventHall.ts`: four venues, today's bookings, attendance by the clock —
+  t0 ballroom 320/480 for the summit; `three/EventHallLayer.tsx` seats figures at the banquet rounds and meeting
+  tables and labels each venue with its carbon footprint today and emission now (venue kW × grid EF), plus a floor
+  carbon card; right panel `EventHallPanel`, no bottom panel; plan margin `PLAN_MARGIN.event`). The AI Assistant scene's second tab is **Carbon**
+  (`data/carbon.ts`, `selectCarbon`): Scope 1 + 2 from the energy model × grid EF 0.4999, sources against assumed
+  targets with Standard / Excessive / Seriously excessive levels (chilled water is over at t0), Day–Year periods,
+  hourly carbon load and intensities in the bottom panel; the assistant answers carbon and event questions.
+  **ICT** draws only the server room — no building, site or city (`settings.ict` in SceneRoot; ViewportPanel mounts
+  just `three/ServerRoomScene.tsx` and hides the building controls). Room shell in `geometry/serverRoom.ts` (raised
+  floor, cold-aisle containment, in-row coolers, CRACs, FM-200 pipe, NOC, generator, FM-200 and UPS rooms); opens
+  square on from the NOC side (`serverRoom` preset). The numbered areas (`ROOM_AREAS`, each with a camera `shot` and
+  the rack row to ghost) are presets in a dropdown top right (`components/viewport/AreaPicker.tsx`, `openArea`) and a
+  clickable legend in the panel — no number markers in 3D; racks, devices U by U and switch port status in `data/serverRoom.ts` (`serverRoomAt`, t0: B05
+  warm, 2 devices offline, flapping error ports). Each rack front is a canvas texture; clicking one (`openRack`) flies
+  square on to it (`{focus, azimuth, polar}` shot, `rackDistance`), ghosts the row across the aisle and lists its
+  devices and ports in `ServerRoomPanel`; Esc goes back.
   Public Area G in a plan view too (whole podium, `PLAN_MARGIN.podium`; the chilled-water riser is left out on a
   sliced podium floor), Back of House the central plant (no floor cut; a rooftop alarm in focus slices H30, a
   chiller alarm brings the whole building back — `showAlarmUnit` in twinSlice). Lobby zones each follow their own daily rhythm (`atT0`, `rhythm` in
@@ -108,6 +124,14 @@ src/types        shared domain types
   `mallCrowd()` adds fixed shoppers / concourse walkers / back-room staff on the rest of G (mall footfall, not the lobby
   counts); `three/LobbyZones.tsx` heats the whole floor inside its walls (`G_PLATE`, a faint wash plus a blob per
   figure) from all figures' positions twice a second — indoors only. Reduced motion freezes the figures and the heatmap.
+  **Season** (dropdown beside day / dusk; `season` in twinSlice, kept across scenes, reset to `summer`): `seasonLook()`
+  in `look.ts` tints sky / fog / sun — rainy greys out with falling rain (`three/Rain.tsx`, one static line set slid
+  down), haze browns it out with close fog — and `SEASON_PM` scales outdoor PM2.5 (rainy ×0.5, haze ×2.6), so AQI
+  everywhere follows. t0 values are for `summer`.
+  **L3 Event Hall fit-out** (`podiumL3`): glazed envelope, carpet / terrazzo / tile finishes, ballroom with patterned
+  carpet, panelled walls with double doors, stage + LED wall + truss, parquet dance floor, chandeliers, buffet, bar,
+  AV desk; foyer with registration backdrop, cocktail tables, lounges, coffee station; meeting rooms (`MEETING_ROOMS`)
+  with glass fronts; banquet kitchen behind a wall.
   Look: Khronos Neutral tone mapping, Lightformer environment (no HDR / CDN), N8AO + Bloom on High.
 
 ## Conventions and gotchas
@@ -160,7 +184,7 @@ src/types        shared domain types
   (building · energy · rooms · public · alarms · recommend; a generic question takes the scene's topic); every answer
   is `{data, analysis, recommendation, source, period, sopFor?}`, shown as three coloured parts. Answers are stamped
   with the scene and clock; ones from another scene are dimmed. Chips per scene (`QUICK_CHIPS`).
-- Keyboard: `1`–`5` scenes, `→/←/PageUp/PageDown` next / previous scene, `Shift+1`–`5` inject a scenario, `P`
+- Keyboard: `1`–`7` scenes, `→/←/PageUp/PageDown` next / previous scene, `Shift+1`–`5` inject a scenario, `P`
   presentation, `R` reset, `[ ]` floors, `Home`, `Esc` (closes innermost: modal → floor plan → picked floor → slice →
   presentation; works even from inside inputs for modals).
 - Reset Demo restores the seeded state but keeps presenter preferences (sidebar, quality) and never replays

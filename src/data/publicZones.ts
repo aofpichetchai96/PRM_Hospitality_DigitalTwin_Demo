@@ -4,6 +4,7 @@
 // (podiumGround). Counts are pure functions of the clock, like footfallAt(),
 // so they move with the timeline and t0 is fixed. Aggregated counts only: no
 // face recognition or identity.
+import type { Season } from "@/types";
 import { activityAt, type AirReading, indoorAir, outdoorAir, pm25ToAqi } from "./airQuality";
 
 export type PublicZoneId = "entrance" | "lounge" | "reception" | "liftHall" | "retailLink";
@@ -142,10 +143,16 @@ export interface ZoneReading {
  * People and air in each zone. `occupancy` is the hotel occupancy (0–1) for the
  * building's indoor air; `crowd` = an open crowd alarm on the lobby floor.
  */
-export function zoneReadings(time: number, occupancy: number, crowd = false, ahuOk = true): ZoneReading[] {
+export function zoneReadings(
+  time: number,
+  occupancy: number,
+  crowd = false,
+  ahuOk = true,
+  season: Season = "summer",
+): ZoneReading[] {
   const total = lobbyPeopleAt(time);
-  const inside = indoorAir(time, occupancy, ahuOk);
-  const outside = outdoorAir(time);
+  const inside = indoorAir(time, occupancy, ahuOk, season);
+  const outside = outdoorAir(time, season);
   // Each zone's share follows its own rhythm, scaled so t0 gives exactly the atT0 counts
   const weights = PUBLIC_ZONES.map((zone) => (zone.atT0 * zone.rhythm(time)) / zone.rhythm(T0));
   const sum = weights.reduce((a, b) => a + b, 0);

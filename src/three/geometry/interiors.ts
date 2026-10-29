@@ -1357,45 +1357,231 @@ function podiumL2(g: G, y: number) {
   for (const z of [-7.5, 7.5]) for (const x of [-36, -30]) plant(g, x, y, z, 1.2);
 }
 
-function podiumL3(g: G, y: number) {
-  // Grand ballroom: stage, screen, dance floor, banquet rounds
-  block(g, 26.5, y, 3, 21, 0.03, 38, "stone", [0.62, 0.5, 0.46, 1]);
-  for (const x of [16, 37]) block(g, x, y, 3, 0.14, 3.4, 38, "stone", C.wall);
-  for (const z of [-16, 22]) block(g, 26.5, y, z, 21, 3.4, 0.14, "stone", C.wall);
-  block(g, 26.5, y, -13.6, 15, 0.8, 4.4, "wood", C.woodDark);
-  block(g, 26.5, y + 0.8, -15.75, 12, 3.0, 0.1, "glow", C.videoWall);
-  for (const s of [-1, 1]) block(g, 26.5 + s * 7, y + 0.8, -14.5, 0.7, 1.6, 0.6, "stone", C.dark);
-  block(g, 22, y + 0.8, -12.4, 0.6, 1.1, 0.5, "wood", C.woodLight);
-  block(g, 26.5, y, -8.5, 9, 0.04, 4.5, "wood", [0.6, 0.45, 0.3, 1]);
+/** Event floor (L3) meeting rooms along the street front, west → east */
+export const MEETING_ROOMS = [
+  { x0: -37, x1: -27 },
+  { x0: -27, x1: -17 },
+  { x0: -17, x1: -7 },
+] as const;
+
+const EV = {
+  ballroomCarpet: [0.42, 0.25, 0.27, 1] as RGBA,
+  ballroomPattern: [0.5, 0.32, 0.31, 1] as RGBA,
+  gold: [0.78, 0.62, 0.36, 1] as RGBA,
+  foyerCarpet: [0.6, 0.53, 0.46, 1] as RGBA,
+  meetingCarpet: [0.37, 0.43, 0.5, 1] as RGBA,
+  panel: [0.55, 0.4, 0.3, 1] as RGBA,
+  parquetA: [0.66, 0.5, 0.33, 1] as RGBA,
+  parquetB: [0.55, 0.4, 0.26, 1] as RGBA,
+  stage: [0.18, 0.18, 0.2, 1] as RGBA,
+};
+
+/** Solid wall along x (z fixed) or along z (x fixed) from `from` to `to`, with door gaps; each door has open leaves */
+function wallWithDoors(
+  g: G,
+  y: number,
+  h: number,
+  along: "x" | "z",
+  at: number,
+  from: number,
+  to: number,
+  doors: readonly (readonly [number, number])[],
+  col: RGBA,
+  t = 0.16,
+) {
+  let a = from;
+  for (const [d0, d1] of [...doors, [to, to] as const]) {
+    if (d0 > a) {
+      const mid = (a + d0) / 2;
+      if (along === "x") block(g, mid, y, at, d0 - a, h, t, "stone", col);
+      else block(g, at, y, mid, t, h, d0 - a, "stone", col);
+    }
+    if (d1 > d0 && d1 < to)
+      for (const j of [d0, d1]) {
+        if (along === "x") block(g, j, y, at + 0.45, 0.05, 2.2, 0.8, "wood", C.woodDark);
+        else block(g, at + 0.45, y, j, 0.8, 2.2, 0.05, "wood", C.woodDark);
+      }
+    a = d1;
+  }
+}
+
+/** L3 envelope: glazed street front (z 24.45), windows between piers on the east and west sides, solid north wall */
+function eventEnvelope(g: G, y: number, h: number) {
+  const front = 24.45;
+  pane(g, [-42.8, y, front], [42.8, y, front], h);
+  for (let x = -42.8; x <= 42.81; x += 3.05) block(g, x, y, front, 0.12, h, 0.18, "metal", C.dark);
+  block(g, 0, y, front, 85.6, 0.3, 0.3, "stone", C.stoneDark);
+  for (const sx of [-1, 1]) {
+    const x = sx * 42.85;
+    for (let z = -24; z <= 18; z += 6) {
+      block(g, x, y, z, 0.3, h, 1.2, "stone", C.wall);
+      pane(g, [x, y, z + 0.6], [x, y, z + 5.4], h);
+    }
+  }
+  block(g, 0, y, -25.05, 86, h, 0.3, "stone", C.wall);
+}
+
+/** Crystal chandelier: a warm drum with a ring of drops (from above, a glowing ring) */
+function chandelier(g: G, x: number, y: number, z: number) {
+  g.cylinder(x, y + 2.35, z, 0.55, 0.22, "warm", undefined, 14);
+  for (let k = 0; k < 10; k++) {
+    const a = (k / 10) * Math.PI * 2;
+    g.sphere(x + Math.cos(a) * 0.9, y + 2.3, z + Math.sin(a) * 0.9, 0.12, 0.16, 0.12, "warm", undefined, 5, 3);
+  }
+  g.line([x, y + 2.57, z], [x, y + 2.85, z], 0.05, "metal", C.brass);
+}
+
+function podiumL3(g: G, y: number, cut: boolean) {
+  const h = cut ? CUT : 4.4;
+  const wallH = cut ? CUT : 3.4;
+  eventEnvelope(g, y, h);
+
+  // ---------------------------------------------------------- floor finishes
+  // Foyer and corridors in a warm carpet with a gold border; meeting rooms blue-grey; back of house tiled
+  block(g, 5, y, 15, 22, 0.03, 18.8, "stone", EV.foyerCarpet);
+  block(g, 5, y, 2.5, 22, 0.03, 6.2, "stone", EV.foyerCarpet);
+  for (const z of [6.2, 23.9]) block(g, 5, y + 0.01, z, 21.6, 0.03, 0.25, "stone", EV.gold);
+  block(g, -22, y, 7.5, 30, 0.03, 3, "stone", EV.foyerCarpet);
+  for (const r of MEETING_ROOMS)
+    block(g, (r.x0 + r.x1) / 2, y, 16.5, r.x1 - r.x0 - 0.3, 0.03, 14, "stone", EV.meetingCarpet);
+  block(g, -33.5, y + 0.005, -12, 19, 0.03, 9, "stone", C.tile);
+  block(g, 40, y, 1, 5.4, 0.03, 34, "stone", C.coreFloor);
+  // Service and circulation behind (north of) the foyer in a light terrazzo, round the atrium void (x −24…−6, z −6…6);
+  // 2 cm thick, so the toilets' 3 cm tile (podiumCommon) still shows on top of it
+  const TERRAZZO: RGBA = [0.76, 0.75, 0.72, 1];
+  block(g, -33.3, y, -9.4, 18.6, 0.02, 30.8, "stone", TERRAZZO);
+  block(g, -15, y, -15.4, 18, 0.02, 18.8, "stone", TERRAZZO);
+  block(g, 5, y, -12.8, 22, 0.02, 24, "stone", TERRAZZO);
+  block(g, -39.8, y, 15, 5.6, 0.02, 18, "stone", TERRAZZO);
+  block(g, 29.3, y, -20.4, 26.6, 0.02, 8.8, "stone", TERRAZZO);
+
+  // --------------------------------------------------------------- ballroom
+  // Patterned carpet: a deep red field, a lighter lattice and a gold border
+  block(g, 26.5, y, 3, 21, 0.03, 38, "stone", EV.ballroomCarpet);
+  for (let x = 18; x <= 35.1; x += 2.2) block(g, x, y + 0.005, 3, 0.12, 0.03, 37.4, "stone", EV.ballroomPattern);
+  for (let z = -15; z <= 21.1; z += 2.2) block(g, 26.5, y + 0.005, z, 20.4, 0.03, 0.12, "stone", EV.ballroomPattern);
+  for (const z of [-15.7, 21.7]) block(g, 26.5, y + 0.01, z, 20.6, 0.03, 0.3, "stone", EV.gold);
+  for (const x of [16.3, 36.7]) block(g, x, y + 0.01, 3, 0.3, 0.03, 37.6, "stone", EV.gold);
+  // Walls: double doors from the foyer (west), a service door to the back corridor (east)
+  wallWithDoors(
+    g,
+    y,
+    wallH,
+    "z",
+    16,
+    -16,
+    22,
+    [
+      [-1, 2],
+      [8.5, 12.5],
+    ],
+    C.wall,
+  );
+  wallWithDoors(g, y, wallH, "z", 37, -16, 22, [[-11, -8.5]], C.wall);
+  for (const z of [-16, 22]) block(g, 26.5, y, z, 21, wallH, 0.16, "stone", C.wall);
+  // Wood wall panels
+  for (let z = -13; z <= 20; z += 4.2)
+    for (const x of [16.2, 36.8])
+      if (!(x < 20 && ((z > -1.8 && z < 2.8) || (z > 7.7 && z < 13.3))))
+        block(g, x, y + 0.3, z, 0.06, Math.min(wallH, 2.6) - 0.3, 1.6, "wood", EV.panel);
+  // Stage: platform with a step, LED wall, side screens, speakers, lectern, a truss with lights
+  block(g, 26.5, y, -13.6, 15, 0.8, 4.4, "wood", EV.stage);
+  block(g, 26.5, y, -11.15, 6, 0.4, 0.5, "wood", EV.stage);
+  block(g, 26.5, y + 0.8, -15.75, 12, Math.min(2.6, wallH - 0.8), 0.1, "glow", C.videoWall);
+  for (const s of [-1, 1]) {
+    block(g, 26.5 + s * 9.5, y + 0.6, -15.7, 2.6, 1.6, 0.08, "glow", C.screen);
+    block(g, 26.5 + s * 7, y + 0.8, -14.5, 0.7, 1.6, 0.6, "stone", C.dark);
+  }
+  block(g, 21.5, y + 0.8, -12.3, 0.6, 1.1, 0.5, "wood", C.woodLight);
+  g.line([19, y + 2.75, -11.6], [34, y + 2.75, -11.6], 0.12, "metal", C.dark);
+  for (let i = 0; i < 6; i++) block(g, 20.2 + i * 2.5, y + 2.6, -11.6, 0.3, 0.2, 0.3, "warm");
+  // Dance floor: parquet in a checker
+  for (let i = 0; i < 6; i++)
+    for (let j = 0; j < 3; j++)
+      block(
+        g,
+        22.75 + i * 1.5,
+        y + 0.005,
+        -9.95 + j * 1.5,
+        1.5,
+        0.04,
+        1.5,
+        "wood",
+        (i + j) % 2 ? EV.parquetA : EV.parquetB,
+      );
   for (let i = 0; i < 4; i++) for (let j = 0; j < 6; j++) banquet(g, 19.6 + i * 4.6, y, -4 + j * 4.4);
-  // Pre-function foyer and registration
+  // Chandeliers over the aisles
+  for (const [x, z] of [
+    [21.9, 2.6],
+    [31.1, 2.6],
+    [21.9, 11.4],
+    [31.1, 11.4],
+    [26.5, -6.8],
+  ] as const)
+    chandelier(g, x, y, z);
+  // Buffet along the east wall, bar in the south-east corner, AV / lighting desk at the back
+  counter(g, 35.9, y, 6, 3, 9, C.woodDark, C.linen);
+  for (let i = 0; i < 7; i++) g.cylinder(35.9, y + 0.98, 2 + i * 1.3, 0.28, 0.14, "metal", C.steel, 10);
+  counter(g, 33.5, y, 20.6, 0, 4, C.woodDark);
+  block(g, 33.5, y, 21.6, 4, 2.0, 0.4, "wood", C.woodDark);
+  for (let i = 0; i < 6; i++) block(g, 31.8 + i * 0.7, y + 1.6, 21.45, 0.12, 0.3, 0.12, "glass", pick(g, GOODS));
+  block(g, 19.5, y, 20.4, 3, 0.8, 1.2, "wood", C.stoneDark);
+  for (let i = 0; i < 3; i++) block(g, 18.6 + i * 0.9, y + 0.8, 20.1, 0.7, 0.4, 0.05, "glow", C.screen);
+  for (const [x, z] of [
+    [17.2, -15],
+    [35.8, -15],
+    [17.2, 21],
+  ] as const)
+    plant(g, x, y, z, 1.1);
+
+  // ----------------------------------------------------- pre-function foyer
+  // Registration: two counters before a branded backdrop with a lit strip
   for (const x of [0, 8]) counter(g, x, y, 8, 0, 3, C.woodLight);
+  block(g, 4, y, 6.6, 13, Math.min(2.6, wallH), 0.2, "stone", pick(g, BRAND));
+  block(g, 4, y + 2.2, 6.75, 11, 0.12, 0.05, "warm");
+  // Cocktail tables, two lounges by the glass, a coffee-break station, poster easels at the ballroom doors
   for (let i = 0; i < 4; i++)
     for (let j = 0; j < 2; j++) {
       const x = -1 + i * 3.6;
-      const z = 13 + j * 5;
+      const z = 12.5 + j * 4.5;
       g.cylinder(x, y + 1.05, z, 0.38, 0.05, "stone", C.linen, 12);
       g.cylinder(x, y, z, 0.05, 1.05, "metal", C.dark, 6);
     }
-  for (const x of [-2, 2, 6]) block(g, x, y, 21.5, 0.8, 2.0, 0.05, "stone", pick(g, BRAND));
-  // Meeting rooms: glazed fronts, boardroom tables, screens
-  for (const [x0, x1] of [
-    [-40, -29],
-    [-29, -18],
-    [-18, -7],
-  ]) {
-    const mid = (x0 + x1) / 2;
-    for (const x of [x0, x1]) block(g, x, y, 16, 0.14, 2.8, 14, "stone", C.wall);
-    block(g, mid, y, 23, x1 - x0, 2.8, 0.14, "stone", C.wall);
-    pane(g, [x0, y, 9], [x1, y, 9], 2.8);
-    boardroom(g, mid, y, 16, false, 7);
-    block(g, mid, y + 0.9, 22.85, 3, 1.7, 0.06, "glow", C.screen);
+  lounge(g, -1, y, 21.8, C.fabricWarm);
+  lounge(g, 7.5, y, 21.8, C.fabricGreen);
+  counter(g, 13.4, y, 16.5, 3, 5, C.woodDark, C.white);
+  for (let i = 0; i < 3; i++) g.cylinder(13.4, y + 0.98, 14.8 + i * 1.1, 0.18, 0.45, "metal", C.steel, 10);
+  for (const z of [5.5, 14]) {
+    block(g, 15.2, y, z, 0.05, 1.7, 0.9, "stone", pick(g, BRAND));
+    block(g, 15.0, y, z, 0.05, 1.7, 0.05, "metal", C.dark);
   }
-  // Back of house: banquet kitchen, chair store, AV room
+  for (const x of [-4.5, 3.5, 11.5]) plant(g, x, y, 23.6, 1.2);
+  plant(g, 14.6, y, 23.4, 1.2);
+
+  // ----------------------------------------------------------- meeting rooms
+  for (const { x0, x1 } of MEETING_ROOMS) {
+    const mid = (x0 + x1) / 2;
+    for (const x of [x0, x1]) block(g, x, y, 16.5, 0.14, wallH, 14, "stone", C.wall);
+    // Glass front with a door
+    pane(g, [x0, y, 9.5], [mid - 0.6, y, 9.5], Math.min(2.8, wallH));
+    pane(g, [mid + 0.6, y, 9.5], [x1, y, 9.5], Math.min(2.8, wallH));
+    block(g, mid - 0.6, y, 9.95, 0.05, 2.1, 0.9, "glass", [0.6, 0.75, 0.78, 1]);
+    boardroom(g, mid, y, 16, false, 7);
+    block(g, mid, y + 0.9, 23.2, 3, 1.5, 0.06, "glow", C.screen);
+    block(g, x0 + 0.5, y, 20.5, 0.5, 0.8, 3, "wood", C.woodDark);
+    plant(g, x1 - 0.8, y, 22.6, 0.9);
+  }
+
+  // ---------------------------------------------------------- back of house
+  // Banquet kitchen behind a wall with a service door: cook line, hood, prep islands, pass; chair and table store
+  wallWithDoors(g, y, wallH, "x", -7.2, -42.7, -24.5, [[-27.5, -25.5]], C.concrete);
   block(g, -34, y, -15.6, 11, 0.9, 1.0, "metal", C.steel);
   block(g, -34, y + 2.0, -15.6, 11, 0.6, 1.2, "metal", C.steel);
   for (const dx of [-3, 3]) block(g, -34 + dx, y, -11.5, 4, 0.9, 1.2, "metal", C.steel);
+  block(g, -34, y, -8.6, 9, 1.0, 0.6, "metal", C.steel);
+  for (let i = 0; i < 5; i++) g.cylinder(-37.5 + i * 1.8, y + 0.9, -15.6, 0.25, 0.2, "metal", C.dark, 8);
   for (let i = 0; i < 6; i++) block(g, -26 + i * 1.6, y, -14, 0.5, 1.6, 0.5, "stone", C.fabricWarm);
+  for (let i = 0; i < 3; i++) g.cylinder(-26 + i * 2.2, y, -10.6, 0.9, 0.9, "stone", C.linen, 12);
   for (let i = 0; i < 4; i++) {
     block(g, -12 + i * 1, y, -15.6, 0.6, 2.0, 0.9, "stone", C.dark);
     block(g, -12 + i * 1, y + 1.8, -15.13, 0.4, 0.05, 0.02, "green");
@@ -1465,5 +1651,6 @@ export function podiumFloor(g: G, id: string, y: number, cut: boolean) {
   const level = id === "G" ? 0 : Number(id.slice(1));
   podiumCommon(g, level, y, cut);
   if (level === 0) podiumG(g, y, cut);
-  else [podiumL1, podiumL2, podiumL3, podiumL4][level - 1](g, y);
+  else if (level === 3) podiumL3(g, y, cut);
+  else [podiumL1, podiumL2, podiumL4][level < 3 ? level - 1 : 2](g, y);
 }

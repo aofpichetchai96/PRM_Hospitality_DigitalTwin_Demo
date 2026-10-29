@@ -3,21 +3,23 @@
 import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { FOG_RANGE, LOOK, SUN_POSITION, type TimeOfDay } from "./look";
+import { type Season, seasonLook, SUN_POSITION, type TimeOfDay } from "./look";
 import { createSkyTexture } from "./textures";
 
 /** Sky, fog, lights, static shadow map and a file-free environment map */
 export function Atmosphere({
   time,
+  season = "summer",
   shadows,
   shadowKey,
 }: {
   time: TimeOfDay;
+  season?: Season;
   shadows: boolean;
   /** Changes whenever the shadow-casting geometry changes */
   shadowKey: string;
 }) {
-  const look = LOOK[time];
+  const look = useMemo(() => seasonLook(time, season), [time, season]);
   const invalidate = useThree((s) => s.invalidate);
   const sky = useMemo(() => createSkyTexture(look.sky, look.skyCenter), [look]);
   useEffect(() => () => sky.dispose(), [sky]);
@@ -28,7 +30,7 @@ export function Atmosphere({
   useEffect(() => {
     shadowDirty.current = true;
     invalidate();
-  }, [time, shadows, shadowKey, invalidate]);
+  }, [time, season, shadows, shadowKey, invalidate]);
   useFrame(({ gl }) => {
     gl.shadowMap.autoUpdate = false;
     if (shadowDirty.current) {
@@ -40,7 +42,7 @@ export function Atmosphere({
   return (
     <>
       <primitive attach="background" object={sky} />
-      <fog attach="fog" args={[look.fog, ...FOG_RANGE]} />
+      <fog key={`fog-${time}-${season}`} attach="fog" args={[look.fog, ...look.fogRange]} />
       <hemisphereLight args={[look.hemi.sky, look.hemi.ground, look.hemi.intensity]} />
       <directionalLight
         position={SUN_POSITION}
@@ -61,7 +63,7 @@ export function Atmosphere({
         Environment built from Lightformers — no HDR file and no CDN request
         (drei presets load from the network; PLAN R10). Rendered once per look.
       */}
-      <Environment key={time} resolution={256} frames={1} environmentIntensity={look.envIntensity}>
+      <Environment key={`env-${time}-${season}`} resolution={256} frames={1} environmentIntensity={look.envIntensity}>
         {look.envLights.map((l, i) => (
           <Lightformer key={i} form="rect" {...l} />
         ))}

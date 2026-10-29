@@ -127,8 +127,8 @@ export interface EnergyResult {
   dayCost: number;
 }
 
-/** The five scenes of the property explorer, in menu order (keys 1–5) */
-export type SceneId = "overview" | "rooms" | "public" | "boh" | "ai";
+/** The seven scenes of the property explorer, in menu order (keys 1–7) */
+export type SceneId = "overview" | "rooms" | "public" | "event" | "boh" | "ict" | "ai";
 /** Workspace pages (the AI Assistant is in both lists) and the scenes */
 export type ViewId = "executive" | "twin" | "ioc" | "energy" | SceneId;
 export type ZoneId = "all" | "mall" | "hotel" | "plant" | "arrival";
@@ -136,6 +136,8 @@ export type SceneMode = "exterior" | "xray" | "slice";
 export type LayerId = "energy" | "security" | "people" | "assets";
 export type Layers = Record<LayerId, boolean>;
 export type TimeOfDay = "day" | "dusk";
+/** Weather season shown in 3D (sky, fog, rain) and in the outdoor air: hot season, rainy season, haze (PM2.5) season */
+export type Season = "summer" | "rainy" | "haze";
 export type RightPanelTab = "agent" | "details";
 
 /** What the camera should frame: a named preset or a floor (Slice mode) */
@@ -143,7 +145,8 @@ export type CameraShot =
   | { preset: CameraPresetId }
   /** `top`: straight down on the plan (Guest Room, Public Area); `tilt`: north up at this polar angle (Back of House) */
   | { floor: FloorId; top?: boolean; tilt?: number }
-  | { focus: Vec3; distance?: number }
+  /** `azimuth` / `polar` set the viewing direction (a rack front); default an oblique view */
+  | { focus: Vec3; distance?: number; azimuth?: number; polar?: number }
   /** Turn to a heading, keeping target, distance and tilt (compass) */
   | { azimuth: number };
 

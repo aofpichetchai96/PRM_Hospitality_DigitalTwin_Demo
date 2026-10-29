@@ -11,6 +11,8 @@ import {
   MonitorDot,
   PanelLeftClose,
   PanelLeftOpen,
+  Server,
+  PartyPopper,
   Users,
   Zap,
 } from "lucide-react";
@@ -29,15 +31,17 @@ const VIEW_ICON: Record<ViewId, LucideIcon> = {
   overview: LayoutDashboard,
   rooms: BedDouble,
   public: Users,
+  event: PartyPopper,
   boh: Factory,
+  ict: Server,
   ai: Bot,
 };
 
 const STORAGE_KEY = "prm.sidebarExpanded";
 
 /**
- * 72px icon rail with the workspace pages, or 220px with labels and the property explorer's five scenes that open
- * at once (keys 1–5). Full from
+ * 72px icon rail with the workspace pages, or 220px with labels and the property explorer's seven scenes that open
+ * at once (keys 1–7). Full from
  * 1440px wide by default; the toggle overrides it and is remembered per browser.
  */
 export function Sidebar() {
@@ -117,7 +121,7 @@ export function Sidebar() {
         {WORKSPACE.map(({ id, label }) => item(id, label))}
       </nav>
 
-      {/* The scenes only show with the menu open; keys 1–5 still open them from the rail */}
+      {/* The scenes only show with the menu open; keys 1–7 still open them from the rail */}
       {expanded && (
         <>
           <p className="mt-4 px-2 pb-1 text-[11px] tracking-[0.18em] whitespace-nowrap text-muted">PROPERTY EXPLORER</p>

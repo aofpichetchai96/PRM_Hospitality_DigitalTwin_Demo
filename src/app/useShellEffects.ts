@@ -43,7 +43,7 @@ function stepScene(dir: 1 | -1) {
 }
 
 /**
- * 1–5 open a scene, Shift+1–5 inject a scenario, ← / → / PageUp / PageDown step through scenes (clicker), P presentation,
+ * 1–7 open a scene, Shift+1–5 inject a scenario, ← / → / PageUp / PageDown step through scenes (clicker), P presentation,
  * R reset, [ / ] floor down / up, Home back to the scene's shot, Esc closes (3D_PLAN 5.1)
  */
 export function useKeyboard() {
@@ -65,7 +65,7 @@ export function useKeyboard() {
         return;
       }
 
-      // Digits by key code, so the shifted ones (scenario injector) still read as 1–5
+      // Digits by key code, so the shifted ones (scenario injector) still read as digits
       const digit = /^Digit([1-9])$/.exec(e.code);
       if (digit) {
         const n = Number(digit[1]) - 1;
@@ -103,6 +103,8 @@ export function useKeyboard() {
           // Innermost first: modal → chiller inside view → floor plan → picked floor → slice → presentation
           if (s.modal) s.closeModal();
           else if (s.chillerView !== null) s.openChiller(null);
+          else if (s.rackFocus !== null) s.openRack(null);
+          else if (s.roomArea !== null) s.openArea(null);
           else if (s.spatial === "plan") s.setSpatial("building");
           else if (s.selectedFloor) s.pickFloor(null);
           else if (s.mode === "slice") s.setMode("exterior");

@@ -21,8 +21,11 @@ describe("nearestAngle", () => {
 
 describe("camera presets", () => {
   it("keep the prototype's values within the control limits", () => {
-    for (const p of Object.values(CAMERA_PRESETS)) {
-      expect(p.distance).toBeGreaterThanOrEqual(CAMERA_LIMITS.minDistance);
+    for (const [id, p] of Object.entries(CAMERA_PRESETS)) {
+      // The ICT server room is small and the camera may come closer there (rackDistance)
+      expect(p.distance).toBeGreaterThanOrEqual(
+        id === "serverRoom" ? CAMERA_LIMITS.rackDistance : CAMERA_LIMITS.minDistance,
+      );
       expect(p.distance).toBeLessThanOrEqual(CAMERA_LIMITS.maxDistance);
       expect(p.polar).toBeGreaterThanOrEqual(CAMERA_LIMITS.minPolarAngle);
       expect(p.polar).toBeLessThanOrEqual(CAMERA_LIMITS.maxPolarAngle);
