@@ -54,9 +54,9 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const { min, max } = CAMERA_LIMITS.boundary;
+    const { min, max } = ict ? CAMERA_LIMITS.roomBoundary : CAMERA_LIMITS.boundary;
     c.setBoundary(new Box3(new Vector3(...min), new Vector3(...max)));
-  }, []);
+  }, [ict]);
 
   useEffect(() => {
     const c = ref.current;
@@ -130,7 +130,7 @@ export function CameraRig({ request, zoom, autoRotate, topInset = 0 }: Props) {
       ref={ref}
       makeDefault
       minDistance={ict ? CAMERA_LIMITS.rackDistance : inside ? CAMERA_LIMITS.insideDistance : CAMERA_LIMITS.minDistance}
-      maxDistance={CAMERA_LIMITS.maxDistance}
+      maxDistance={ict ? CAMERA_LIMITS.roomMaxDistance : CAMERA_LIMITS.maxDistance}
       minPolarAngle={CAMERA_LIMITS.minPolarAngle}
       maxPolarAngle={CAMERA_LIMITS.maxPolarAngle}
       smoothTime={0.25}

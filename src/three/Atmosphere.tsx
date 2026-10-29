@@ -3,7 +3,7 @@
 import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { type Season, seasonLook, SUN_POSITION, type TimeOfDay } from "./look";
+import { type Season, seasonLook, STUDIO_BACKDROP, SUN_POSITION, type TimeOfDay } from "./look";
 import { createSkyTexture } from "./textures";
 
 /** Sky, fog, lights, static shadow map and a file-free environment map */
@@ -12,16 +12,25 @@ export function Atmosphere({
   season = "summer",
   shadows,
   shadowKey,
+  studio = false,
 }: {
   time: TimeOfDay;
   season?: Season;
   shadows: boolean;
   /** Changes whenever the shadow-casting geometry changes */
   shadowKey: string;
+  /** A theme-coloured backdrop and no fog instead of the sky (the ICT server room, shown on its own) */
+  studio?: boolean;
 }) {
   const look = useMemo(() => seasonLook(time, season), [time, season]);
   const invalidate = useThree((s) => s.invalidate);
-  const sky = useMemo(() => createSkyTexture(look.sky, look.skyCenter), [look]);
+  const sky = useMemo(
+    () =>
+      studio
+        ? createSkyTexture(STUDIO_BACKDROP.sky, STUDIO_BACKDROP.center)
+        : createSkyTexture(look.sky, look.skyCenter),
+    [look, studio],
+  );
   useEffect(() => () => sky.dispose(), [sky]);
 
   // Static shadow map: re-render it once per look change instead of every
@@ -42,7 +51,7 @@ export function Atmosphere({
   return (
     <>
       <primitive attach="background" object={sky} />
-      <fog key={`fog-${time}-${season}`} attach="fog" args={[look.fog, ...look.fogRange]} />
+      {!studio && <fog key={`fog-${time}-${season}`} attach="fog" args={[look.fog, ...look.fogRange]} />}
       <hemisphereLight args={[look.hemi.sky, look.hemi.ground, look.hemi.intensity]} />
       <directionalLight
         position={SUN_POSITION}

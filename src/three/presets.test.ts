@@ -26,7 +26,9 @@ describe("camera presets", () => {
       expect(p.distance).toBeGreaterThanOrEqual(
         id === "serverRoom" ? CAMERA_LIMITS.rackDistance : CAMERA_LIMITS.minDistance,
       );
-      expect(p.distance).toBeLessThanOrEqual(CAMERA_LIMITS.maxDistance);
+      expect(p.distance).toBeLessThanOrEqual(
+        id === "serverRoom" ? CAMERA_LIMITS.roomMaxDistance : CAMERA_LIMITS.maxDistance,
+      );
       expect(p.polar).toBeGreaterThanOrEqual(CAMERA_LIMITS.minPolarAngle);
       expect(p.polar).toBeLessThanOrEqual(CAMERA_LIMITS.maxPolarAngle);
     }

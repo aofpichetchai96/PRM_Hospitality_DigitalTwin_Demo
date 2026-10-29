@@ -78,6 +78,8 @@ export const CAMERA_LIMITS = {
   insideDistance: 6,
   /** Closest the camera may come in the server room (a rack front) */
   rackDistance: 1.8,
+  /** Farthest the camera may go in the server room: the whole room with a margin, never a speck */
+  roomMaxDistance: 48,
   maxDistance: 560,
   minPolarAngle: TOP_POLAR,
   maxPolarAngle: 1.56,
@@ -85,6 +87,8 @@ export const CAMERA_LIMITS = {
   autoRotateSpeed: 0.096,
   /** Box the orbit target may not leave (prototype panning was unbounded) */
   boundary: { min: [-120, 0, -90], max: [120, 170, 90] } as const,
+  /** The same for the server room: the target stays over the room (geometry/serverRoom.ts) */
+  roomBoundary: { min: [-16, 0, -8], max: [14, 6, 12] } as const,
 };
 
 /** Equivalent of `target` (mod 2π) closest to `current`, so flights never spin the long way */

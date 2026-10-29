@@ -121,9 +121,11 @@ export function SceneRoot({
     <>
       <Atmosphere
         time={settings.time}
-        season={settings.season}
+        // The server room is indoors: no season tint, the theme backdrop instead of the sky
+        season={serverRoom ? "summer" : settings.season}
         shadows={settings.quality !== "low"}
         shadowKey={serverRoom ? "ict" : buildingKey}
+        studio={!!serverRoom}
       />
       {serverRoom ? (
         <SceneBatches geometries={serverRoom} materials={materials} />

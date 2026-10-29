@@ -10,6 +10,12 @@ export const QUALITY_LABEL: Record<Quality, string> = {
 };
 
 /** Prototype light direction (-0.6, 1, 0.9), placed far enough to cover the site */
+/**
+ * Backdrop of the ICT server room, which stands on its own with no sky or city: the app theme's navy (--panel-2 at
+ * the centre behind the room, --panel, --bg at the edges) so the 3D view reads as part of the dashboard
+ */
+export const STUDIO_BACKDROP = { sky: ["#1a2b42", "#0d1725", "#070d16"], center: [0.5, 0.42] } as const;
+
 export const SUN_POSITION: [number, number, number] = [-0.6 * 180, 1 * 180, 0.9 * 180];
 
 type Vec3 = [number, number, number];

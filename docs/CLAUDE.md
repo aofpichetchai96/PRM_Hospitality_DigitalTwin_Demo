@@ -63,7 +63,8 @@ src/types        shared domain types
   targets with Standard / Excessive / Seriously excessive levels (chilled water is over at t0), Day–Year periods,
   hourly carbon load and intensities in the bottom panel; the assistant answers carbon and event questions.
   **ICT** draws only the server room — no building, site or city (`settings.ict` in SceneRoot; ViewportPanel mounts
-  just `three/ServerRoomScene.tsx` and hides the building controls). Room shell in `geometry/serverRoom.ts` (raised
+  just `three/ServerRoomScene.tsx` and hides the building controls). No sky or fog there: Atmosphere `studio` paints the theme's navy
+  (`STUDIO_BACKDROP` in `look.ts`); the camera is held to the room (`roomMaxDistance` 48, `roomBoundary`). Room shell in `geometry/serverRoom.ts` (raised
   floor, cold-aisle containment, in-row coolers, CRACs, FM-200 pipe, NOC, generator, FM-200 and UPS rooms); opens
   square on from the NOC side (`serverRoom` preset). The numbered areas (`ROOM_AREAS`, each with a camera `shot` and
   the rack row to ghost) are presets in a dropdown top right (`components/viewport/AreaPicker.tsx`, `openArea`) and a

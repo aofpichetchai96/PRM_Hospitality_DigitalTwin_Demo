@@ -222,6 +222,14 @@ function Room({ portal }: { portal: RefObject<HTMLElement | null> }) {
   const room = useServerRoom();
   const time = useAppStore((s) => s.time);
   const selected = useAppStore((s) => s.rackFocus);
+  // Leaving the scene with the pointer on a rack: no pointer-out fires, so drop its tooltip and cursor here
+  useEffect(
+    () => () => {
+      setHover(null);
+      document.body.style.cursor = "";
+    },
+    [],
+  );
   const quarter = Math.floor(time * 4);
   const area = useAppStore((s) => s.roomArea);
   // The row across the aisle from a focused rack, or the one in front of a preset area, is drawn as outlines only
